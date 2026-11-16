@@ -1,5 +1,6 @@
-# Exclude generated workspaces and verification fixtures from EGM bootstrap/drift scans
+# Exclude generated workspaces, scaffold templates, and verification fixtures from EGM bootstrap/drift scans
 testbed/
+chromatofoor-gen/templates/
 
 # Exclude non-code asset, schema, CI, and doc directories
 .agents/
@@ -10,7 +11,5 @@ docs/
 schemas/
 scripts/
 
-# Exclude outer presentation adapters and UI library by default
-# (remove individual lines below if bootstrapping a specific adapter crate)
+# Exclude Svelte UI package library from Rust crate EGM scans
 packages/
-presentation/
