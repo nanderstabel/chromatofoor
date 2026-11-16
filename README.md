@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./branding/logo-horizontal.jpg" width="640" alt="Chromatofoor">
+</p>
+
 # Chromatofoor Blueprint
 
 ## System Overview
