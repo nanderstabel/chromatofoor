@@ -374,14 +374,14 @@ impl architecturekit::Projection for RawEventForwarder {
     type Event = architecturekit::eventsourcingdb::Event;
     type Error = std::convert::Infallible;
 
-    async fn apply(
+    fn apply(
         &self,
         event: architecturekit::Envelope<Self::Event>,
-    ) -> Result<(), Self::Error> {
+    ) -> impl Future<Output = Result<(), Self::Error>> {
         if self.tx.is_closed() || self.tx.send(event.data).is_err() {
             self.token.cancel();
         }
-        Ok(())
+        std::future::ready(Ok(()))
     }
 }
 

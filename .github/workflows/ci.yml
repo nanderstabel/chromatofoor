@@ -31,8 +31,9 @@ jobs:
             libssl-dev
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.95.0"
           components: clippy, rustfmt
 
       - name: Cache Cargo dependencies
