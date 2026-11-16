@@ -1,0 +1,21 @@
+{
+  "rust-analyzer.linkedProjects": [
+    "Cargo.toml",
+    "testbed/01-bank-account/workspace/bank-account-example/Cargo.toml",
+    "testbed/02-ecommerce-checkout/workspace/ecommerce-example/Cargo.toml",
+    "testbed/03-flight-booking/workspace/travel/Cargo.toml",
+    "testbed/04-virtual-apartment/workspace/virtual-apartment/Cargo.toml",
+    "testbed/05-helpdesk-ticketing/workspace/helpdesk-ticketing/Cargo.toml",
+    "testbed/06-notification-delivery/workspace/notification-delivery/Cargo.toml",
+    "testbed/07-life-chart/workspace/life-charting/Cargo.toml",
+    "testbed/08-digital-identity-ecosystem/workspace/digital-identity-ecosystem/Cargo.toml"
+  ],
+  "yaml.schemas": {
+    "./schemas/strict-description/v1.yaml": "**/model*.esdm.yaml",
+    "./schemas/given-when-then/v1.yaml": "**/*.feature.esdm.yaml",
+    "./schemas/domain-storytelling/v1.yaml": "**/*.story.esdm.yaml",
+    "./schemas/infrastructure/v1.yaml": "**/*.infra.esdm.yaml",
+    "./schemas/lifecycle/v1.yaml": "**/*.lifecycle.esdm.yaml"
+  },
+  "rust-analyzer.server.path": "rust-analyzer"
+}

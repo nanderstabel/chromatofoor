@@ -1,0 +1,225 @@
+apiVersion: schema.esdm.io/core/v1
+kind: domain
+name: life-charting
+description: A domain for tracking mood, symptoms, sleep, and medications using the Life Chart Method.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: tracking
+description: Bounded context for daily mood and medication tracking.
+scope:
+  domain: life-charting
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: patient
+description: A patient logging their daily symptoms.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: monthly-chart
+description: A monthly life chart tracking daily entries.
+identifiedBy:
+  source: state
+  field: chart-id
+state:
+  type: object
+  properties:
+    chart-id:
+      type: string
+      format: identifier
+    year:
+      type: integer
+    month:
+      type: integer
+  required: [chart-id, year, month]
+scope:
+  domain: life-charting
+  boundedContext: tracking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: initialize-chart
+description: Initializes a new monthly chart.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+  aggregate: monthly-chart
+data:
+  type: object
+  properties:
+    chart-id:
+      type: string
+      format: identifier
+    year:
+      type: integer
+    month:
+      type: integer
+  required: [chart-id, year, month]
+publishes:
+  - chart-initialized
+actors:
+  - patient
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: chart-initialized
+description: Emitted when a monthly chart is initialized.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+  aggregate: monthly-chart
+data:
+  type: object
+  properties:
+    chart-id:
+      type: string
+      format: identifier
+    year:
+      type: integer
+    month:
+      type: integer
+  required: [chart-id, year, month]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: log-daily-entry
+description: Logs mood, sleep, weight, and symptoms for a specific day.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+  aggregate: monthly-chart
+data:
+  type: object
+  properties:
+    chart-id:
+      type: string
+      format: identifier
+    day:
+      type: integer
+    sleep-hours:
+      type: number
+    weight-kg:
+      type: number
+    dysphoric-mania:
+      type: boolean
+    mania-severity:
+      type: string
+    depression-severity:
+      type: string
+    mood-score:
+      type: integer
+    mood-swings-count:
+      type: integer
+    other-symptoms:
+      type: string
+  required: [chart-id, day, sleep-hours, dysphoric-mania, mood-score, mood-swings-count]
+publishes:
+  - daily-entry-logged
+actors:
+  - patient
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: daily-entry-logged
+description: Emitted when a daily entry is logged.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+  aggregate: monthly-chart
+data:
+  type: object
+  properties:
+    chart-id:
+      type: string
+      format: identifier
+    day:
+      type: integer
+    sleep-hours:
+      type: number
+    weight-kg:
+      type: number
+    dysphoric-mania:
+      type: boolean
+    mania-severity:
+      type: string
+    depression-severity:
+      type: string
+    mood-score:
+      type: integer
+    mood-swings-count:
+      type: integer
+    other-symptoms:
+      type: string
+  required: [chart-id, day, sleep-hours, dysphoric-mania, mood-score, mood-swings-count]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: monthly-chart-summary
+description: View summarizing monthly chart entries.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+schema:
+  type: object
+  properties:
+    chart-id:
+      type: string
+    year:
+      type: integer
+    month:
+      type: integer
+    entries:
+      type: array
+      items:
+        type: object
+        properties:
+          day:
+            type: integer
+          sleep-hours:
+            type: number
+          weight-kg:
+            type: number
+          dysphoric-mania:
+            type: boolean
+          mania-severity:
+            type: string
+          depression-severity:
+            type: string
+          mood-score:
+            type: integer
+          mood-swings-count:
+            type: integer
+          other-symptoms:
+            type: string
+projections:
+  - boundedContext: tracking
+    aggregate: monthly-chart
+    event: chart-initialized
+    rule: "Set chart-id, year, and month from ChartInitialized event"
+  - boundedContext: tracking
+    aggregate: monthly-chart
+    event: daily-entry-logged
+    rule: "Add or update the daily entry in the entries array"
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-monthly-chart-summary
+description: Query for getting the monthly chart summary.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+readModel: monthly-chart-summary
+paradigm: document
+result:
+  type: object
+parameters:
+  type: object
+actors:
+  - patient
+constraints: []
+

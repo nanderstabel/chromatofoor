@@ -1,0 +1,18 @@
+[package]
+name = "bootstrap"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chromatofoor = { workspace = true }
+domain = { path = "../domain" }
+credential-issuance = { path = "../bounded-contexts/credential-issuance" }
+identity-wallet = { path = "../bounded-contexts/identity-wallet" }
+open-federation = { path = "../bounded-contexts/open-federation" }
+organization-identity = { path = "../bounded-contexts/organization-identity" }
+peer-network = { path = "../bounded-contexts/peer-network" }
+verification-service = { path = "../bounded-contexts/verification-service" }
+policies = { path = "../integration/policies" }

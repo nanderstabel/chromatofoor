@@ -1,0 +1,119 @@
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: account-summary-read-model-feature
+description: Tests for the Account Summary read model projection.
+scope:
+  domain: bank-account-example
+  boundedContext: finance
+  readModel: account-summary
+scenarios:
+  - name: verify-account-opened-projection
+    description: When an account is opened, the read model populates the owner name and initial balance.
+    given:
+      - boundedContext: finance
+        aggregate: account
+        event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      query: get-account-summary
+      parameters: {}
+    then:
+      readModel:
+        owner_name: "Alice"
+        current_balance: 100
+
+  - name: verify-funds-deposited-projection
+    description: Depositing funds updates the current balance in the read model.
+    given:
+      - boundedContext: finance
+        aggregate: account
+        event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+      - boundedContext: finance
+        aggregate: account
+        event: funds-deposited
+        data:
+          amount: 50
+          new-balance: 150
+    when:
+      query: get-account-summary
+      parameters: {}
+    then:
+      readModel:
+        owner_name: "Alice"
+        current_balance: 150
+
+  - name: verify-funds-withdrawn-projection
+    description: Withdrawing funds updates the current balance in the read model.
+    given:
+      - boundedContext: finance
+        aggregate: account
+        event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+      - boundedContext: finance
+        aggregate: account
+        event: funds-withdrawn
+        data:
+          amount: 40
+          new-balance: 60
+    when:
+      query: get-account-summary
+      parameters: {}
+    then:
+      readModel:
+        owner_name: "Alice"
+        current_balance: 60
+
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: account-commands-feature
+description: Tests for Account aggregate commands.
+scope:
+  domain: bank-account-example
+  boundedContext: finance
+  aggregate: account
+scenarios:
+  - name: verify-deposit-funds-command
+    description: Depositing funds emits a funds-deposited event
+    given:
+      - event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      command: deposit-funds
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        amount: 50
+    then:
+      events:
+        - event: funds-deposited
+          data:
+            amount: 50
+            new-balance: 150
+
+  - name: verify-withdraw-funds-command
+    description: Withdrawing funds emits a funds-withdrawn event
+    given:
+      - event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      command: withdraw-funds
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        amount: 40
+    then:
+      events:
+        - event: funds-withdrawn
+          data:
+            amount: 40
+            new-balance: 60

@@ -1,0 +1,10 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: monthly-chart-lifecycle
+description: Lifecycle specification for monthly life charts.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+  aggregate: monthly-chart
+created:
+  - initialize-chart

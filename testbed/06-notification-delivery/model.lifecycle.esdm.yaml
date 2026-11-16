@@ -1,0 +1,21 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: user-lifecycle
+description: Lifecycle specification for registered users.
+scope:
+  domain: notification-delivery
+  boundedContext: user-management
+  aggregate: user
+created:
+  - register-user
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: email-notification-lifecycle
+description: Lifecycle specification for email notifications.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+  aggregate: email-notification
+created:
+  - send-welcome-email

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/design-tokens/community-group/main/schemas/token-dictionary.json",
+  "color": {
+    "bg": {
+      "app": { "$value": "#F8FAFC", "$type": "color" },
+      "card": { "$value": "#FFFFFF", "$type": "color" },
+      "sidebar": { "$value": "#FFFFFF", "$type": "color" }
+    },
+    "border": {
+      "light": { "$value": "#E2E8F0", "$type": "color" },
+      "subtle": { "$value": "#F1F5F9", "$type": "color" }
+    },
+    "text": {
+      "title": { "$value": "#0F172A", "$type": "color" },
+      "main": { "$value": "#334155", "$type": "color" },
+      "secondary": { "$value": "#64748B", "$type": "color" },
+      "muted": { "$value": "#94A3B8", "$type": "color" }
+    },
+    "accent": {
+      "orange": { "$value": "#FA5D29", "$type": "color" },
+      "orangeHover": { "$value": "#E04E1D", "$type": "color" },
+      "orangeLight": { "$value": "#FFF4F0", "$type": "color" },
+      "blueBg": { "$value": "#EFF6FF", "$type": "color" },
+      "blueText": { "$value": "#2563EB", "$type": "color" },
+      "blueBorder": { "$value": "#BFDBFE", "$type": "color" },
+      "emeraldBg": { "$value": "#ECFDF5", "$type": "color" },
+      "emeraldText": { "$value": "#059669", "$type": "color" },
+      "emeraldBorder": { "$value": "#A7F3D0", "$type": "color" },
+      "rose": { "$value": "#EF4444", "$type": "color" }
+    }
+  },
+  "font": {
+    "brand": { "$value": "'Inter Tight', sans-serif", "$type": "fontFamily" },
+    "sans": { "$value": "'Inter', system-ui, -apple-system, sans-serif", "$type": "fontFamily" },
+    "mono": { "$value": "'JetBrains Mono', monospace", "$type": "fontFamily" }
+  },
+  "radii": {
+    "lg": { "$value": "16px", "$type": "dimension" },
+    "md": { "$value": "10px", "$type": "dimension" },
+    "sm": { "$value": "6px", "$type": "dimension" }
+  }
+}

@@ -1,0 +1,213 @@
+# Copyright (c) 2026 the native web GmbH. All rights reserved.
+#
+# Licensed under the MIT license.
+# Full terms: https://www.esdm.io/introduction/license/
+# This notice must not be removed.
+
+$id: "https://schema.esdm.io/infrastructure/v1"
+$schema: "https://json-schema.org/draft/2020-12/schema"
+x-esdm-schema-revision: "1.0.0"
+x-esdm-file-suffix: ".infra.esdm.yaml"
+x-esdm-document-separator: "---"
+x-esdm-project-layout:
+  schemas-directory: "schemas"
+  schema-path-template: "schemas/{name}/{version}.yaml"
+description: >
+  Extension schema for infrastructure and presentation bindings.
+  Defines runtime persistence engines (event-store-binding), messaging buses (event-bus-binding),
+  view projection storage (view-repository-binding), and transport layer presentation mappings
+  (presentation-binding) for commands and queries.
+
+$defs:
+  name:
+    type: string
+    pattern: "^[a-z][a-z0-9-]*$"
+
+  description:
+    type: string
+    minLength: 1
+
+  scopeDomain:
+    type: object
+    properties:
+      domain:
+        $ref: "#/$defs/name"
+      boundedContext:
+        $ref: "#/$defs/name"
+      aggregate:
+        $ref: "#/$defs/name"
+      command:
+        $ref: "#/$defs/name"
+      query:
+        $ref: "#/$defs/name"
+      readModel:
+        $ref: "#/$defs/name"
+    required: [domain, boundedContext]
+    additionalProperties: false
+
+  eventStoreBinding:
+    type: object
+    properties:
+      apiVersion:
+        type: string
+        const: "schema.esdm.io/infrastructure/v1"
+      kind:
+        type: string
+        const: "event-store-binding"
+      name:
+        $ref: "#/$defs/name"
+      description:
+        $ref: "#/$defs/description"
+      scope:
+        $ref: "#/$defs/scopeDomain"
+      provider:
+        type: string
+        enum: [in-memory, file-sqlite, postgres, rocksdb, spanner]
+      config:
+        type: object
+        properties:
+          connectionStringEnv:
+            type: string
+          tableName:
+            type: string
+          snapshotFrequency:
+            type: integer
+            minimum: 1
+          snapshotProvider:
+            type: string
+            enum: [in-memory, file-sqlite, postgres, rocksdb]
+        additionalProperties: false
+    required: [apiVersion, kind, name, description, scope, provider]
+    additionalProperties: false
+
+  eventBusBinding:
+    type: object
+    properties:
+      apiVersion:
+        type: string
+        const: "schema.esdm.io/infrastructure/v1"
+      kind:
+        type: string
+        const: "event-bus-binding"
+      name:
+        $ref: "#/$defs/name"
+      description:
+        $ref: "#/$defs/description"
+      scope:
+        $ref: "#/$defs/scopeDomain"
+      provider:
+        type: string
+        enum: [in-memory, nats, rabbitmq, kafka, gcp-pubsub]
+      config:
+        type: object
+        properties:
+          urlEnv:
+            type: string
+          topicPattern:
+            type: string
+          deadLetterTopic:
+            type: string
+          retryCount:
+            type: integer
+            minimum: 0
+        additionalProperties: false
+    required: [apiVersion, kind, name, description, scope, provider]
+    additionalProperties: false
+
+  viewRepositoryBinding:
+    type: object
+    properties:
+      apiVersion:
+        type: string
+        const: "schema.esdm.io/infrastructure/v1"
+      kind:
+        type: string
+        const: "view-repository-binding"
+      name:
+        $ref: "#/$defs/name"
+      description:
+        $ref: "#/$defs/description"
+      scope:
+        $ref: "#/$defs/scopeDomain"
+      provider:
+        type: string
+        enum: [in-memory, sqlite, postgres, redis, elasticsearch]
+      config:
+        type: object
+        properties:
+          connectionStringEnv:
+            type: string
+          tableName:
+            type: string
+          indexName:
+            type: string
+        additionalProperties: false
+    required: [apiVersion, kind, name, description, scope, provider]
+    additionalProperties: false
+
+  presentationBinding:
+    type: object
+    properties:
+      apiVersion:
+        type: string
+        const: "schema.esdm.io/infrastructure/v1"
+      kind:
+        type: string
+        const: "presentation-binding"
+      name:
+        $ref: "#/$defs/name"
+      description:
+        $ref: "#/$defs/description"
+      scope:
+        $ref: "#/$defs/scopeDomain"
+      transport:
+        type: string
+        enum: [http-rest, cli, graphql, tauri-ipc]
+      rest:
+        type: object
+        properties:
+          path:
+            type: string
+          method:
+            type: string
+            enum: [GET, POST, PUT, DELETE, PATCH]
+          successStatus:
+            type: integer
+            minimum: 100
+            maximum: 599
+        required: [path, method]
+        additionalProperties: false
+      cli:
+        type: object
+        properties:
+          command:
+            type: string
+          subcommand:
+            type: string
+        required: [command]
+        additionalProperties: false
+      graphql:
+        type: object
+        properties:
+          operationType:
+            type: string
+            enum: [query, mutation, subscription]
+          field:
+            type: string
+        required: [operationType, field]
+        additionalProperties: false
+      tauriIpc:
+        type: object
+        properties:
+          commandName:
+            type: string
+        required: [commandName]
+        additionalProperties: false
+    required: [apiVersion, kind, name, description, scope, transport]
+    additionalProperties: false
+
+oneOf:
+  - $ref: "#/$defs/eventStoreBinding"
+  - $ref: "#/$defs/eventBusBinding"
+  - $ref: "#/$defs/viewRepositoryBinding"
+  - $ref: "#/$defs/presentationBinding"

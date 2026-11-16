@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+    "bootstrap",
+    "bounded-contexts/ticketing",
+    "domain",
+    "presentation/interactive-tui",
+]
+
+[workspace.dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+tokio = { version = "1.40", features = ["full"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-test = "0.2"
+chromatofoor = { path = "../../../../chromatofoor" }
+chromatofoor-http = { path = "../../../../presentation/http" }
+chromatofoor-graphql = { path = "../../../../presentation/graphql", features = ["axum"] }
+chromatofoor-mcp = { path = "../../../../presentation/mcp" }
+chromatofoor-tui = { path = "../../../../presentation/tui" }
+chromatofoor-tauri = { path = "../../../../presentation/tauri" }

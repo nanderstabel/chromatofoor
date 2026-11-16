@@ -1,0 +1,1442 @@
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain
+name: virtual-apartment
+description: The core domain encompassing all features and operations of a virtual apartment complex.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: property
+description: Manages the physical space, rooms, and items within an apartment.
+scope:
+  domain: virtual-apartment
+ubiquitousLanguage:
+  - term: Apartment
+    definition: The physical unit that is managed and eventually leased. Consists of one or more rooms.
+  - term: Room
+    definition: A physical subdivision of an apartment. Rooms have capacity limits for items.
+  - term: Container
+    definition: A physical container like a closet or dresser that is placed in a room and holds items.
+  - term: Item
+    definition: A personal possession owned by a resident that occupies space within a room.
+  - term: register-apartment
+    definition: Registers a new apartment into the virtual apartment system.
+  - term: registered
+    definition: Emitted when an apartment is successfully registered.
+  - term: add-container
+    definition: Adds a container to a specific room, observing room capacity.
+  - term: container-added
+    definition: Emitted when a container is added to a room.
+  - term: remove-container
+    definition: Removes a container from a room.
+  - term: container-removed
+    definition: Emitted when a container is removed from a room.
+  - term: verify-apartment
+    definition: Verifies the existence of an apartment for cross-context processes.
+  - term: verified
+    definition: Emitted when an apartment has been successfully verified.
+  - term: unregister-apartment
+    definition: Removes an apartment from the system.
+  - term: unregistered
+    definition: Emitted when an apartment is removed from the system.
+  - term: add-room
+    definition: Adds a new room with a specified capacity to an apartment.
+  - term: room-added
+    definition: Emitted when a new room is added to an apartment.
+  - term: remove-room
+    definition: Removes a room from an apartment.
+  - term: room-removed
+    definition: Emitted when a room is removed from an apartment.
+  - term: place-item
+    definition: Places a new item into a specific room, observing room capacity.
+  - term: item-placed
+    definition: Emitted when an item is successfully placed into a room.
+  - term: move-item
+    definition: Moves an existing item to a new room, subject to capacity constraints.
+  - term: item-moved
+    definition: Emitted when an item is successfully moved to a new room.
+  - term: remove-item
+    definition: Removes an item from the apartment.
+  - term: item-removed
+    definition: Emitted when an item is removed from the apartment.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: tenancy
+metadata:
+  labels:
+    tier: shared-kernel
+description: Manages the residents, households, and their legal residency agreements (leases).
+scope:
+  domain: virtual-apartment
+ubiquitousLanguage:
+  - term: Household
+    definition: A group of residents living together under a single active lease.
+  - term: Resident
+    definition: A human user who is part of a household and can initiate lease processes or manage items.
+  - term: Lease
+    definition: The agreement that binds a household to a specific apartment for a duration.
+  - term: form-household
+    definition: Forms a new household to group residents together.
+  - term: formed
+    definition: Emitted when a new household is successfully formed.
+  - term: add-resident
+    definition: Adds a resident to an existing household.
+  - term: resident-added
+    definition: Emitted when a resident is added to a household.
+  - term: remove-resident
+    definition: Removes a resident from a household.
+  - term: resident-removed
+    definition: Emitted when a resident is removed from a household.
+  - term: request-lease
+    definition: Submits a request for a household to lease an apartment.
+  - term: lease-requested
+    definition: Emitted when a household has requested a lease.
+  - term: start-lease
+    definition: Initiates a requested lease after the apartment has been verified.
+  - term: lease-started
+    definition: Emitted when a lease has officially started for a household.
+  - term: reject-lease
+    definition: Rejects a requested lease if the apartment is unavailable or verification fails.
+  - term: lease-rejected
+    definition: Emitted when a requested lease is rejected.
+  - term: end-lease
+    definition: Ends the current lease for a household.
+  - term: lease-ended
+    definition: Emitted when a lease is ended for a household.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: resident
+description: A human user who lives in or interacts with virtual apartments.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: apartment
+description: Represents a physical apartment containing multiple rooms.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+identifiedBy:
+  source: generated
+  generator: uuid
+state:
+  type: object
+  properties:
+    rooms:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            format: uuid
+        required: [id]
+  required: [rooms]
+invariants: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: register-apartment
+description: Registers a new apartment into the virtual apartment system.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    address:
+      $ref: address
+    door-bell:
+      $ref: door-bell
+publishes:
+  - registered
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: registered
+description: Emitted when an apartment is successfully registered.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    address:
+      $ref: address
+    door-bell:
+      $ref: door-bell
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: verify-apartment
+description: Verifies the existence of an apartment for cross-context processes.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    household-id:
+      type: string
+      format: uuid
+  required: [id, household-id]
+publishes:
+  - verified
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: verified
+description: Emitted when an apartment has been successfully verified.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    household-id:
+      type: string
+      format: uuid
+  required: [household-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: unregister-apartment
+description: Removes an apartment from the system.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+  required: [id]
+publishes:
+  - unregistered
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: unregistered
+description: Emitted when an apartment is removed from the system.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data: {}
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: add-room
+description: Adds a new room with a specified capacity to an apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    room-id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    max-capacity:
+      type: integer
+      minimum: 1
+  required: [id, room-id, name, max-capacity]
+publishes:
+  - room-added
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: room-added
+description: Emitted when a new room is added to an apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    room-id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    max-capacity:
+      type: integer
+      minimum: 1
+  required: [room-id, name, max-capacity]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: remove-room
+description: Removes a room from an apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    room-id:
+      type: string
+      format: uuid
+  required: [id, room-id]
+publishes:
+  - room-removed
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: room-removed
+description: Emitted when a room is removed from an apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  aggregate: apartment
+data:
+  type: object
+  properties:
+    room-id:
+      type: string
+      format: uuid
+  required: [room-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: entity
+name: container
+description: A physical container like a closet or dresser that is placed in a room and holds items.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+schema:
+  type: object
+  properties:
+    container-id:
+      type: string
+      format: uuid
+    room-id:
+      type: string
+      format: uuid
+    container-type:
+      type: string
+    max-capacity:
+      type: integer
+      minimum: 1
+  required: [container-id, room-id, container-type, max-capacity]
+identifiedBy:
+  source: schema
+  field: container-id
+invariants: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: dynamic-consistency-boundary
+name: container-placement
+description: A dynamic boundary spanning a container and its target room to enforce capacity constraints.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+identifiedBy:
+  - name: container-id
+    source: command-payload
+    field: container-id
+  - name: room-id
+    source: command-payload
+    field: room-id
+consults:
+  - boundedContext: property
+    aggregate: apartment
+    event: room-added
+    criteria: Only the room-added event for the target room.
+  - boundedContext: property
+    aggregate: apartment
+    event: room-removed
+    criteria: Only the room-removed event for the target room.
+  - boundedContext: property
+    event: container-added
+    criteria: Any container-added event for this container, AND all container-added events for the target room.
+  - boundedContext: property
+    event: container-removed
+    criteria: Any container-removed event for this container, AND all container-removed events for the target room.
+  - boundedContext: property
+    event: item-placed
+    criteria: All item-placed events for the target room.
+  - boundedContext: property
+    event: item-moved
+    criteria: All item-moved events moving items into or out of the target room.
+  - boundedContext: property
+    event: item-removed
+    criteria: All item-removed events for the target room.
+invariants:
+  - name: room-must-exist
+    rule: The target room must exist (a room-added event must have been observed, and no room-removed event).
+  - name: container-not-removed
+    rule: The container must not have been removed.
+  - name: room-capacity-not-exceeded
+    rule: The total number of containers and items directly in the room must be strictly less than its max-capacity.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: add-container
+description: Adds a container to a specific room, observing room capacity.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  dynamicConsistencyBoundary: container-placement
+data:
+  type: object
+  properties:
+    container-id:
+      type: string
+      format: uuid
+    room-id:
+      type: string
+      format: uuid
+    container-type:
+      type: string
+    max-capacity:
+      type: integer
+      minimum: 1
+    apartment-id:
+      type: string
+      format: uuid
+  required: [container-id, room-id, container-type, max-capacity, apartment-id]
+publishes:
+  - container-added
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: container-added
+description: Emitted when a container is added to a room.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+data:
+  type: object
+  properties:
+    container-id:
+      type: string
+      format: uuid
+    room-id:
+      type: string
+      format: uuid
+    container-type:
+      type: string
+    max-capacity:
+      type: integer
+      minimum: 1
+    apartment-id:
+      type: string
+      format: uuid
+  required: [container-id, room-id, container-type, max-capacity, apartment-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: remove-container
+description: Removes a container from a room. All items inside must be removed first.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  dynamicConsistencyBoundary: container-placement
+data:
+  type: object
+  properties:
+    container-id:
+      type: string
+      format: uuid
+    room-id:
+      type: string
+      format: uuid
+    apartment-id:
+      type: string
+      format: uuid
+  required: [container-id, room-id, apartment-id]
+publishes:
+  - container-removed
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: container-removed
+description: Emitted when a container is removed from a room.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+data:
+  type: object
+  properties:
+    container-id:
+      type: string
+      format: uuid
+    room-id:
+      type: string
+      format: uuid
+    apartment-id:
+      type: string
+      format: uuid
+  required: [container-id, room-id, apartment-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: entity
+name: item
+description: A physical object belonging to a resident that can be placed in a room or container.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+schema:
+  type: object
+  properties:
+    item-id:
+      type: string
+      format: uuid
+    target-id:
+      type: string
+      format: uuid
+    target-type:
+      type: string
+      enum: [room, container]
+    item-type:
+      type: string
+  required: [item-id, target-id, target-type, item-type]
+identifiedBy:
+  source: schema
+  field: item-id
+invariants: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: dynamic-consistency-boundary
+name: item-placement
+description: A dynamic boundary spanning an item and its target room or container to enforce placement constraints, such as capacity.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+identifiedBy:
+  - name: apartment-id
+    source: command-payload
+    field: apartment-id
+consults:
+  - boundedContext: property
+    aggregate: apartment
+    event: room-added
+    criteria: Only the room-added event for the target (if target-type is room).
+  - boundedContext: property
+    aggregate: apartment
+    event: room-removed
+    criteria: Only the room-removed event for the target (if target-type is room).
+  - boundedContext: property
+    event: container-added
+    criteria: Only the container-added event for the target (if target-type is container), OR all container-added events for the target (if target-type is room).
+  - boundedContext: property
+    event: container-removed
+    criteria: Only the container-removed event for the target (if target-type is container), OR all container-removed events for the target (if target-type is room).
+  - boundedContext: property
+    event: item-placed
+    criteria: Any item-placed event for this item, AND all item-placed events for the target.
+  - boundedContext: property
+    event: item-moved
+    criteria: Any item-moved event for this item, AND all item-moved events for the target.
+  - boundedContext: property
+    event: item-removed
+    criteria: Any item-removed event for this item, AND all item-removed events for the target.
+invariants:
+  - name: target-must-exist
+    rule: The target (room or container) must exist and not be removed.
+  - name: item-not-removed
+    rule: The item must not have been removed (no item-removed event for this item ID).
+  - name: target-capacity-not-exceeded
+    rule: The total number of items (and containers, if target is a room) currently in the target must be strictly less than its max-capacity.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: place-item
+description: Places a new item into a specific room or container, observing capacity.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  dynamicConsistencyBoundary: item-placement
+data:
+  type: object
+  properties:
+    item-id:
+      type: string
+      format: uuid
+    target-id:
+      type: string
+      format: uuid
+    target-type:
+      type: string
+      enum: [room, container]
+    item-type:
+      type: string
+    apartment-id:
+      type: string
+      format: uuid
+  required: [apartment-id, item-id, target-id, target-type, item-type]
+publishes:
+  - item-placed
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: item-placed
+description: Emitted when an item is successfully placed into a room or container.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+data:
+  type: object
+  properties:
+    item-id:
+      type: string
+      format: uuid
+    target-id:
+      type: string
+      format: uuid
+    target-type:
+      type: string
+      enum: [room, container]
+    item-type:
+      type: string
+    apartment-id:
+      type: string
+      format: uuid
+  required: [apartment-id, item-id, target-id, target-type, item-type]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: move-item
+description: Moves an existing item to a new room or container, subject to capacity constraints.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  dynamicConsistencyBoundary: item-placement
+data:
+  type: object
+  properties:
+    item-id:
+      type: string
+      format: uuid
+    target-id:
+      type: string
+      format: uuid
+    target-type:
+      type: string
+      enum: [room, container]
+    apartment-id:
+      type: string
+      format: uuid
+  required: [apartment-id, item-id, target-id, target-type]
+publishes:
+  - item-moved
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: item-moved
+description: Emitted when an item is successfully moved to a new room or container.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+data:
+  type: object
+  properties:
+    item-id:
+      type: string
+      format: uuid
+    target-id:
+      type: string
+      format: uuid
+    target-type:
+      type: string
+      enum: [room, container]
+    apartment-id:
+      type: string
+      format: uuid
+  required: [apartment-id, item-id, target-id, target-type]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: remove-item
+description: Removes an item from the apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+  dynamicConsistencyBoundary: item-placement
+data:
+  type: object
+  properties:
+    item-id:
+      type: string
+      format: uuid
+    target-id:
+      type: string
+      format: uuid
+    apartment-id:
+      type: string
+      format: uuid
+  required: [apartment-id, item-id, target-id]
+publishes:
+  - item-removed
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: item-removed
+description: Emitted when an item is removed from the apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+data:
+  type: object
+  properties:
+    item-id:
+      type: string
+      format: uuid
+    target-id:
+      type: string
+      format: uuid
+    apartment-id:
+      type: string
+      format: uuid
+  required: [apartment-id, item-id, target-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: apartment-inventory
+description: A projected view of all apartments, their rooms, containers, and items.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+paradigm: document
+schema:
+  type: object
+  properties:
+    apartments:
+      type: array
+      items:
+        type: object
+projections:
+  - boundedContext: property
+    aggregate: apartment
+    event: registered
+    rule: Create a new apartment document.
+  - boundedContext: property
+    aggregate: apartment
+    event: unregistered
+    rule: Delete the apartment document.
+  - boundedContext: property
+    aggregate: apartment
+    event: room-added
+    rule: Add the room to the apartment document.
+  - boundedContext: property
+    aggregate: apartment
+    event: room-removed
+    rule: Remove the room from the apartment document.
+  - boundedContext: property
+    event: container-added
+    rule: Add the container to the specified room in the apartment document.
+  - boundedContext: property
+    event: container-removed
+    rule: Remove the container from the apartment document.
+  - boundedContext: property
+    event: item-placed
+    rule: Add the item to the specified target (room or container) in the apartment document.
+  - boundedContext: property
+    event: item-moved
+    rule: Move the item to the new target in the apartment document.
+  - boundedContext: property
+    event: item-removed
+    rule: Remove the item from the apartment document.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-apartment-inventory
+description: Retrieves the current inventory of an apartment including rooms, containers, and items.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+readModel: apartment-inventory
+paradigm: document
+result:
+  type: array
+  items:
+    type: object
+parameters:
+  type: object
+actors:
+  - resident
+constraints: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: resident
+description: A human user who acts as a tenant or household member.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: household
+description: A group of residents living together under a single lease.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+identifiedBy:
+  source: generated
+  generator: uuid
+state:
+  type: object
+  properties:
+    residents:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            format: uuid
+        required: [id]
+    lease:
+      type: object
+      properties:
+        apartment-id:
+          type: string
+          format: uuid
+        start-date:
+          type: string
+          format: date
+        end-date:
+          type: string
+          format: date
+      required: [apartment-id, start-date, end-date]
+  required: [residents]
+invariants: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: form-household
+description: Forms a new household to group residents together.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data: {}
+publishes:
+  - formed
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: formed
+description: Emitted when a new household is successfully formed.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data: {}
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: add-resident
+description: Adds a resident to an existing household.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    resident-id:
+      type: string
+      format: uuid
+  required: [id, resident-id]
+publishes:
+  - resident-added
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: resident-added
+description: Emitted when a resident is added to a household.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    resident-id:
+      type: string
+      format: uuid
+  required: [resident-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: remove-resident
+description: Removes a resident from a household.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    resident-id:
+      type: string
+      format: uuid
+  required: [id, resident-id]
+publishes:
+  - resident-removed
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: resident-removed
+description: Emitted when a resident is removed from a household.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    resident-id:
+      type: string
+      format: uuid
+  required: [resident-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: request-lease
+description: Submits a request for a household to lease an apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    apartment-id:
+      type: string
+      format: uuid
+    start-date:
+      type: string
+      format: date
+    end-date:
+      type: string
+      format: date
+    household-id:
+      type: string
+      format: uuid
+  required: [id, apartment-id, start-date, end-date, household-id]
+publishes:
+  - lease-requested
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: lease-requested
+description: Emitted when a household has requested a lease.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    household-id:
+      type: string
+      format: uuid
+    apartment-id:
+      type: string
+      format: uuid
+    start-date:
+      type: string
+      format: date
+    end-date:
+      type: string
+      format: date
+  required: [household-id, apartment-id, start-date, end-date]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: start-lease
+description: Initiates a requested lease after the apartment has been verified.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    apartment-id:
+      type: string
+      format: uuid
+    start-date:
+      type: string
+      format: date
+    end-date:
+      type: string
+      format: date
+  required: [id, apartment-id, start-date, end-date]
+publishes:
+  - lease-started
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: lease-started
+description: Emitted when a lease has officially started for a household.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    apartment-id:
+      type: string
+      format: uuid
+    start-date:
+      type: string
+      format: date
+    end-date:
+      type: string
+      format: date
+  required: [apartment-id, start-date, end-date]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: reject-lease
+description: Rejects a requested lease if the apartment is unavailable or verification fails.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    reason:
+      type: string
+  required: [id, reason]
+publishes:
+  - lease-rejected
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: lease-rejected
+description: Emitted when a requested lease is rejected.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    reason:
+      type: string
+  required: [reason]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: end-lease
+description: Ends the current lease for a household.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+  required: [id]
+publishes:
+  - lease-ended
+actors:
+  - resident
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: lease-ended
+description: Emitted when a lease is ended for a household.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+  aggregate: household
+data: {}
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: resident-directory
+description: A projected view tracking all households, their members, and their active leases.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+paradigm: document
+schema:
+  type: object
+  properties:
+    households:
+      type: array
+      items:
+        type: object
+projections:
+  - boundedContext: tenancy
+    aggregate: household
+    event: formed
+    rule: Create a new household document.
+  - boundedContext: tenancy
+    aggregate: household
+    event: resident-added
+    rule: Add the resident to the household document.
+  - boundedContext: tenancy
+    aggregate: household
+    event: resident-removed
+    rule: Remove the resident from the household document.
+  - boundedContext: tenancy
+    aggregate: household
+    event: lease-started
+    rule: Set the lease details on the household document.
+  - boundedContext: tenancy
+    aggregate: household
+    event: lease-ended
+    rule: Clear the lease details from the household document.
+  - boundedContext: tenancy
+    aggregate: household
+    event: lease-requested
+    rule: Do nothing, just record the request for auditing.
+  - boundedContext: tenancy
+    aggregate: household
+    event: lease-rejected
+    rule: Do nothing, just record the rejection for auditing.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-resident-directory
+description: Retrieves the complete directory of households and their residents.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+readModel: resident-directory
+paradigm: document
+result:
+  type: array
+  items:
+    type: object
+parameters:
+  type: object
+actors:
+  - resident
+constraints: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: property-tenancy-integration
+description: Context mapping connecting property and tenancy bounded contexts.
+type: customer-supplier
+customer:
+  domain: virtual-apartment
+  boundedContext: tenancy
+supplier:
+  domain: virtual-apartment
+  boundedContext: property
+---
+apiVersion: schema.esdm.io/core/v1
+kind: process-manager
+name: residency-onboarding
+description: Orchestrates the cross-context workflow of requesting a lease, verifying the apartment's availability, and finalizing the lease.
+scope:
+  domain: virtual-apartment
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: self
+correlatedBy:
+  source: event-field
+  field: household-id
+state:
+  type: object
+  properties:
+    apartment-id:
+      type: string
+      format: uuid
+    start-date:
+      type: string
+      format: date
+    end-date:
+      type: string
+      format: date
+    status:
+      type: string
+      enum: [requested, verifying, accepted, rejected]
+  required: [apartment-id, start-date, end-date, status]
+invariants: []
+constraints: []
+startsWhen:
+  - boundedContext: tenancy
+    aggregate: household
+    event: lease-requested
+endsWhen:
+  - name: lease-accepted
+    condition: "The status is 'accepted'."
+  - name: lease-rejected
+    condition: "The status is 'rejected'."
+reactions:
+  - when:
+      boundedContext: tenancy
+      aggregate: household
+      event: lease-requested
+    rule: "Store the requested lease details in state, set status to 'verifying'."
+    emits:
+      - boundedContext: property
+        aggregate: apartment
+        command: verify-apartment
+  - when:
+      boundedContext: property
+      aggregate: apartment
+      event: verified
+    rule: "Set status to 'accepted'."
+    emits:
+      - boundedContext: tenancy
+        aggregate: household
+        command: start-lease
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event-handler
+name: send-welcome-email
+description: Sends a welcome email when a household is formed.
+scope:
+  domain: virtual-apartment
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: downstream
+handles:
+  - boundedContext: tenancy
+    aggregate: household
+    event: formed
+sideEffects:
+  - type: other
+    rule: "Send a welcome email to the newly formed household"
+---
+apiVersion: schema.esdm.io/core/v1
+kind: value-object
+name: address
+description: A physical mailing address.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+schema:
+  type: object
+  properties:
+    street:
+      type: string
+    city:
+      type: string
+  required: [street, city]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: entity
+name: door-bell
+description: A door bell of an apartment.
+scope:
+  domain: virtual-apartment
+  boundedContext: property
+schema:
+  type: object
+  properties:
+    bell-id:
+      type: string
+      format: uuid
+    melody:
+      type: string
+  required: [bell-id, melody]
+identifiedBy:
+  source: schema
+  field: bell-id
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain-service
+name: apartment-reservation-service
+description: Domain service for managing apartment reservations.
+scope:
+  domain: virtual-apartment
+  boundedContext: tenancy
+functions:
+  - name: apartment-reservation-logic
+    description: Logic for reserving an apartment.
+    arguments:
+      type: object
+      properties:
+        apartment-id:
+          type: string
+          format: uuid
+        start-date:
+          type: string
+          format: date
+        end-date:
+          type: string
+          format: date
+      required: [apartment-id, start-date, end-date]
+    returns:
+      type: object
+      properties:
+        apartment-id:
+          type: string
+          format: uuid
+        start-date:
+          type: string
+          format: date
+        end-date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [requested, verifying, accepted, rejected]
+      required: [apartment-id, start-date, end-date, status]
+    rules:
+      - name: apartment-reservation-rule
+        rule: "Store the apartment reservation in state, set status to 'verifying'."
+---
+apiVersion: schema.esdm.io/core/v1
+kind: external-system
+name: geo-spatial-service
+description: Third-party mapping and location service for property coordinates.
+scope:
+  domain: virtual-apartment
+direction: outbound
+---
+apiVersion: schema.esdm.io/core/v1
+kind: external-system
+name: payment-gateway
+description: External service for processing tenant lease payments.
+scope:
+  domain: virtual-apartment
+direction: bidirectional
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: property-geo-conformist
+description: Conformist mapping for property and geographic services.
+type: conformist
+conformist:
+  domain: virtual-apartment
+  boundedContext: property
+upstream:
+  domain: virtual-apartment
+  externalSystem: geo-spatial-service
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: tenancy-payment-acl
+description: Anti-corruption layer between tenancy context and payment gateway.
+type: anti-corruption-layer
+downstream:
+  domain: virtual-apartment
+  boundedContext: tenancy
+upstream:
+  domain: virtual-apartment
+  externalSystem: payment-gateway
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: property-tenancy-partnership
+description: Partnership context mapping between property and tenancy contexts.
+type: partnership
+participants:
+  - domain: virtual-apartment
+    boundedContext: property
+  - domain: virtual-apartment
+    boundedContext: tenancy
+---
+apiVersion: schema.esdm.io/core/v1
+kind: policy
+name: lease-rejection-policy
+description: Automatically rejects a lease request if household has too many members.
+scope:
+  domain: virtual-apartment
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: downstream
+handles:
+  - boundedContext: tenancy
+    aggregate: household
+    event: lease-requested
+emits:
+  - boundedContext: tenancy
+    aggregate: household
+    command: reject-lease
+constraints:
+  - name: max-household-size
+    rule: "Household must not exceed 5 members. (payload.member_count > 5)"
+---
+apiVersion: schema.esdm.io/core/v1
+kind: subdomain
+name: real-estate
+description: The core real estate business capabilities
+scope:
+  domain: virtual-apartment
+type: core
+boundedContexts:
+  - property
+  - tenancy

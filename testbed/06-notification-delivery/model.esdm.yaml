@@ -1,0 +1,267 @@
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain
+name: notification-delivery
+description: A system for managing users and delivering notifications across bounded contexts.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: user-management
+description: Manages user accounts and registration.
+scope:
+  domain: notification-delivery
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: customer
+description: A user of the system.
+scope:
+  domain: notification-delivery
+  boundedContext: user-management
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: system
+description: The internal system.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+type: system
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: user
+description: A user account.
+scope:
+  domain: notification-delivery
+  boundedContext: user-management
+identifiedBy:
+  source: state
+  field: user-id
+state:
+  type: object
+  properties:
+    user-id:
+      type: string
+      format: identifier
+  required:
+    - user-id
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: register-user
+actors: [customer]
+description: Registers a new user.
+scope:
+  domain: notification-delivery
+  boundedContext: user-management
+  aggregate: user
+data:
+  type: object
+  properties:
+    user-id:
+      type: string
+      format: identifier
+    email:
+      type: string
+  required:
+    - user-id
+    - email
+publishes:
+  - user-registered
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: user-registered
+description: Emitted when a user is successfully registered.
+scope:
+  domain: notification-delivery
+  boundedContext: user-management
+  aggregate: user
+data:
+  type: object
+  properties:
+    user-id:
+      type: string
+      format: identifier
+    email:
+      type: string
+  required:
+    - user-id
+    - email
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: delivery
+description: Handles sending notifications via external APIs.
+scope:
+  domain: notification-delivery
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: email-notification
+description: An email notification that needs to be sent.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+identifiedBy:
+  source: state
+  field: notification-id
+state:
+  type: object
+  properties:
+    notification-id:
+      type: string
+      format: identifier
+    user-id:
+      type: string
+      format: identifier
+    email:
+      type: string
+  required:
+    - notification-id
+    - user-id
+    - email
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: send-welcome-email
+actors: [system]
+description: Sends a welcome email to a newly registered user.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+  aggregate: email-notification
+data:
+  type: object
+  properties:
+    notification-id:
+      type: string
+      format: identifier
+    user-id:
+      type: string
+      format: identifier
+    email:
+      type: string
+  required:
+    - notification-id
+    - user-id
+    - email
+publishes:
+  - welcome-email-sent
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: welcome-email-sent
+description: Emitted when a welcome email is sent.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+  aggregate: email-notification
+data:
+  type: object
+  properties:
+    notification-id:
+      type: string
+      format: identifier
+    user-id:
+      type: string
+      format: identifier
+    email:
+      type: string
+  required:
+    - notification-id
+    - user-id
+    - email
+---
+apiVersion: schema.esdm.io/core/v1
+kind: policy
+name: user-registration-policy
+description: Listens to new user registrations and triggers welcome emails.
+scope:
+  domain: notification-delivery
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: downstream
+handles:
+  - boundedContext: user-management
+    aggregate: user
+    event: user-registered
+emits:
+  - boundedContext: delivery
+    aggregate: email-notification
+    command: send-welcome-email
+---
+apiVersion: schema.esdm.io/core/v1
+kind: external-system
+name: sendgrid-api
+description: An external API used for sending emails.
+scope:
+  domain: notification-delivery
+direction: outbound
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: user-management-to-delivery
+type: published-language
+description: Maps the user-management context to the delivery context for registration events.
+publisher:
+  domain: notification-delivery
+  boundedContext: user-management
+consumer:
+  domain: notification-delivery
+  boundedContext: delivery
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: delivery-to-sendgrid
+type: anti-corruption-layer
+description: Connects the delivery context to the SendGrid external system.
+upstream:
+  domain: notification-delivery
+  externalSystem: sendgrid-api
+downstream:
+  domain: notification-delivery
+  boundedContext: delivery
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: sent-emails
+description: Tracks sent emails.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+schema:
+  type: object
+  properties:
+    emails:
+      type: array
+      items:
+        type: object
+        properties:
+          emailId:
+            type: string
+            format: uuid
+projections:
+  - boundedContext: delivery
+    aggregate: email-notification
+    event: welcome-email-sent
+    rule: "TODO"
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-sent-emails
+description: Retrieves the sent emails.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+readModel: sent-emails
+paradigm: document
+result:
+  type: object
+parameters:
+  type: object
+actors:
+  - system
+constraints: []

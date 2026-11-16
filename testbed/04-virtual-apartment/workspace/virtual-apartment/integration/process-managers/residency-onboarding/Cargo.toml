@@ -1,0 +1,24 @@
+[package]
+name = "residency-onboarding"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chromatofoor = { workspace = true }
+domain = { path = "../../../domain" }
+anyhow = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { workspace = true }
+uuid = { version = "1.11", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2.0"
+tracing = { workspace = true }
+property = { path = "../../../bounded-contexts/real-estate/property" }
+tenancy = { path = "../../../shared-kernels/tenancy" }
+
+[dev-dependencies]
+tokio = { workspace = true }
+rstest = "0.23"
+serde_json = { workspace = true }
+tracing-test = { workspace = true }

@@ -1,0 +1,76 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overscroll-behavior: none;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 160, 180, 0.25);
+  border-radius: 9999px;
+}
+
+.contour-bg {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(203, 72, 49, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 50%, rgba(38, 184, 191, 0.05) 0%, transparent 70%);
+}
+
+.topo-lines {
+  background-image: radial-gradient(
+    circle at 100% 100%,
+    transparent 0,
+    transparent 40px,
+    rgba(226, 232, 240, 0.7) 41px,
+    transparent 42px,
+    transparent 80px,
+    rgba(226, 232, 240, 0.7) 81px,
+    transparent 82px,
+    transparent 130px,
+    rgba(226, 232, 240, 0.7) 131px,
+    transparent 132px,
+    transparent 190px,
+    rgba(226, 232, 240, 0.6) 191px,
+    transparent 192px
+  );
+}
+
+.petroleum-topo {
+  background-image: radial-gradient(
+    circle at 0% 0%,
+    transparent 0,
+    transparent 60px,
+    rgba(30, 58, 75, 0.45) 61px,
+    transparent 62px,
+    transparent 120px,
+    rgba(30, 58, 75, 0.45) 121px,
+    transparent 122px,
+    transparent 180px,
+    rgba(30, 58, 75, 0.4) 181px,
+    transparent 182px,
+    transparent 250px,
+    rgba(30, 58, 75, 0.35) 251px,
+    transparent 252px
+  );
+}

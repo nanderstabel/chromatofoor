@@ -1,0 +1,10 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: account-lifecycle
+description: Lifecycle specification for bank accounts.
+scope:
+  domain: bank-account-example
+  boundedContext: finance
+  aggregate: account
+created:
+  - open-account

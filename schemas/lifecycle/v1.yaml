@@ -1,0 +1,112 @@
+# Copyright (c) 2026 the native web GmbH. All rights reserved.
+#
+# Licensed under the MIT license.
+# Full terms: https://www.esdm.io/introduction/license/
+# This notice must not be removed.
+
+$id: "https://schema.esdm.io/lifecycle/v1"
+$schema: "https://json-schema.org/draft/2020-12/schema"
+x-esdm-schema-revision: "1.0.0"
+x-esdm-file-suffix: ".lifecycle.esdm.yaml"
+x-esdm-document-separator: "---"
+x-esdm-project-layout:
+  schemas-directory: "schemas"
+  schema-path-template: "schemas/{name}/{version}.yaml"
+description: >
+  Extension schema for aggregate instance lifecycles (`schema.esdm.io/lifecycle/v1`).
+  Declares which commands initialize a new aggregate instance on a pristine stream (`created`)
+  and which commands optionally terminate or archive an instance (`deleted`), without
+  modifying `schema.esdm.io/core/v1`. Every non-singleton (`state` or `generated`) aggregate
+  requires at least one `created` command (`minItems: 1`).
+
+$defs:
+  name:
+    type: string
+    pattern: "^[a-z][a-z0-9-]*$"
+
+  description:
+    type: string
+    minLength: 1
+
+  metadata:
+    type: object
+    properties:
+      labels:
+        type: object
+        propertyNames:
+          type: string
+          pattern: "^[a-z][a-z0-9-_./]*$"
+        additionalProperties:
+          type: string
+          minLength: 1
+      annotations:
+        type: object
+        propertyNames:
+          type: string
+          pattern: "^[a-z][a-z0-9-_./]*$"
+        additionalProperties:
+          type: string
+          minLength: 1
+    additionalProperties: false
+
+  scopeAggregate:
+    type: object
+    properties:
+      domain:
+        $ref: "#/$defs/name"
+      boundedContext:
+        $ref: "#/$defs/name"
+      aggregate:
+        $ref: "#/$defs/name"
+    required:
+      - domain
+      - boundedContext
+      - aggregate
+    additionalProperties: false
+
+  aggregateLifecycle:
+    type: object
+    properties:
+      apiVersion:
+        type: string
+        const: "schema.esdm.io/lifecycle/v1"
+      kind:
+        type: string
+        const: "aggregate-lifecycle"
+      name:
+        $ref: "#/$defs/name"
+      description:
+        $ref: "#/$defs/description"
+      metadata:
+        $ref: "#/$defs/metadata"
+      scope:
+        $ref: "#/$defs/scopeAggregate"
+      created:
+        description: >
+          Commands scoped to this aggregate that initialize a new instance on a pristine
+          event stream (`lifecycle: created`). At least one creation command is required.
+        type: array
+        items:
+          $ref: "#/$defs/name"
+        minItems: 1
+        uniqueItems: true
+      deleted:
+        description: >
+          Optional commands scoped to this aggregate that terminate or unregister an
+          existing instance.
+        type: array
+        items:
+          $ref: "#/$defs/name"
+        minItems: 1
+        uniqueItems: true
+    required:
+      - apiVersion
+      - kind
+      - name
+      - description
+      - scope
+      - created
+    additionalProperties: false
+
+oneOf:
+  - $ref: "#/$defs/aggregateLifecycle"

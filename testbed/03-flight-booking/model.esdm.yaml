@@ -1,0 +1,1053 @@
+apiVersion: schema.esdm.io/core/v1
+kind: domain
+name: travel
+description: Travel booking domain
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: booking
+description: Handles flight bookings and process managers
+scope:
+  domain: travel
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: customer
+description: A travel customer.
+scope:
+  domain: travel
+  boundedContext: booking
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: system
+description: The internal system handling saga actions.
+scope:
+  domain: travel
+  boundedContext: booking
+type: system
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: booking
+description: The core booking intent
+identifiedBy:
+  source: state
+  field: booking-id
+state:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    status:
+      type: string
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+  required:
+  - booking-id
+  - status
+  - flight-id
+  - amount
+scope:
+  domain: travel
+  boundedContext: booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: initialize-booking
+actors: [customer]
+description: Starts a new booking process
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: booking
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+  required:
+  - booking-id
+  - flight-id
+  - amount
+publishes:
+- booking-initialized
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: confirm-booking
+actors: [system]
+description: Marks booking as confirmed
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: booking
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+  required:
+  - booking-id
+publishes:
+- booking-confirmed
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: fail-booking
+actors: [system]
+description: Marks booking as failed
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: booking
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    reason:
+      type: string
+  required:
+  - booking-id
+  - reason
+publishes:
+- booking-failed
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: booking-initialized
+description: A booking process has started
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: booking
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+  required:
+  - booking-id
+  - flight-id
+  - amount
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: booking-confirmed
+description: Booking is successful
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: booking
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+  required:
+  - booking-id
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: booking-failed
+description: Booking process failed
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: booking
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    reason:
+      type: string
+  required:
+  - booking-id
+  - reason
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: flight
+description: Flight seat inventory
+identifiedBy:
+  source: state
+  field: flight-id
+state:
+  type: object
+  properties:
+    flight-id:
+      type: string
+      format: identifier
+    total-seats:
+      type: integer
+    reserved-seats:
+      type: integer
+  required:
+  - flight-id
+  - total-seats
+  - reserved-seats
+scope:
+  domain: travel
+  boundedContext: booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: add-flight
+actors: [system]
+description: Creates a new flight
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+data:
+  type: object
+  properties:
+    flight-id:
+      type: string
+      format: identifier
+    total-seats:
+      type: integer
+  required:
+  - flight-id
+  - total-seats
+publishes:
+- flight-added
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: reserve-seat
+actors: [system]
+description: Reserves a seat for a booking
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+  required:
+  - booking-id
+  - flight-id
+publishes:
+- seat-reserved
+- seat-reservation-failed
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: release-seat
+actors: [system]
+description: Releases a reserved seat
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+  required:
+  - booking-id
+  - flight-id
+publishes:
+- seat-released
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: flight-added
+description: Flight added
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+data:
+  type: object
+  properties:
+    flight-id:
+      type: string
+      format: identifier
+    total-seats:
+      type: integer
+  required:
+  - flight-id
+  - total-seats
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: seat-reserved
+description: Seat successfully reserved
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+  required:
+  - booking-id
+  - flight-id
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: seat-reservation-failed
+description: Failed to reserve seat due to lack of capacity
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+  required:
+  - booking-id
+  - flight-id
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: seat-released
+description: Reserved seat released
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+  required:
+  - booking-id
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: payment
+description: Payment processing
+identifiedBy:
+  source: state
+  field: booking-id
+state:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+    status:
+      type: string
+
+  required:
+  - booking-id
+  - amount
+  - status
+scope:
+  domain: travel
+  boundedContext: booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: process-payment
+actors: [system]
+description: Process payment for a booking
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: payment
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+  required:
+  - booking-id
+  - flight-id
+  - amount
+publishes:
+- payment-initiated
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: payment-initiated
+description: Payment process started
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: payment
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+  required:
+  - booking-id
+  - flight-id
+  - amount
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: complete-payment
+actors: [system]
+description: Complete or fail an initiated payment
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: payment
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+    success:
+      type: boolean
+  required:
+  - booking-id
+  - flight-id
+  - amount
+  - success
+publishes:
+- payment-processed
+- payment-failed
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: payment-processed
+description: Payment successful
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: payment
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+  required:
+  - booking-id
+  - flight-id
+  - amount
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: payment-failed
+description: Payment declined
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: payment
+data:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    reason:
+      type: string
+  required:
+  - booking-id
+  - flight-id
+  - reason
+---
+apiVersion: schema.esdm.io/core/v1
+kind: process-manager
+name: booking-saga
+description: Coordinates flight booking and payment
+scope:
+  domain: travel
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: self
+  strategy: deterministic-hash
+correlatedBy:
+  source: event-field
+  field: booking-id
+state:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-id:
+      type: string
+      format: identifier
+    amount:
+      type: integer
+    status:
+      type: string
+  required:
+  - booking-id
+  - flight-id
+  - amount
+  - status
+timers:
+- name: payment-timeout
+  description: Timeout if payment isn't processed in time
+  after:
+    value: 1
+    unit: minutes
+startsWhen:
+- boundedContext: booking
+  aggregate: booking
+  event: booking-initialized
+endsWhen:
+- name: confirmed
+  condition: status is Confirmed
+- name: failed
+  condition: status is Failed
+reactions:
+- when:
+    boundedContext: booking
+    aggregate: booking
+    event: booking-initialized
+  rule: When a booking is initialized, request a seat reservation
+  emits:
+  - boundedContext: booking
+    aggregate: flight
+    command: reserve-seat
+- when:
+    boundedContext: booking
+    aggregate: flight
+    event: seat-reserved
+  rule: When seat is reserved, process the payment and set a timeout
+  emits:
+  - boundedContext: booking
+    aggregate: payment
+    command: process-payment
+  - boundedContext: scheduler
+    aggregate: timer
+    command: schedule-timeout
+  setTimers:
+  - payment-timeout
+- when:
+    boundedContext: booking
+    aggregate: flight
+    event: seat-reservation-failed
+  rule: When seat reservation fails, fail the booking
+  emits:
+  - boundedContext: booking
+    aggregate: booking
+    command: fail-booking
+- when:
+    boundedContext: booking
+    aggregate: payment
+    event: payment-processed
+  rule: When payment succeeds, confirm the booking and clear timeout
+  emits:
+  - boundedContext: booking
+    aggregate: booking
+    command: confirm-booking
+  cancelTimers:
+  - payment-timeout
+- when:
+    boundedContext: booking
+    aggregate: payment
+    event: payment-failed
+  rule: When payment fails, release the seat and fail the booking and clear timeout
+  emits:
+  - boundedContext: booking
+    aggregate: flight
+    command: release-seat
+  - boundedContext: booking
+    aggregate: booking
+    command: fail-booking
+  cancelTimers:
+  - payment-timeout
+- when:
+    timer: payment-timeout
+  rule: If payment times out, release seat and fail booking
+  emits:
+  - boundedContext: booking
+    aggregate: flight
+    command: release-seat
+  - boundedContext: booking
+    aggregate: booking
+    command: fail-booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: booking-details
+description: Observability view tracking booking process status over time
+scope:
+  domain: travel
+  boundedContext: booking
+schema:
+  type: object
+  properties:
+    booking-id:
+      type: string
+    flight-id:
+      type: string
+    amount:
+      type: integer
+    status:
+      type: string
+    reason:
+      type: string
+  required:
+  - booking-id
+  - status
+projections:
+- boundedContext: booking
+  aggregate: booking
+  event: booking-initialized
+  rule: >
+    UPSERT WITH
+    booking-id = event.booking-id,
+    flight-id = event.flight-id,
+    amount = event.amount,
+    status = "Pending"
+- boundedContext: booking
+  aggregate: booking
+  event: booking-confirmed
+  rule: >
+    UPDATE WITH
+    status = "Confirmed"
+- boundedContext: booking
+  aggregate: booking
+  event: booking-failed
+  rule: >
+    UPDATE WITH
+    status = "Failed",
+    reason = event.reason
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: flight-details
+description: Observability view tracking flight seat inventory
+scope:
+  domain: travel
+  boundedContext: booking
+schema:
+  type: object
+  properties:
+    flight-id:
+      type: string
+    total-seats:
+      type: integer
+    reserved-seats:
+      type: integer
+    available-seats:
+      type: integer
+  required:
+  - flight-id
+  - total-seats
+  - reserved-seats
+  - available-seats
+projections:
+- boundedContext: booking
+  aggregate: flight
+  event: flight-added
+  rule: >
+    UPSERT WITH
+    flight-id = event.flight-id,
+    total-seats = event.total-seats,
+    reserved-seats = 0,
+    available-seats = event.total-seats
+- boundedContext: booking
+  aggregate: flight
+  event: seat-reserved
+  rule: >
+    UPDATE WITH
+    reserved-seats = reserved-seats + 1,
+    available-seats = available-seats - 1
+- boundedContext: booking
+  aggregate: flight
+  event: seat-released
+  rule: >
+    UPDATE WITH
+    reserved-seats = reserved-seats - 1,
+    available-seats = available-seats + 1
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: payment-details
+description: Observability view tracking payment status
+scope:
+  domain: travel
+  boundedContext: booking
+schema:
+  type: object
+  properties:
+    booking-id:
+      type: string
+    amount:
+      type: integer
+    status:
+      type: string
+    reason:
+      type: string
+  required:
+  - booking-id
+  - amount
+  - status
+projections:
+- boundedContext: booking
+  aggregate: payment
+  event: payment-initiated
+  rule: >
+    UPSERT WITH
+    booking-id = event.booking-id,
+    amount = event.amount,
+    status = "Initiated"
+- boundedContext: booking
+  aggregate: payment
+  event: payment-processed
+  rule: >
+    UPSERT WITH
+    booking-id = event.booking-id,
+    amount = event.amount,
+    status = "Processed"
+- boundedContext: booking
+  aggregate: payment
+  event: payment-failed
+  rule: >
+    UPSERT WITH
+    booking-id = event.booking-id,
+    amount = 0,
+    status = "Failed",
+    reason = event.reason
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: scheduler
+description: Bounded context managing timer scheduling.
+scope:
+  domain: travel
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: system
+scope:
+  domain: travel
+  boundedContext: scheduler
+type: system
+description: The scheduler system.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: timer
+description: Handles timeouts.
+identifiedBy:
+  source: state
+  field: timer-id
+state:
+  type: object
+  properties:
+    timer-id:
+      type: string
+      format: uuid
+  required: [timer-id]
+scope:
+  domain: travel
+  boundedContext: scheduler
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: schedule-timeout
+description: Schedules a timeout.
+scope:
+  domain: travel
+  boundedContext: scheduler
+  aggregate: timer
+data:
+  properties:
+    timer-id:
+      type: string
+      format: uuid
+    processManagerId:
+      type: string
+    timerName:
+      type: string
+    fireAt:
+      type: string
+      format: date-time
+  required: [timer-id, processManagerId, timerName, fireAt]
+publishes:
+  - timeout-scheduled
+actors:
+  - system
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: timeout-scheduled
+description: Emitted when a timeout is scheduled.
+scope:
+  domain: travel
+  boundedContext: scheduler
+  aggregate: timer
+data:
+  properties:
+    timer-id:
+      type: string
+      format: uuid
+    processManagerId:
+      type: string
+    timerName:
+      type: string
+    fireAt:
+      type: string
+      format: date-time
+  required: [timer-id, processManagerId, timerName, fireAt]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-booking-details
+description: Retrieves details of a booking.
+scope:
+  domain: travel
+  boundedContext: booking
+readModel: booking-details
+paradigm: document
+result:
+  type: object
+parameters:
+  type: object
+actors:
+  - customer
+constraints: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-flight-details
+description: Retrieves details of a flight.
+scope:
+  domain: travel
+  boundedContext: booking
+readModel: flight-details
+paradigm: document
+result:
+  type: object
+parameters:
+  type: object
+actors:
+  - customer
+constraints: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-payment-details
+description: Retrieves details of a payment.
+scope:
+  domain: travel
+  boundedContext: booking
+readModel: payment-details
+paradigm: document
+result:
+  type: object
+parameters:
+  type: object
+actors:
+  - customer
+constraints: []
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: booking-to-scheduler
+type: published-language
+description: Maps booking bounded context to scheduler bounded context.
+publisher:
+  domain: travel
+  boundedContext: scheduler
+consumer:
+  domain: travel
+  boundedContext: booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: active-timers
+description: Tracks active timers.
+scope:
+  domain: travel
+  boundedContext: scheduler
+schema:
+  type: object
+  properties:
+    timers:
+      type: array
+      items:
+        type: object
+        properties:
+          timerId:
+            type: string
+          processManagerId:
+            type: string
+          timerName:
+            type: string
+          fireAt:
+            type: string
+            format: date-time
+projections:
+  - boundedContext: scheduler
+    aggregate: timer
+    event: timeout-scheduled
+    rule: "TODO"
+  - boundedContext: scheduler
+    aggregate: timer
+    event: timeout-canceled
+    rule: "TODO"
+  - boundedContext: scheduler
+    aggregate: timer
+    event: timeout-occurred
+    rule: "TODO"
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: timeout-canceled
+description: Emitted when a timeout is canceled.
+scope:
+  domain: travel
+  boundedContext: scheduler
+  aggregate: timer
+data:
+  type: object
+  properties: {}
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: timeout-occurred
+description: Emitted when a timeout occurs.
+scope:
+  domain: travel
+  boundedContext: scheduler
+  aggregate: timer
+data:
+  type: object
+  properties:
+    processManagerId:
+      type: string
+    timerName:
+      type: string
+  required: [processManagerId, timerName]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: cancel-timeout
+description: Cancels a timeout.
+scope:
+  domain: travel
+  boundedContext: scheduler
+  aggregate: timer
+publishes:
+  - timeout-canceled
+actors:
+  - system
+data:
+  type: object
+  properties:
+    timer-id:
+      type: string
+      format: uuid
+  required: [timer-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: trigger-timeout
+description: Triggers a timeout.
+scope:
+  domain: travel
+  boundedContext: scheduler
+  aggregate: timer
+publishes:
+  - timeout-occurred
+actors:
+  - system
+data:
+  type: object
+  properties:
+    timer-id:
+      type: string
+      format: uuid
+    processManagerId:
+      type: string
+    timerName:
+      type: string
+  required: [timer-id, processManagerId, timerName]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-active-timers
+description: Retrieves active timers.
+scope:
+  domain: travel
+  boundedContext: scheduler
+readModel: active-timers
+paradigm: document
+result:
+  type: object
+parameters:
+  type: object
+actors:
+  - system
+constraints: []

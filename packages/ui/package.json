@@ -1,0 +1,29 @@
+{
+  "name": "@chromatofoor/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./tokens/tokens.css"
+  },
+  "scripts": {
+    "build": "vite build",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@storybook/addon-essentials": "^8.3.0",
+    "@storybook/addon-interactions": "^8.3.0",
+    "@storybook/svelte": "^8.3.0",
+    "@storybook/svelte-vite": "^8.3.0",
+    "storybook": "^8.3.0",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

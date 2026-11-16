@@ -1,0 +1,16 @@
+# Exclude generated workspaces and verification fixtures from EGM bootstrap/drift scans
+testbed/
+
+# Exclude non-code asset, schema, CI, and doc directories
+.agents/
+.github/
+.vscode/
+branding/
+docs/
+schemas/
+scripts/
+
+# Exclude outer presentation adapters and UI library by default
+# (remove individual lines below if bootstrapping a specific adapter crate)
+packages/
+presentation/

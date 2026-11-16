@@ -1,0 +1,183 @@
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: cart-commands-feature
+description: Tests for shopping cart commands
+scope:
+  domain: ecommerce-example
+  boundedContext: sales
+  aggregate: shopping-cart
+scenarios:
+  - name: verify-initialize-cart-command
+    description: Initializing a cart emits cart-initialized
+    when:
+      command: initialize-cart
+      data:
+        customer-id: "CUST-123"
+    then:
+      events:
+        - event: cart-initialized
+          data:
+            customer-id: "CUST-123"
+
+  - name: verify-add-item-command
+    description: Adding an item emits item-added-to-cart
+    given:
+      - event: cart-initialized
+        data:
+          customer-id: "CUST-123"
+    when:
+      command: add-item-to-cart
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        product-id: "PROD-A"
+        quantity: 2
+        price: 50
+    then:
+      events:
+        - event: item-added-to-cart
+          data:
+            product-id: "PROD-A"
+            quantity: 2
+            price: 50
+
+  - name: verify-checkout-command
+    description: Checking out emits cart-checked-out
+    given:
+      - event: cart-initialized
+        data:
+          customer-id: "CUST-123"
+      - event: item-added-to-cart
+        data:
+          product-id: "PROD-A"
+          quantity: 2
+          price: 50
+    when:
+      command: checkout-cart
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        payment-method: "CREDIT_CARD"
+    then:
+      events:
+        - event: cart-checked-out
+          data:
+            payment-method: "CREDIT_CARD"
+
+  - name: verify-checkout-empty-cart-rejection
+    description: Checking out an empty cart is rejected
+    given:
+      - event: cart-initialized
+        data:
+          customer-id: "CUST-123"
+    when:
+      command: checkout-cart
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        payment-method: "CREDIT_CARD"
+    then:
+      rejection:
+        reason: "Cannot checkout an empty cart"
+
+  - name: verify-add-item-to-checked-out-cart-rejection
+    description: Adding an item to a checked-out cart is rejected
+    given:
+      - event: cart-initialized
+        data:
+          customer-id: "CUST-123"
+      - event: item-added-to-cart
+        data:
+          product-id: "PROD-A"
+          quantity: 2
+          price: 50
+      - event: cart-checked-out
+        data:
+          payment-method: "CREDIT_CARD"
+    when:
+      command: add-item-to-cart
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        product-id: "PROD-B"
+        quantity: 1
+        price: 100
+    then:
+      rejection:
+        reason: "Cannot add items to a checked out cart"
+
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: cart-summary-read-model-feature
+description: Tests for cart summary projection
+scope:
+  domain: ecommerce-example
+  boundedContext: sales
+  readModel: cart-summary
+scenarios:
+  - name: verify-cart-initialized-projection
+    description: Initializing sets default values
+    given:
+      - boundedContext: sales
+        aggregate: shopping-cart
+        event: cart-initialized
+        data:
+          customer-id: "CUST-123"
+    when:
+      query: get-cart-summary
+      parameters: {}
+    then:
+      readModel:
+        total_amount: 0
+        item_count: 0
+        status: "Open"
+
+  - name: verify-item-added-projection
+    description: Adding items updates totals
+    given:
+      - boundedContext: sales
+        aggregate: shopping-cart
+        event: cart-initialized
+        data:
+          customer-id: "CUST-123"
+      - boundedContext: sales
+        aggregate: shopping-cart
+        event: item-added-to-cart
+        data:
+          product-id: "PROD-A"
+          quantity: 2
+          price: 50
+    when:
+      query: get-cart-summary
+      parameters: {}
+    then:
+      readModel:
+        total_amount: 100
+        item_count: 2
+        status: "Open"
+
+  - name: verify-cart-checked-out-projection
+    description: Checking out updates status
+    given:
+      - boundedContext: sales
+        aggregate: shopping-cart
+        event: cart-initialized
+        data:
+          customer-id: "CUST-123"
+      - boundedContext: sales
+        aggregate: shopping-cart
+        event: item-added-to-cart
+        data:
+          product-id: "PROD-A"
+          quantity: 2
+          price: 50
+      - boundedContext: sales
+        aggregate: shopping-cart
+        event: cart-checked-out
+        data:
+          payment-method: "CREDIT_CARD"
+    when:
+      query: get-cart-summary
+      parameters: {}
+    then:
+      readModel:
+        total_amount: 100
+        item_count: 2
+        status: "CheckedOut"

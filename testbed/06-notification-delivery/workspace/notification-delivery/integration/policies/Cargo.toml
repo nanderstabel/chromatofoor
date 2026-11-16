@@ -1,0 +1,15 @@
+[package]
+name = "policies"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chromatofoor = { workspace = true }
+domain = { path = "../../domain" }
+anyhow = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { workspace = true }
+uuid = { version = "1.11", features = ["serde", "v4"] }
+delivery = { path = "../../bounded-contexts/delivery" }
+user-management = { path = "../../bounded-contexts/user-management" }

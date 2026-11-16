@@ -1,0 +1,45 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: booking-lifecycle
+description: Lifecycle specification for travel bookings.
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: booking
+created:
+  - initialize-booking
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: flight-lifecycle
+description: Lifecycle specification for flights.
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: flight
+created:
+  - add-flight
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: payment-lifecycle
+description: Lifecycle specification for booking payments.
+scope:
+  domain: travel
+  boundedContext: booking
+  aggregate: payment
+created:
+  - process-payment
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: timer-lifecycle
+description: Lifecycle specification for scheduled timeouts.
+scope:
+  domain: travel
+  boundedContext: scheduler
+  aggregate: timer
+created:
+  - schedule-timeout
+deleted:
+  - cancel-timeout

@@ -1,0 +1,16 @@
+[package]
+name = "bootstrap"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chromatofoor = { workspace = true }
+domain = { path = "../domain" }
+property = { path = "../bounded-contexts/real-estate/property" }
+tenancy = { path = "../shared-kernels/tenancy" }
+event-handlers = { path = "../integration/event-handlers" }
+policies = { path = "../integration/policies" }
+residency-onboarding = { path = "../integration/process-managers/residency-onboarding" }

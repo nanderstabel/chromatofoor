@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chromatofoor Domain Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: rgba(17, 25, 40, 0.75);
+            --bg-card-hover: rgba(30, 41, 59, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            /* Color System by Kind */
+            --color-domain: #a855f7;
+            --color-bc: #3b82f6;
+            --color-actor: #f59e0b;
+            --color-aggregate: #14b8a6;
+            --color-boundary: #f43f5e;
+            --color-command: #10b981;
+            --color-event: #f97316;
+            --color-read-model: #6366f1;
+            --color-query: #0ea5e9;
+            --color-pm: #d946ef;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(20, 184, 166, 0.05) 0px, transparent 50%);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem 2rem;
+            background: rgba(9, 13, 22, 0.6);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            font-size: 1.5rem;
+            color: var(--color-domain);
+            animation: pulse 3s infinite alternate;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .domain-badge {
+            font-size: 0.75rem;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #d8b4fe;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 500;
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            position: relative;
+            height: calc(100vh - 65px);
+        }
+
+        /* Control Panel */
+        .control-panel {
+            width: 320px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            z-index: 5;
+        }
+
+        .panel-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--color-bc);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+        }
+
+        /* Context Navigator (Tabs) */
+        .context-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .context-tab {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .context-tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .context-tab.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, 0.3);
+            font-weight: 500;
+        }
+
+        .context-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--color-bc);
+        }
+
+        /* Graph Canvas */
+        .graph-container {
+            flex: 1;
+            position: relative;
+            height: 100%;
+            background: rgba(5, 7, 12, 0.2);
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        svg:active {
+            cursor: grabbing;
+        }
+
+        /* Sidebar Details Panel */
+        .details-panel {
+            width: 360px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border-left: 1px solid var(--border-color);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            z-index: 5;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .empty-details {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            gap: 1rem;
+        }
+
+        .empty-details-icon {
+            font-size: 2.5rem;
+            opacity: 0.3;
+        }
+
+        .node-details {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .badge-kind {
+            display: inline-block;
+            font-size: 0.675rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: #fff;
+            background-color: var(--kind-color);
+            width: fit-content;
+        }
+
+        .detail-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+            word-break: break-all;
+        }
+
+        .detail-desc {
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+        }
+
+        .details-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .related-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .related-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.8125rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .related-item:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .related-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--kind-color);
+        }
+
+        .metadata-block {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.75rem;
+            color: #38bdf8;
+            overflow-x: auto;
+            max-height: 250px;
+        }
+
+        /* SVG Node/Link/Box Styling */
+        .context-box {
+            fill: rgba(13, 20, 35, 0.4);
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 1.5px;
+            rx: 16px;
+            ry: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .context-box.active {
+            stroke: rgba(59, 130, 246, 0.4);
+            fill: rgba(13, 20, 35, 0.6);
+        }
+
+        .context-label {
+            fill: #94a3b8;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .col-header {
+            fill: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .col-line {
+            stroke: rgba(255, 255, 255, 0.03);
+            stroke-width: 1px;
+            stroke-dasharray: 4 4;
+        }
+
+        .link {
+            fill: none;
+            stroke-opacity: 0.35;
+            stroke-width: 1.5px;
+            transition: stroke-opacity 0.25s ease, stroke-width 0.25s ease;
+        }
+
+        .link.contains {
+            stroke: #475569;
+            stroke-dasharray: 4 4;
+            stroke-opacity: 0.15;
+        }
+
+        .link.publishes { stroke: var(--color-command); }
+        .link.handles { stroke: var(--color-aggregate); }
+        .link.emits { stroke: var(--color-event); }
+        .link.projects { stroke: var(--color-read-model); }
+        .link.reads { stroke: var(--color-query); }
+        .link.consults { stroke: var(--color-boundary); }
+        .link.invokes { stroke: var(--color-actor); }
+        
+        .link.supplier-to-customer {
+            stroke: #eab308;
+            stroke-dasharray: 6 3;
+            stroke-width: 2px;
+            stroke-opacity: 0.6;
+        }
+
+        .link.starts-when, .link.reacts-to, .link.emits-command {
+            stroke: var(--color-pm);
+            stroke-dasharray: 3 3;
+            stroke-opacity: 0.5;
+        }
+
+        /* Node Cards */
+        .node-card {
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .node-bg {
+            fill: #111827;
+            stroke-width: 1.5px;
+            rx: 8px;
+            ry: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .node-card:hover .node-bg {
+            stroke: #fff !important;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+        }
+
+        .node-text {
+            fill: #e2e8f0;
+            font-size: 11px;
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .node-kind-indicator {
+            rx: 4px;
+            ry: 4px;
+        }
+
+        /* State Modifiers for Fade/Highlight */
+        .node-card.faded {
+            opacity: 0.2;
+        }
+
+        .link.faded {
+            stroke-opacity: 0.05 !important;
+        }
+
+        .node-card.highlighted .node-bg {
+            stroke: #fff !important;
+            stroke-width: 2px !important;
+            fill: rgba(30, 41, 59, 0.9) !important;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 2px var(--color-domain)); }
+            100% { transform: scale(1.05); filter: drop-shadow(0 0 8px var(--color-domain)); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-section">
+            <span class="logo-icon">⬢</span>
+            <h1>Chromatofoor Domain Visualizer</h1>
+        </div>
+        <div class="domain-badge" id="domain-badge">Loading Domain...</div>
+    </header>
+
+    <main>
+        <!-- Left Panel: Filters & Navigation -->
+        <div class="control-panel">
+            <div class="search-box">
+                <div class="panel-title" style="margin-bottom: 0.75rem;">Search Elements</div>
+                <input type="text" id="search-input" class="search-input" placeholder="Type name...">
+            </div>
+
+            <div class="filter-section">
+                <div class="panel-title" style="margin-bottom: 0.75rem;">Bounded Contexts</div>
+                <div class="context-tabs" id="context-tabs">
+                    <button class="context-tab active" data-context="all">
+                        <span class="context-dot" style="background-color: var(--color-domain);"></span>
+                        All Contexts
+                    </button>
+                    <!-- Dynamic Context Tabs -->
+                </div>
+            </div>
+
+            <div class="filter-section" style="margin-top: auto;">
+                <div class="panel-title" style="margin-bottom: 0.5rem;">Visual Legend</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.75rem; color: var(--text-muted);">
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-actor);"></span> Actor
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-command);"></span> Command
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-aggregate);"></span> Aggregate
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-boundary);"></span> Boundary
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-event);"></span> Event
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-read-model);"></span> Read Model
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-query);"></span> Query
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-pm);"></span> Process Mgr
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Area: Graph Canvas -->
+        <div class="graph-container" id="graph-container">
+            <!-- Tooltip element -->
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+
+        <!-- Right Panel: Selection Details -->
+        <div class="details-panel" id="details-panel">
+            <div class="empty-details" id="empty-details">
+                <div class="empty-details-icon">🖧</div>
+                <p>Click on any element card to inspect its details and relationships</p>
+            </div>
+            <div class="node-details" id="node-details" style="display: none;">
+                <span class="badge-kind" id="detail-kind">Aggregate</span>
+                <h2 class="detail-name" id="detail-name-heading">apartment</h2>
+                
+                <div class="detail-desc" id="detail-description">
+                    No description provided.
+                </div>
+
+                <div id="bc-meta-section" style="display: none;">
+                    <div class="details-section-title">Bounded Context</div>
+                    <div style="font-size: 0.875rem; color: #fff;" id="detail-bc-name">property</div>
+                </div>
+
+                <div>
+                    <div class="details-section-title" id="related-section-title">Connected Flow Elements</div>
+                    <ul class="related-list" id="related-elements-list">
+                        <!-- Dynamic items -->
+                    </ul>
+                </div>
+
+                <div>
+                    <div class="details-section-title">Element ID</div>
+                    <div class="metadata-block" id="detail-id-raw"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const colors = {
+            'domain': '#a855f7',
+            'bounded-context': '#3b82f6',
+            'actor': '#f59e0b',
+            'aggregate': '#14b8a6',
+            'dynamic-consistency-boundary': '#f43f5e',
+            'command': '#10b981',
+            'event': '#f97316',
+            'read-model': '#6366f1',
+            'query': '#0ea5e9',
+            'process-manager': '#d946ef'
+        };
+
+        const kindLabels = {
+            'domain': 'Domain',
+            'bounded-context': 'Bounded Context',
+            'actor': 'Actor',
+            'aggregate': 'Aggregate',
+            'dynamic-consistency-boundary': 'Consistency Boundary',
+            'command': 'Command',
+            'event': 'Event',
+            'read-model': 'Read Model',
+            'query': 'Query',
+            'process-manager': 'Process Manager'
+        };
+
+        // Aligning node kinds to clean columns
+        const kindToColumn = {
+            'actor': 0,
+            'command': 1,
+            'aggregate': 2,
+            'dynamic-consistency-boundary': 2,
+            'event': 3,
+            'read-model': 4,
+            'query': 5
+        };
+
+        const colLabels = [
+            "Actors",
+            "Commands",
+            "Aggregates / Boundaries",
+            "Events",
+            "Read Models",
+            "Queries"
+        ];
+
+        let graphData = null;
+        let originalNodes = [];
+        let originalLinks = [];
+        let activeContext = 'all';
+
+        const container = document.getElementById('graph-container');
+        const tooltip = document.getElementById('tooltip');
+        const emptyDetails = document.getElementById('empty-details');
+        const nodeDetails = document.getElementById('node-details');
+
+        // Fetch graph data from backend
+        fetch('/graph.json')
+            .then(res => res.json())
+            .then(data => {
+                graphData = data;
+                originalNodes = [...data.nodes];
+                originalLinks = [...data.links];
+
+                // Initialize Domain Metadata
+                document.getElementById('domain-badge').innerText = data.domain.name;
+                
+                // Initialize Bounded Context navigation tabs
+                const bcList = [...new Set(originalNodes.filter(n => n.bounded_context).map(n => n.bounded_context))];
+                const tabsContainer = document.getElementById('context-tabs');
+                
+                bcList.forEach(bc => {
+                    const btn = document.createElement('button');
+                    btn.className = 'context-tab';
+                    btn.setAttribute('data-context', bc);
+                    btn.innerHTML = `
+                        <span class="context-dot"></span>
+                        ${bc.charAt(0).toUpperCase() + bc.slice(1)} Context
+                    `;
+                    btn.addEventListener('click', () => {
+                        setContextFilter(bc);
+                    });
+                    tabsContainer.appendChild(btn);
+                });
+
+                // Add separate Process Managers/Integration tab if present
+                const hasGlobals = originalNodes.some(n => !n.bounded_context && n.kind !== 'domain');
+                if (hasGlobals) {
+                    const btn = document.createElement('button');
+                    btn.className = 'context-tab';
+                    btn.setAttribute('data-context', 'global');
+                    btn.innerHTML = `
+                        <span class="context-dot" style="background-color: var(--color-pm);"></span>
+                        Process Managers
+                    `;
+                    btn.addEventListener('click', () => {
+                        setContextFilter('global');
+                    });
+                    tabsContainer.appendChild(btn);
+                }
+
+                // Add listener to default 'All Contexts' tab
+                document.querySelector('.context-tab[data-context="all"]').addEventListener('click', () => {
+                    setContextFilter('all');
+                });
+
+                // Init search
+                document.getElementById('search-input').addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    highlightSearchResults(query);
+                });
+
+                // Render Layout
+                renderLayout();
+            })
+            .catch(err => {
+                console.error("Failed to load graph data:", err);
+                document.getElementById('domain-badge').innerText = "Load Failed";
+            });
+
+        let svg, g, zoom;
+
+        function setContextFilter(context) {
+            activeContext = context;
+            
+            // Toggle active tab style
+            document.querySelectorAll('.context-tab').forEach(t => {
+                if (t.getAttribute('data-context') === context) {
+                    t.classList.add('active');
+                } else {
+                    t.classList.remove('active');
+                }
+            });
+
+            renderLayout();
+        }
+
+        function renderLayout() {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Clear previous SVG
+            container.querySelectorAll('svg').forEach(s => s.remove());
+
+            svg = d3.select('#graph-container')
+                .append('svg')
+                .attr('viewBox', [0, 0, width, height]);
+
+            // Add arrows marker definition
+            const defs = svg.append('defs');
+            const linkTypes = ['publishes', 'handles', 'emits', 'projects', 'reads', 'consults', 'invokes', 'supplier-to-customer', 'starts-when', 'reacts-to', 'emits-command'];
+            
+            linkTypes.forEach(type => {
+                defs.append('marker')
+                    .attr('id', `arrow-${type}`)
+                    .attr('viewBox', '0 -5 10 10')
+                    .attr('refX', 12) // Sit beautifully at card edges
+                    .attr('refY', 0)
+                    .attr('markerWidth', 5)
+                    .attr('markerHeight', 5)
+                    .attr('orient', 'auto')
+                    .append('path')
+                    .attr('fill', type === 'supplier-to-customer' ? '#eab308' : (colors[type] || '#475569'))
+                    .attr('d', 'M0,-5L10,0L0,5');
+            });
+
+            g = svg.append('g');
+
+            zoom = d3.zoom()
+                .scaleExtent([0.05, 3])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+            svg.call(zoom);
+
+            // Filter nodes by active context selection
+            let filteredNodes = originalNodes.filter(n => n.kind !== 'domain');
+            if (activeContext !== 'all') {
+                if (activeContext === 'global') {
+                    // Show only process managers or global integrations
+                    filteredNodes = filteredNodes.filter(n => !n.bounded_context);
+                } else {
+                    // Show only specified bounded context
+                    filteredNodes = filteredNodes.filter(n => n.bounded_context === activeContext);
+                }
+            }
+
+            const nodeIds = new Set(filteredNodes.map(n => n.id));
+            let filteredLinks = originalLinks.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
+
+            // Compute structural layout positions deterministically
+            const bcBoxes = calculatePositions(filteredNodes);
+
+            // Draw Bounded Context Container Boxes
+            const contextGroup = g.append('g').attr('class', 'contexts');
+            
+            bcBoxes.forEach(box => {
+                const bcG = contextGroup.append('g');
+                
+                // Outer Box
+                bcG.append('rect')
+                    .attr('x', box.x)
+                    .attr('y', box.y)
+                    .attr('width', box.width)
+                    .attr('height', box.height)
+                    .attr('class', `context-box ${box.name === activeContext ? 'active' : ''}`);
+
+                // Box Label
+                bcG.append('text')
+                    .attr('x', box.x + 20)
+                    .attr('y', box.y + 30)
+                    .attr('class', 'context-label')
+                    .text(box.name === "global" ? "GLOBAL INTEGRATION & PROCESS MANAGERS" : `${box.name.toUpperCase()} CONTEXT`);
+
+                // Column lines and headers (only for Bounded Contexts)
+                if (box.name !== "global") {
+                    for (let i = 0; i < 6; i++) {
+                        const colX = box.x + box.padding + i * box.colWidth;
+                        
+                        // Column grid line
+                        bcG.append('line')
+                            .attr('x1', colX + box.colWidth / 2)
+                            .attr('y1', box.y + 50)
+                            .attr('x2', colX + box.colWidth / 2)
+                            .attr('y2', box.y + box.height - 20)
+                            .attr('class', 'col-line');
+
+                        // Column Header Text
+                        bcG.append('text')
+                            .attr('x', colX + box.colWidth / 2)
+                            .attr('y', box.y + 55)
+                            .attr('text-anchor', 'middle')
+                            .attr('class', 'col-header')
+                            .text(colLabels[i]);
+                    }
+                }
+            });
+
+            // Draw Links (Bezier Curved Paths)
+            const linkG = g.append('g').attr('class', 'links');
+            
+            const linkPathGenerator = d3.linkHorizontal()
+                .x(d => d.x)
+                .y(d => d.y);
+
+            const linkElements = linkG.selectAll('.link')
+                .data(filteredLinks)
+                .enter()
+                .append('path')
+                .attr('class', d => `link ${d.type}`)
+                .attr('d', d => {
+                    const sourceNode = filteredNodes.find(n => n.id === d.source);
+                    const targetNode = filteredNodes.find(n => n.id === d.target);
+                    if (!sourceNode || !targetNode) return null;
+
+                    // Compute precise entry/exit points for the card Pills
+                    const sX = sourceNode.x + (sourceNode.x < targetNode.x ? 140 : 0);
+                    const sY = sourceNode.y + 17;
+                    const tX = targetNode.x + (sourceNode.x < targetNode.x ? 0 : 140);
+                    const tY = targetNode.y + 17;
+
+                    return linkPathGenerator({
+                        source: { x: sX, y: sY },
+                        target: { x: tX, y: tY }
+                    });
+                })
+                .attr('marker-end', d => `url(#arrow-${d.type})`);
+
+            // Draw Node Cards (Pills)
+            const nodeG = g.append('g').attr('class', 'nodes');
+            
+            const nodeElements = nodeG.selectAll('.node-card')
+                .data(filteredNodes)
+                .enter()
+                .append('g')
+                .attr('class', 'node-card')
+                .attr('transform', d => `translate(${d.x},${d.y})`)
+                .on('click', (event, d) => {
+                    selectNode(d);
+                    event.stopPropagation();
+                })
+                .on('mouseover', function(event, d) {
+                    showTooltip(event, d);
+                    highlightFlowNeighbors(d, filteredLinks);
+                })
+                .on('mouseout', function() {
+                    hideTooltip();
+                    resetHighlights();
+                });
+
+            // Card background (pill)
+            nodeElements.append('rect')
+                .attr('width', 140)
+                .attr('height', 34)
+                .attr('class', 'node-bg')
+                .attr('fill', '#111827')
+                .attr('stroke', d => colors[d.kind] || '#cbd5e1');
+
+            // Left Kind Accent Strip
+            nodeElements.append('rect')
+                .attr('width', 5)
+                .attr('height', 34)
+                .attr('class', 'node-kind-indicator')
+                .attr('fill', d => colors[d.kind] || '#cbd5e1');
+
+            // Element Name text
+            nodeElements.append('text')
+                .attr('x', 15)
+                .attr('y', 20)
+                .attr('class', 'node-text')
+                .text(d => {
+                    return d.name.length > 18 ? d.name.substring(0, 16) + '..' : d.name;
+                });
+
+            // Auto-focus zoom to fit content
+            fitToCanvas(bcBoxes);
+        }
+
+        function calculatePositions(nodes) {
+            const colWidth = 190;
+            const nodeHeight = 55;
+            const padding = 40;
+            const headerHeight = 70;
+            const bcGap = 50;
+
+            const bcGroups = {};
+            const globalNodes = [];
+
+            nodes.forEach(node => {
+                if (node.bounded_context) {
+                    if (!bcGroups[node.bounded_context]) bcGroups[node.bounded_context] = [];
+                    bcGroups[node.bounded_context].push(node);
+                } else {
+                    globalNodes.push(node);
+                }
+            });
+
+            let currentY = 30;
+            const boxes = [];
+
+            // Compute positions for bounded context nodes
+            Object.keys(bcGroups).forEach(bcName => {
+                const bcNodes = bcGroups[bcName];
+                const cols = [[], [], [], [], [], []]; // matching kindToColumn alignment
+
+                bcNodes.forEach(node => {
+                    const colIdx = kindToColumn[node.kind] ?? 0;
+                    cols[colIdx].push(node);
+                });
+
+                const maxColLen = Math.max(...cols.map(c => c.length), 1);
+                const bcHeight = maxColLen * nodeHeight + headerHeight + padding;
+
+                cols.forEach((colNodes, colIdx) => {
+                    const colX = padding + colIdx * colWidth;
+                    
+                    // Space nodes evenly vertically in the column lane
+                    colNodes.forEach((node, idx) => {
+                        node.x = 20 + colX + (colWidth - 140) / 2; // Center card inside column lane
+                        node.y = currentY + headerHeight + idx * nodeHeight;
+                    });
+                });
+
+                boxes.push({
+                    name: bcName,
+                    x: 20,
+                    y: currentY,
+                    width: colWidth * 6 + padding,
+                    height: bcHeight,
+                    colWidth: colWidth,
+                    padding: padding
+                });
+
+                currentY += bcHeight + bcGap;
+            });
+
+            // Position Process Managers/Globals
+            if (globalNodes.length > 0) {
+                const pmCols = [[], [], [], []];
+                globalNodes.forEach((node, idx) => {
+                    pmCols[idx % 4].push(node);
+                });
+
+                const maxLen = Math.max(...pmCols.map(c => c.length), 1);
+                const pmHeight = maxLen * nodeHeight + headerHeight + padding;
+
+                pmCols.forEach((colNodes, colIdx) => {
+                    const colX = padding + colIdx * (colWidth * 1.5);
+                    colNodes.forEach((node, idx) => {
+                        node.x = 20 + colX + ((colWidth * 1.5) - 140) / 2;
+                        node.y = currentY + headerHeight + idx * nodeHeight;
+                    });
+                });
+
+                boxes.push({
+                    name: "global",
+                    x: 20,
+                    y: currentY,
+                    width: colWidth * 6 + padding,
+                    height: pmHeight,
+                    colWidth: colWidth * 1.5,
+                    padding: padding
+                });
+            }
+
+            return boxes;
+        }
+
+        function fitToCanvas(boxes) {
+            if (boxes.length === 0) return;
+            
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Find full boundary enclosing all boxes
+            const minX = d3.min(boxes, b => b.x);
+            const maxX = d3.max(boxes, b => b.x + b.width);
+            const minY = d3.min(boxes, b => b.y);
+            const maxY = d3.max(boxes, b => b.y + b.height);
+
+            const dx = maxX - minX;
+            const dy = maxY - minY;
+            const x = (minX + maxX) / 2;
+            const y = (minY + maxY) / 2;
+
+            const scale = Math.max(0.15, Math.min(1.2, 0.9 / Math.max(dx / width, dy / height)));
+            const translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+            svg.transition()
+                .duration(600)
+                .call(zoom.transform, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale));
+        }
+
+        // Tooltip handlers
+        function showTooltip(event, d) {
+            tooltip.style.opacity = 1;
+            tooltip.style.left = `${event.pageX + 15}px`;
+            tooltip.style.top = `${event.pageY - 15}px`;
+            tooltip.innerHTML = `
+                <div style="font-weight: 600;">${d.name}</div>
+                <div style="color: ${colors[d.kind]}; font-size: 10px; text-transform: uppercase; font-weight: bold; margin-top: 2px;">${kindLabels[d.kind]}</div>
+            `;
+        }
+
+        function hideTooltip() {
+            tooltip.style.opacity = 0;
+        }
+
+        // Inspection Details sidebar updater
+        let selectedNode = null;
+        function selectNode(d) {
+            selectedNode = d;
+            
+            // Highlight card
+            d3.selectAll('.node-card').classed('highlighted', n => n.id === d.id);
+
+            emptyDetails.style.display = 'none';
+            nodeDetails.style.display = 'flex';
+
+            // Type Badge
+            const kindBadge = document.getElementById('detail-kind');
+            kindBadge.innerText = kindLabels[d.kind];
+            kindBadge.style.backgroundColor = colors[d.kind];
+
+            // Title and Description
+            document.getElementById('detail-name-heading').innerText = d.name;
+            document.getElementById('detail-description').innerText = d.description || "No description provided.";
+
+            // Context Metadata
+            const bcMeta = document.getElementById('bc-meta-section');
+            if (d.bounded_context) {
+                bcMeta.style.display = 'block';
+                document.getElementById('detail-bc-name').innerText = d.bounded_context;
+            } else {
+                bcMeta.style.display = 'none';
+            }
+
+            // Raw ID block
+            document.getElementById('detail-id-raw').innerText = d.id;
+
+            // Connected Elements mapping
+            const list = document.getElementById('related-elements-list');
+            list.innerHTML = '';
+
+            const relatedNodes = [];
+            originalLinks.forEach(link => {
+                let targetId = null;
+                let relType = "";
+
+                if (link.source === d.id) {
+                    targetId = link.target;
+                    relType = `Flows to: ${link.type}`;
+                } else if (link.target === d.id) {
+                    targetId = link.source;
+                    relType = `Flows from: ${link.type}`;
+                }
+
+                if (targetId) {
+                    const targetNode = originalNodes.find(n => n.id === targetId);
+                    if (targetNode) {
+                        relatedNodes.push({ node: targetNode, relation: relType });
+                    }
+                }
+            });
+
+            if (relatedNodes.length === 0) {
+                const emptyItem = document.createElement('li');
+                emptyItem.innerText = 'No connected flow elements';
+                emptyItem.style.fontSize = '0.8125rem';
+                emptyItem.style.color = 'var(--text-muted)';
+                list.appendChild(emptyItem);
+            } else {
+                relatedNodes.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'related-item';
+                    li.addEventListener('click', () => {
+                        const matchingNode = originalNodes.find(n => n.id === item.node.id);
+                        if (matchingNode) {
+                            // If target context isn't selected, switch to it first
+                            const targetBC = matchingNode.bounded_context || 'global';
+                            if (activeContext !== 'all' && activeContext !== targetBC) {
+                                setContextFilter(targetBC);
+                            }
+                            // Wait short delay for transition to complete, then highlight
+                            setTimeout(() => {
+                                const activeMatchingNode = d3.selectAll('.node-card').data().find(n => n.id === item.node.id);
+                                if (activeMatchingNode) {
+                                    selectNode(activeMatchingNode);
+                                    zoomToNode(activeMatchingNode);
+                                }
+                            }, 100);
+                        }
+                    });
+
+                    const ind = document.createElement('span');
+                    ind.className = 'related-indicator';
+                    ind.style.setProperty('--kind-color', colors[item.node.kind]);
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.style.fontWeight = '500';
+                    nameSpan.style.color = '#fff';
+                    nameSpan.innerText = item.node.name;
+
+                    const relSpan = document.createElement('span');
+                    relSpan.style.marginLeft = 'auto';
+                    relSpan.style.color = 'var(--text-muted)';
+                    relSpan.style.fontSize = '10px';
+                    relSpan.innerText = item.relation;
+
+                    li.appendChild(ind);
+                    li.appendChild(nameSpan);
+                    li.appendChild(relSpan);
+                    list.appendChild(li);
+                });
+            }
+        }
+
+        function zoomToNode(d) {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const scale = 1.2;
+
+            svg.transition()
+                .duration(600)
+                .call(
+                    zoom.transform,
+                    d3.zoomIdentity
+                        .translate(width / 2, height / 2)
+                        .scale(scale)
+                        .translate(-d.x - 70, -d.y - 17)
+                );
+        }
+
+        // Neighborhood flow tracing on hover
+        function highlightFlowNeighbors(d, activeLinks) {
+            const flowIds = new Set();
+            flowIds.add(d.id);
+
+            activeLinks.forEach(l => {
+                if (l.source === d.id) flowIds.add(l.target);
+                if (l.target === d.id) flowIds.add(l.source);
+            });
+
+            d3.selectAll('.node-card').classed('faded', n => !flowIds.has(n.id));
+            d3.selectAll('.link').classed('faded', l => l.source !== d.id && l.target !== d.id);
+        }
+
+        function resetHighlights() {
+            d3.selectAll('.node-card').classed('faded', false);
+            d3.selectAll('.link').classed('faded', false);
+        }
+
+        // Search match highlighting
+        function highlightSearchResults(query) {
+            if (!query) {
+                d3.selectAll('.node-card').classed('faded', false);
+                return;
+            }
+            d3.selectAll('.node-card').classed('faded', n => !n.name.toLowerCase().includes(query));
+        }
+
+        window.addEventListener('resize', () => {
+            if (svg) {
+                renderLayout();
+            }
+        });
+    </script>
+</body>
+</html>

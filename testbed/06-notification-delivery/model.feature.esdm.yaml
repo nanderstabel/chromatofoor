@@ -1,0 +1,26 @@
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: email-notification-aggregate
+description: Verifies that the email-notification aggregate properly handles the send-welcome-email command.
+scope:
+  domain: notification-delivery
+  boundedContext: delivery
+  aggregate: email-notification
+scenarios:
+  - name: sending-welcome-email
+    description: When the send-welcome-email command is received, it should emit the welcome-email-sent event.
+    given: []
+    when:
+      command: send-welcome-email
+      data:
+        notification-id: "u-12345"
+        user-id: "u-12345"
+        email: "test@example.com"
+    then:
+      events:
+        - event: welcome-email-sent
+          data:
+            notification-id: "u-12345"
+            user-id: "u-12345"
+            email: "test@example.com"

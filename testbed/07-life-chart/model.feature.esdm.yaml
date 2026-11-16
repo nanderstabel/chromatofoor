@@ -1,0 +1,68 @@
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: initialize-chart
+description: Initialize a monthly chart.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+  aggregate: monthly-chart
+scenarios:
+  - name: initializing-new-chart
+    given: []
+    when:
+      command: initialize-chart
+      data:
+        chart-id: "2026-07"
+        year: 2026
+        month: 7
+    then:
+      events:
+        - event: chart-initialized
+          data:
+            chart-id: "2026-07"
+            year: 2026
+            month: 7
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: log-daily-entry
+description: Patient logs daily mood and metrics.
+scope:
+  domain: life-charting
+  boundedContext: tracking
+  aggregate: monthly-chart
+scenarios:
+  - name: logging-daily-entry-success
+    given:
+      - event: chart-initialized
+        data:
+          chart-id: "2026-07"
+          year: 2026
+          month: 7
+    when:
+      command: log-daily-entry
+      data:
+        chart-id: "2026-07"
+        day: 22
+        sleep-hours: 7.5
+        weight-kg: 70.0
+        dysphoric-mania: false
+        mania-severity: "none"
+        depression-severity: "none"
+        mood-score: 50
+        mood-swings-count: 0
+        other-symptoms: "Feeling good"
+    then:
+      events:
+        - event: daily-entry-logged
+          data:
+            chart-id: "2026-07"
+            day: 22
+            sleep-hours: 7.5
+            weight-kg: 70.0
+            dysphoric-mania: false
+            mania-severity: "none"
+            depression-severity: "none"
+            mood-score: 50
+            mood-swings-count: 0
+            other-symptoms: "Feeling good"

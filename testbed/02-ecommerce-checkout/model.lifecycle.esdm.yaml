@@ -1,0 +1,10 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: shopping-cart-lifecycle
+description: Lifecycle specification for customer shopping carts.
+scope:
+  domain: ecommerce-example
+  boundedContext: sales
+  aggregate: shopping-cart
+created:
+  - initialize-cart

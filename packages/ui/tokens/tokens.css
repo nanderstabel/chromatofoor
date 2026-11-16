@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-app: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #FFFFFF;
+  
+  --border-light: #E2E8F0;
+  --border-subtle: #F1F5F9;
+
+  --text-title: #0F172A;
+  --text-main: #334155;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  --accent-orange: #FA5D29;
+  --accent-orange-hover: #E04E1D;
+  --accent-orange-light: #FFF4F0;
+  
+  --accent-blue-bg: #EFF6FF;
+  --accent-blue-text: #2563EB;
+  --accent-blue-border: #BFDBFE;
+
+  --accent-emerald-bg: #ECFDF5;
+  --accent-emerald-text: #059669;
+  --accent-emerald-border: #A7F3D0;
+
+  --accent-rose: #EF4444;
+
+  --font-brand: 'Inter Tight', sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  --shadow-button: 0 4px 14px rgba(250, 93, 41, 0.35);
+  
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}

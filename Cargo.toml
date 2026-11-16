@@ -1,0 +1,82 @@
+[workspace]
+resolver = "2"
+members = [
+    "chromatofoor",
+    "chromatofoor-derive",
+    "chromatofoor-gen",
+    "esdm",
+    "presentation/graphql",
+    "presentation/http",
+    "presentation/mcp",
+    "presentation/tauri",
+    "presentation/tui",
+]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/nanderstabel/chromatofoor"
+rust-version = "1.95"
+version = "0.1.0"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+doc_markdown = "allow"
+implicit_hasher = "allow"
+module_name_repetitions = "allow"
+similar_names = "allow"
+too_many_lines = "allow"
+enum_variant_names = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_possible_wrap = "allow"
+cast_sign_loss = "allow"
+unused_self = "allow"
+manual_let_else = "allow"
+single_match_else = "allow"
+option_if_let_else = "allow"
+match_wildcard_for_single_variants = "allow"
+unnecessary_debug_formatting = "allow"
+needless_pass_by_value = "allow"
+assigning_clones = "allow"
+format_push_string = "allow"
+used_underscore_binding = "allow"
+unused_async = "allow"
+match_same_arms = "allow"
+ref_option = "allow"
+
+[workspace.dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+derive_more = { version = "2.1", features = ["full"] }
+chromatofoor = { path = "chromatofoor" }
+constcat = "0.6"
+esdm = { path = "esdm" }
+nutype = { version = "0.6", features = ["serde"] }
+thiserror = "2.0"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+regex = "1.10"
+serde_json = "1.0"
+tracing-subscriber = "0.3"
+tracing-test = "0.2"
+validator = { version = "0.19", features = ["derive"] }
+chromatofoor-http = { path = "presentation/http" }
+chromatofoor-graphql = { path = "presentation/graphql", features = ["axum"] }
+chromatofoor-mcp = { path = "presentation/mcp" }
+chromatofoor-tui = { path = "presentation/tui" }
+chromatofoor-tauri = { path = "presentation/tauri" }
+uuid = "1.4"

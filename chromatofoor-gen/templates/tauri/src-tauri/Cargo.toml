@@ -1,0 +1,15 @@
+[package]
+name = "tauri-app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { workspace = true }
+tauri = { version = "2.0.0-rc", features = [] }
+tauri-plugin-mcp-bridge = "0.13.0"
+bootstrap = { path = "../../../bootstrap" }
+chromatofoor = { workspace = true }
+chromatofoor-tauri = { workspace = true }
+
+[build-dependencies]
+tauri-build = { version = "2.0.0-rc", features = [] }

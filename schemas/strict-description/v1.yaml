@@ -1,0 +1,21 @@
+# Copyright (c) 2026 the native web GmbH. All rights reserved.
+#
+# Licensed under the MIT license.
+# Full terms: https://www.esdm.io/introduction/license/
+# This notice must not be removed.
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://schema.esdm.io/extensions/strict-description/v1.yaml"
+title: ESDM Strict Description Extension
+description: >
+  Extends the ESDM Core schema to mandate human-readable documentation 
+  (`description`) on every document.
+
+allOf:
+  - $ref: "../core/v1.yaml"
+  - required:
+      - description
+    properties:
+      description:
+        type: string
+        minLength: 1
