@@ -125,8 +125,26 @@ scenarios:
           new-balance: 120
     when:
       query: get-account-summary
-      parameters: {}
+      parameters:
+        id: "00000000-0000-0000-0000-000000000001"
     then:
       result:
         owner_name: "Alice"
         current_balance: 120
+
+  - name: list-all-account-summaries
+    description: Querying list-account-summaries returns all projected account summary records.
+    given:
+      - boundedContext: finance
+        aggregate: account
+        event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      query: list-account-summaries
+      parameters: {}
+    then:
+      result:
+        - owner_name: "Alice"
+          current_balance: 100

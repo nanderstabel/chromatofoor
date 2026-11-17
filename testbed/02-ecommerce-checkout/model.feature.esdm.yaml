@@ -179,7 +179,8 @@ scenarios:
             country-code: "NL"
     when:
       query: get-cart-summary
-      parameters: {}
+      parameters:
+        id: "00000000-0000-0000-0000-000000000001"
     then:
       result:
         total_amount: 9000

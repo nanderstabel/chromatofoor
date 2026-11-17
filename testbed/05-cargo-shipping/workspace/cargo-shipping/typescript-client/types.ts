@@ -35,6 +35,10 @@ export interface CargoTracking {
 }
 
 export interface GetCargoTrackingQuery {
+  'tracking-id': string;
+}
+
+export interface ListCargoTrackingsQuery {
 }
 
 export interface ScheduleVoyageCommand {

@@ -520,20 +520,40 @@ projections:
   - boundedContext: payment
     aggregate: booking-payment
     event: payment-requested
-    rule: Insert booking-status record with payment-status Pending.
+    rule: Insert booking-status record keyed by booking-id with payment-status Pending.
   - boundedContext: payment
     aggregate: booking-payment
     event: payment-completed
-    rule: Update payment-status to Paid.
+    rule: Update payment-status to Paid for the record keyed by booking-id.
   - boundedContext: payment
     aggregate: booking-payment
     event: payment-failed
-    rule: Update payment-status to Failed.
+    rule: Update payment-status to Failed for the record keyed by booking-id.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: query
 name: get-booking-status
-description: Retrieves the payment status of a travel booking.
+description: Retrieves the payment status of a travel booking by booking-id.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+readModel: booking-status
+paradigm: document
+actors: [traveler, booking-coordinator]
+parameters:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+  required: [booking-id]
+result:
+  type: object
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: list-booking-statuses
+description: Lists projected payment statuses across all travel bookings.
 scope:
   domain: travel-booking
   boundedContext: payment
@@ -543,7 +563,9 @@ actors: [traveler, booking-coordinator]
 parameters:
   type: object
 result:
-  type: object
+  type: array
+  items:
+    type: object
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: process-manager

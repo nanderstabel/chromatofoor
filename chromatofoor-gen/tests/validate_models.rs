@@ -97,7 +97,11 @@ fn canonical_testbeds_parse_strictly_have_descriptions_pass_lint_and_cover_all_e
                     )
                 });
 
-                if doc.description.as_deref().is_none_or(|d| d.trim().is_empty()) {
+                if doc
+                    .description
+                    .as_deref()
+                    .is_none_or(|d| d.trim().is_empty())
+                {
                     missing_descriptions.push(format!(
                         "{} -> doc #{}: kind={}, name={}",
                         path.display(),
@@ -149,8 +153,9 @@ fn canonical_testbeds_parse_strictly_have_descriptions_pass_lint_and_cover_all_e
         .iter()
         .map(|s| (*s).to_string())
         .collect();
-    let missing_transports: Vec<_> =
-        expected_transport_set.difference(&seen_transports).collect();
+    let missing_transports: Vec<_> = expected_transport_set
+        .difference(&seen_transports)
+        .collect();
     assert!(
         missing_transports.is_empty(),
         "Canonical testbeds 01-05 are missing presentation-binding transports: {missing_transports:?}"

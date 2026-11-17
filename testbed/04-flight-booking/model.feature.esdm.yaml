@@ -151,7 +151,8 @@ scenarios:
           booking-id: "bkg-100"
     when:
       query: get-booking-status
-      parameters: {}
+      parameters:
+        booking-id: "bkg-100"
     then:
       result:
         booking_id: "bkg-100"

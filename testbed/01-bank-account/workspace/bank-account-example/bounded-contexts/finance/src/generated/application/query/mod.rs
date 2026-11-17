@@ -3,3 +3,4 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub mod get_account_summary;
+pub mod list_account_summaries;

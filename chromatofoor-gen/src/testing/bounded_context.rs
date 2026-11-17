@@ -1,7 +1,5 @@
 use crate::common::{BoundedContextGenerator, GeneratorContext, RoutingContext, resolve_bc_dir};
-use crate::testing::{
-    sanitize_test_ident_segment, scenario_doc_comment, sync_generated_test_dir,
-};
+use crate::testing::{sanitize_test_ident_segment, scenario_doc_comment, sync_generated_test_dir};
 use anyhow::Result;
 use convert_case::{Case, Casing};
 use esdm::EsdmDoc;
@@ -241,11 +239,9 @@ pub fn generate_tests(
                                         let owner_snake =
                                             format_ident!("{}", owner_unit.to_case(Case::Snake));
                                         let ev_pascal_str = e.event.to_case(Case::Pascal);
-                                        let collides = dcb_ev_counts
-                                            .get(&ev_pascal_str)
-                                            .copied()
-                                            .unwrap_or(0)
-                                            > 1;
+                                        let collides =
+                                            dcb_ev_counts.get(&ev_pascal_str).copied().unwrap_or(0)
+                                                > 1;
                                         let ev_ty_ident = if collides {
                                             let alias = format_ident!(
                                                 "{}{}",
@@ -538,9 +534,8 @@ pub fn generate_tests(
                                     });
                                 } else {
                                     if let Some(expected_res) = &scenario.then.result {
-                                        let expected_json_str =
-                                            serde_json::to_string(expected_res)
-                                                .unwrap_or_else(|_| "{}".to_string());
+                                        let expected_json_str = serde_json::to_string(expected_res)
+                                            .unwrap_or_else(|_| "{}".to_string());
                                         then_chains.push(quote! {
                                             .then_result_json(
                                                 &serde_json::from_str(#expected_json_str)
@@ -549,9 +544,8 @@ pub fn generate_tests(
                                         });
                                     }
                                     if let Some(expected_rm) = &scenario.then.read_model {
-                                        let expected_json_str =
-                                            serde_json::to_string(expected_rm)
-                                                .unwrap_or_else(|_| "{}".to_string());
+                                        let expected_json_str = serde_json::to_string(expected_rm)
+                                            .unwrap_or_else(|_| "{}".to_string());
                                         then_chains.push(quote! {
                                             .then_read_model_json(
                                                 &serde_json::from_str(#expected_json_str)
@@ -572,16 +566,33 @@ pub fn generate_tests(
                             }
 
                             let scenario_doc = scenario_doc_comment(feature, scenario);
-                            scenario_fns.push(quote! {
-                                #scenario_doc
-                                #[tokio::test]
-                                async fn #test_name() {
+                            let rm_given_expr = if let Some(subject_id) =
+                                extract_read_model_subject_id(&scenario.when.parameters)
+                            {
+                                quote! {
+                                    chromatofoor::testing::given_read_model_with_id(
+                                        #rm_ident::default(),
+                                        #subject_id,
+                                        vec![
+                                            #(#given_events),*
+                                        ],
+                                    )
+                                }
+                            } else {
+                                quote! {
                                     chromatofoor::testing::given_read_model(
                                         #rm_ident::default(),
                                         vec![
                                             #(#given_events),*
                                         ],
                                     )
+                                }
+                            };
+                            scenario_fns.push(quote! {
+                                #scenario_doc
+                                #[tokio::test]
+                                async fn #test_name() {
+                                    #rm_given_expr
                                     .await
                                     #when_stmt
                                     #(#then_chains)*;
@@ -611,6 +622,35 @@ pub fn generate_tests(
     }
 
     Ok(())
+}
+
+fn extract_read_model_subject_id(params: &serde_yaml::Value) -> Option<String> {
+    let map = params.as_mapping()?;
+    let candidate = map
+        .get(serde_yaml::Value::String("id".to_string()))
+        .or_else(|| {
+            map.iter().find_map(|(k, v)| {
+                let key = k.as_str()?;
+                (key.ends_with("-id") || key.ends_with("_id")).then_some(v)
+            })
+        })
+        .or_else(|| (map.len() == 1).then(|| map.values().next()).flatten())?;
+
+    let raw = match candidate {
+        serde_yaml::Value::String(s) => s.clone(),
+        serde_yaml::Value::Number(n) => n.to_string(),
+        _ => return None,
+    };
+
+    if !raw.is_empty()
+        && raw
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        Some(raw)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -721,22 +761,20 @@ mod tests {
         .unwrap();
 
         let bc_dir = resolve_bc_dir(dir.path(), "finance", &routing);
-        let main_rs =
-            std::fs::read_to_string(bc_dir.join("tests/generated/main.rs")).unwrap();
-        let rm_test_rs = std::fs::read_to_string(
-            bc_dir.join("tests/generated/read_model_account_summary.rs"),
-        )
-        .unwrap();
+        let main_rs = std::fs::read_to_string(bc_dir.join("tests/generated/main.rs")).unwrap();
+        let rm_test_rs =
+            std::fs::read_to_string(bc_dir.join("tests/generated/read_model_account_summary.rs"))
+                .unwrap();
 
         assert!(main_rs.contains("mod read_model_account_summary;"));
         assert!(main_rs.contains("clippy::doc_markdown"));
         assert!(rm_test_rs.contains("/// Feature: `query-account-summary`"));
         assert!(rm_test_rs.contains("/// Scenario: `returns projected balance`"));
         assert!(rm_test_rs.contains("/// Projects balance updates after deposit."));
+        assert!(rm_test_rs.contains("given_read_model_with_id"));
+        assert!(rm_test_rs.contains("\"acc-1\""));
         assert!(rm_test_rs.contains("then_result_json"));
         assert!(rm_test_rs.contains("then_rejected_reason(\"not authorized\")"));
-        assert!(
-            rm_test_rs.contains("fn test_query_account_summary_returns_projected_balance()")
-        );
+        assert!(rm_test_rs.contains("fn test_query_account_summary_returns_projected_balance()"));
     }
 }

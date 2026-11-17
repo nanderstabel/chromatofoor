@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use crate::generated::application::query::get_cargo_tracking::GetCargoTracking;
+pub use crate::generated::application::query::list_cargo_trackings::ListCargoTrackings;
 pub use crate::generated::application::read_models::cargo_tracking::{
     CargoTracking, CargoTrackingRecord,
 };

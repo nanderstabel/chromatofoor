@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 use finance::generated::application::query::get_account_summary::GetAccountSummary;
+use finance::generated::application::query::list_account_summaries::ListAccountSummaries;
 use finance::generated::application::read_models::account_summary::{
     AccountSummary, AccountSummaryEvents,
 };
@@ -15,8 +16,9 @@ use finance::generated::domain::account::event::FundsWithdrawn;
 /// Querying get-account-summary returns the projected owner and balance after deposits and withdrawals.
 #[tokio::test]
 async fn test_account_summary_queries_return_projected_balance_after_transactions() {
-    chromatofoor::testing::given_read_model(
+    chromatofoor::testing::given_read_model_with_id(
         AccountSummary::default(),
+        "00000000-0000-0000-0000-000000000001",
         vec![
             AccountSummaryEvents::from(
                 serde_json::from_str::<AccountOpened>("{\"owner-name\":\"Alice\",\"balance\":100}")
@@ -34,12 +36,38 @@ async fn test_account_summary_queries_return_projected_balance_after_transaction
     )
     .await
     .when(
-        serde_json::from_str::<GetAccountSummary>("{}")
-            .expect("Failed to deserialize query parameters"),
+        serde_json::from_str::<GetAccountSummary>(
+            "{\"id\":\"00000000-0000-0000-0000-000000000001\"}",
+        )
+        .expect("Failed to deserialize query parameters"),
     )
     .await
     .then_result_json(
         &serde_json::from_str("{\"owner_name\":\"Alice\",\"current_balance\":120}")
+            .expect("Failed to parse expected query result JSON"),
+    );
+}
+/// Feature: `account-summary-queries` — Read-model query scenarios for account balance summaries.
+/// Scenario: `list-all-account-summaries`
+///
+/// Querying list-account-summaries returns all projected account summary records.
+#[tokio::test]
+async fn test_account_summary_queries_list_all_account_summaries() {
+    chromatofoor::testing::given_read_model(
+        AccountSummary::default(),
+        vec![AccountSummaryEvents::from(
+            serde_json::from_str::<AccountOpened>("{\"owner-name\":\"Alice\",\"balance\":100}")
+                .expect("Failed to deserialize given event payload"),
+        )],
+    )
+    .await
+    .when(
+        serde_json::from_str::<ListAccountSummaries>("{}")
+            .expect("Failed to deserialize query parameters"),
+    )
+    .await
+    .then_result_json(
+        &serde_json::from_str("[{\"owner_name\":\"Alice\",\"current_balance\":100}]")
             .expect("Failed to parse expected query result JSON"),
     );
 }

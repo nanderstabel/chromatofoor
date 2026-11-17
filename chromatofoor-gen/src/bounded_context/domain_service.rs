@@ -122,10 +122,11 @@ pub fn generate_domain_services(
                         }
                     });
 
-                    let mut func_doc_lines = vec![match func.description.as_deref().map(str::trim) {
-                        Some(d) if !d.is_empty() => format!("Function: `{}` — {d}", func.name),
-                        _ => format!("Function: `{}`", func.name),
-                    }];
+                    let mut func_doc_lines =
+                        vec![match func.description.as_deref().map(str::trim) {
+                            Some(d) if !d.is_empty() => format!("Function: `{}` — {d}", func.name),
+                            _ => format!("Function: `{}`", func.name),
+                        }];
                     if let Some(rules) = &func.rules
                         && !rules.is_empty()
                     {

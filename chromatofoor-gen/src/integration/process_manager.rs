@@ -1,6 +1,6 @@
-use esdm::EsdmDoc;
 use anyhow::Result;
 use convert_case::{Case, Casing};
+use esdm::EsdmDoc;
 use quote::{format_ident, quote};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
@@ -86,7 +86,11 @@ pub(crate) fn resolve_pm_spec(pm: &EsdmDoc) -> ResolvedPmSpec {
         for reaction in reactions {
             if let Some(when) = &reaction.when {
                 let mut reaction_summary_parts = Vec::new();
-                if let Some(rule) = reaction.rule.as_deref().map(str::trim).filter(|r| !r.is_empty())
+                if let Some(rule) = reaction
+                    .rule
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|r| !r.is_empty())
                 {
                     reaction_summary_parts.push(format!("Rule: {rule}"));
                 }
@@ -102,8 +106,7 @@ pub(crate) fn resolve_pm_spec(pm: &EsdmDoc) -> ResolvedPmSpec {
                         })
                         .collect();
                     if !emit_labels.is_empty() {
-                        reaction_summary_parts
-                            .push(format!("- Emits: {}", emit_labels.join(", ")));
+                        reaction_summary_parts.push(format!("- Emits: {}", emit_labels.join(", ")));
                     }
                 }
                 if let Some(emits) = &reaction.emits {
@@ -1065,9 +1068,9 @@ mod tests {
         assert!(manual_rs.contains(
             "implement OnEvent::SalesOrderCreated::on_event for OrderSaga (declared timers: set=[FirstTimer, SecondTimer], cancel=[])"
         ));
-        assert!(manual_rs.contains(
-            "implement OnEvent::BillingInvoiceCreated::on_event for OrderSaga"
-        ));
+        assert!(
+            manual_rs.contains("implement OnEvent::BillingInvoiceCreated::on_event for OrderSaga")
+        );
         assert!(manual_rs.contains("implement OnTimer::FirstTimer::on_timer for OrderSaga"));
         assert!(manual_rs.contains("implement OnTimer::SecondTimer::on_timer for OrderSaga"));
 

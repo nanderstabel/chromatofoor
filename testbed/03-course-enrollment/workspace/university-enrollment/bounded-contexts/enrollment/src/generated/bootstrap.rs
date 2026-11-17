@@ -17,5 +17,6 @@ pub fn register<D: Domain>(mut builder: DomainBuilder<D>) -> DomainBuilder<D> {
     let course_roster_rm = Arc::new(CourseRoster::new());
     builder = builder.register_read_model::<CourseRoster>(course_roster_rm.clone());
     builder = builder.register_query::<GetCourseRoster, CourseRoster>(course_roster_rm.clone());
+    builder = builder.register_query::<ListCourseRosters, CourseRoster>(course_roster_rm.clone());
     builder
 }

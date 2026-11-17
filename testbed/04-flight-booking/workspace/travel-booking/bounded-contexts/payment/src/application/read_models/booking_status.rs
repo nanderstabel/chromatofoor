@@ -12,7 +12,7 @@ use chromatofoor::{
 /// Read Model: `booking-status` — Materialized payment status view for travelers.
 /// Projection: `payment-requested`
 ///
-/// Rule: Insert booking-status record with payment-status Pending.
+/// Rule: Insert booking-status record keyed by booking-id with payment-status Pending.
 impl Project<PaymentRequested> for BookingStatus {
     async fn project(&self, _event: Envelope<PaymentRequested>) -> Result<(), ViewError> {
         todo!("implement Project::PaymentRequested::project for BookingStatus")
@@ -21,7 +21,7 @@ impl Project<PaymentRequested> for BookingStatus {
 /// Read Model: `booking-status` — Materialized payment status view for travelers.
 /// Projection: `payment-completed`
 ///
-/// Rule: Update payment-status to Paid.
+/// Rule: Update payment-status to Paid for the record keyed by booking-id.
 impl Project<PaymentCompleted> for BookingStatus {
     async fn project(&self, _event: Envelope<PaymentCompleted>) -> Result<(), ViewError> {
         todo!("implement Project::PaymentCompleted::project for BookingStatus")
@@ -30,7 +30,7 @@ impl Project<PaymentCompleted> for BookingStatus {
 /// Read Model: `booking-status` — Materialized payment status view for travelers.
 /// Projection: `payment-failed`
 ///
-/// Rule: Update payment-status to Failed.
+/// Rule: Update payment-status to Failed for the record keyed by booking-id.
 impl Project<PaymentFailed> for BookingStatus {
     async fn project(&self, _event: Envelope<PaymentFailed>) -> Result<(), ViewError> {
         todo!("implement Project::PaymentFailed::project for BookingStatus")

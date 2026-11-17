@@ -10,7 +10,7 @@ use chromatofoor::{
 /// Read Model: `cart-summary` — Materialized shopping cart summary displaying item count, total amount, and checkout status.
 /// Projection: `cart-initialized`
 ///
-/// Rule: Initialize total-amount to 0, item-count to 0, and status to Open.
+/// Rule: Initialize record keyed by event subject ID with total-amount 0, item-count 0, and status Open.
 impl Project<CartInitialized> for CartSummary {
     async fn project(&self, _event: Envelope<CartInitialized>) -> Result<(), ViewError> {
         todo!("implement Project::CartInitialized::project for CartSummary")
@@ -19,7 +19,7 @@ impl Project<CartInitialized> for CartSummary {
 /// Read Model: `cart-summary` — Materialized shopping cart summary displaying item count, total amount, and checkout status.
 /// Projection: `item-added-to-cart`
 ///
-/// Rule: Add item.quantity * item.unit-price to total-amount and add item.quantity to item-count.
+/// Rule: Add item.quantity * item.unit-price to total-amount and add item.quantity to item-count for the event subject ID.
 impl Project<ItemAddedToCart> for CartSummary {
     async fn project(&self, _event: Envelope<ItemAddedToCart>) -> Result<(), ViewError> {
         todo!("implement Project::ItemAddedToCart::project for CartSummary")
@@ -28,7 +28,7 @@ impl Project<ItemAddedToCart> for CartSummary {
 /// Read Model: `cart-summary` — Materialized shopping cart summary displaying item count, total amount, and checkout status.
 /// Projection: `cart-checked-out`
 ///
-/// Rule: Set status to CheckedOut.
+/// Rule: Set status to CheckedOut for the event subject ID.
 impl Project<CartCheckedOut> for CartSummary {
     async fn project(&self, _event: Envelope<CartCheckedOut>) -> Result<(), ViewError> {
         todo!("implement Project::CartCheckedOut::project for CartSummary")

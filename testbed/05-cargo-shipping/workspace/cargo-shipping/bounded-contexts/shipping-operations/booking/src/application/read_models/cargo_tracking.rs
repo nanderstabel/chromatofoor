@@ -11,7 +11,7 @@ use chromatofoor::{
 /// Read Model: `cargo-tracking` — Materialized shipment tracking view showing route ports and assigned voyage.
 /// Projection: `cargo-booked`
 ///
-/// Rule: Insert cargo-tracking record with routing-status NotRouted.
+/// Rule: Insert cargo-tracking record keyed by tracking-id with routing-status NotRouted.
 impl Project<CargoBooked> for CargoTracking {
     async fn project(&self, _event: Envelope<CargoBooked>) -> Result<(), ViewError> {
         todo!("implement Project::CargoBooked::project for CargoTracking")
@@ -20,7 +20,7 @@ impl Project<CargoBooked> for CargoTracking {
 /// Read Model: `cargo-tracking` — Materialized shipment tracking view showing route ports and assigned voyage.
 /// Projection: `cargo-assigned-to-route`
 ///
-/// Rule: Update routing-status to Routed and set voyage-number.
+/// Rule: Update routing-status to Routed and set voyage-number for the record keyed by tracking-id.
 impl Project<CargoAssignedToRoute> for CargoTracking {
     async fn project(&self, _event: Envelope<CargoAssignedToRoute>) -> Result<(), ViewError> {
         todo!("implement Project::CargoAssignedToRoute::project for CargoTracking")

@@ -6,14 +6,21 @@ use crate::generated::application::read_models::course_roster::{CourseRoster, Co
 use crate::generated::domain::Enrollment;
 use crate::generated::domain::actors::{Registrar, Student};
 use chromatofoor::bounded_context::Query;
-/// Retrieves the projected roster summary for a course.
+/// Retrieves the projected roster summary for a course by course-id.
 #[chromatofoor::query(scope = Enrollment, actors = [Registrar, Student])]
-#[derive(Default)]
-pub struct GetCourseRoster {}
+pub struct GetCourseRoster {
+    #[serde(rename = "course-id")]
+    pub course_id: chromatofoor::Identifier,
+}
 impl Query<CourseRoster> for GetCourseRoster {
     type Output = CourseRosterRecord;
     type Error = String;
     async fn execute(self, read_model: &CourseRoster) -> Result<Self::Output, Self::Error> {
-        Ok(read_model.records.latest().await)
+        let key = self.course_id.to_string();
+        read_model
+            .records
+            .get(&key)
+            .await
+            .ok_or_else(|| format!("{} '{key}' not found", "course-roster"))
     }
 }

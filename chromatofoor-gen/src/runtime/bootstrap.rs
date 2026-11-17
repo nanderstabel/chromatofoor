@@ -1,7 +1,7 @@
 use crate::common::{BoundedContextGenerator, GeneratorContext, MEMBER_LINTS_TOML};
-use esdm::EsdmDoc;
 use anyhow::Result;
 use convert_case::{Case, Casing};
+use esdm::EsdmDoc;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 use std::fs;

@@ -93,3 +93,7 @@ export function createGetCargoTrackingQueryState(bridge: ChromatofoorBridge, ini
   return createQueryState<Types.GetCargoTrackingQuery>(bridge, 'booking.get-cargo-tracking', (initialParams || {}) as Types.GetCargoTrackingQuery);
 }
 
+export function createListCargoTrackingsQueryState(bridge: ChromatofoorBridge, initialParams?: Partial<Types.ListCargoTrackingsQuery>) {
+  return createQueryState<Types.ListCargoTrackingsQuery>(bridge, 'booking.list-cargo-trackings', (initialParams || {}) as Types.ListCargoTrackingsQuery);
+}
+

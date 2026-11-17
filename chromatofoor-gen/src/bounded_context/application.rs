@@ -286,10 +286,8 @@ pub fn generate_application(
                     let manual_rm_impls: Vec<_> = projected_event_entries
                         .iter()
                         .map(|(ev_kebab, ev_pascal_str, proj_rule, ev_local_ident)| {
-                            let mut doc_lines = vec![
-                                rm_header.clone(),
-                                format!("Projection: `{ev_kebab}`"),
-                            ];
+                            let mut doc_lines =
+                                vec![rm_header.clone(), format!("Projection: `{ev_kebab}`")];
                             if let Some(rule) = proj_rule.as_deref().map(str::trim)
                                 && !rule.is_empty()
                             {
@@ -385,28 +383,44 @@ pub fn generate_application(
                 ];
 
                 let mut type_ts = quote! { {} };
-                let mut query_has_id = false;
-                let mut query_id_is_option = false;
+                let mut lookup_key: Option<(syn::Ident, bool)> = None;
                 let mut q_ref_idents = std::collections::BTreeSet::new();
+                let mut q_extra_structs = Vec::new();
+                let mut has_required_params = false;
 
                 if let Some(params) = &q.parameters {
                     q_ref_idents = collect_schema_ref_idents(params);
+                    has_required_params = !params.required.is_empty();
+                    if let Some((key_name, key_is_opt)) = detect_query_lookup_key(params) {
+                        lookup_key = Some((
+                            format_ident!("{}", key_name.to_case(convert_case::Case::Snake)),
+                            key_is_opt,
+                        ));
+                    }
                     let mut props = Vec::new();
                     for (prop_name, prop_schema) in &params.properties {
-                        let prop_ident =
-                            format_ident!("{}", prop_name.to_case(convert_case::Case::Snake));
-                        let (prop_ts, _) =
+                        let prop_snake = prop_name.to_case(convert_case::Case::Snake);
+                        let prop_ident = format_ident!("{}", prop_snake);
+                        let (prop_ts, mut e_structs) =
                             generate_type_for_prop(prop_name, prop_schema, &q_pascal);
+                        q_extra_structs.append(&mut e_structs);
                         let is_required = params.required.contains(prop_name);
-                        if prop_name == "id" {
-                            query_has_id = true;
-                            query_id_is_option = !is_required;
-                        }
+                        let rename_attr = if prop_snake == *prop_name {
+                            quote! {}
+                        } else {
+                            quote! { #[serde(rename = #prop_name)] }
+                        };
 
                         if is_required {
-                            props.push(quote! { pub #prop_ident: #prop_ts });
+                            props.push(quote! {
+                                #rename_attr
+                                pub #prop_ident: #prop_ts
+                            });
                         } else {
-                            props.push(quote! { pub #prop_ident: Option<#prop_ts> });
+                            props.push(quote! {
+                                #rename_attr
+                                pub #prop_ident: Option<#prop_ts>
+                            });
                         }
                     }
                     if !props.is_empty() {
@@ -483,12 +497,23 @@ pub fn generate_application(
                     &[&q_pascal, &rm_pascal, &rm_record_str],
                 );
 
+                let extra_serde_import = if q_extra_structs.is_empty() {
+                    quote! {}
+                } else {
+                    quote! { use serde::{Deserialize, Serialize}; }
+                };
+
                 q_chunks.push(quote! {
                     #(#uses)*
                     #bc_scope_import
                     #actor_imports
                     #q_ref_imports
+                    #extra_serde_import
                 });
+
+                for est in q_extra_structs {
+                    q_chunks.push(est);
+                }
 
                 let query_attr = if actor_idents.is_empty() {
                     quote! {
@@ -503,10 +528,16 @@ pub fn generate_application(
                     }
                 };
 
+                let default_derive = if has_required_params {
+                    quote! {}
+                } else {
+                    quote! { #[derive(Default)] }
+                };
+
                 q_chunks.push(quote! {
                     #q_doc
                     #query_attr
-                    #[derive(Default)]
+                    #default_derive
                     pub struct #query_ident #type_ts
                 });
 
@@ -517,29 +548,29 @@ pub fn generate_application(
                             Ok(read_model.records.all().await)
                         },
                     )
-                } else if query_has_id && !query_id_is_option {
+                } else if let Some((key_ident, false)) = &lookup_key {
                     (
                         quote! { #rm_record_ident },
                         quote! {
-                            let id_str = self.id.to_string();
+                            let key = self.#key_ident.to_string();
                             read_model
                                 .records
-                                .get(&id_str)
+                                .get(&key)
                                 .await
-                                .ok_or_else(|| "Item not found or deleted".to_string())
+                                .ok_or_else(|| format!("{} '{key}' not found", #rm_name))
                         },
                     )
-                } else if query_has_id && query_id_is_option {
+                } else if let Some((key_ident, true)) = &lookup_key {
                     (
                         quote! { #rm_record_ident },
                         quote! {
-                            if let Some(id) = &self.id {
-                                let id_str = id.to_string();
+                            if let Some(key_val) = &self.#key_ident {
+                                let key = key_val.to_string();
                                 read_model
                                     .records
-                                    .get(&id_str)
+                                    .get(&key)
                                     .await
-                                    .ok_or_else(|| "Item not found or deleted".to_string())
+                                    .ok_or_else(|| format!("{} '{key}' not found", #rm_name))
                             } else {
                                 Ok(read_model.records.latest().await)
                             }
@@ -592,6 +623,35 @@ pub fn generate_application(
     }
 
     Ok(())
+}
+
+fn detect_query_lookup_key(params: &esdm::DataSchema) -> Option<(String, bool)> {
+    if params.properties.contains_key("id") {
+        let is_opt = !params.required.iter().any(|r| r == "id");
+        return Some(("id".to_string(), is_opt));
+    }
+
+    let id_props: Vec<&String> = params
+        .properties
+        .keys()
+        .filter(|k| k.ends_with("-id") || k.ends_with("_id"))
+        .collect();
+    if id_props.len() == 1 {
+        let name = id_props[0].clone();
+        let is_opt = !params.required.contains(&name);
+        return Some((name, is_opt));
+    }
+
+    if params.properties.len() == 1
+        && let Some((name, schema)) = params.properties.iter().next()
+        && matches!(schema.prop_type.as_deref(), Some("string" | "integer"))
+        && schema.enum_values.is_none()
+    {
+        let is_opt = !params.required.contains(name);
+        return Some((name.clone(), is_opt));
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -705,5 +765,92 @@ mod tests {
         assert!(!manual_rm.contains("impl Project"));
         assert!(syn::parse_file(&gen_rm).is_ok());
         assert!(syn::parse_file(&manual_rm).is_ok());
+    }
+
+    #[test]
+    fn test_query_key_lookup_and_list_generation() {
+        let mut bc_contexts = std::collections::HashMap::new();
+        bc_contexts.insert(
+            "enrollment".to_string(),
+            BoundedContextGenerator {
+                actors: vec![EsdmDoc {
+                    name: "student".to_string(),
+                    kind: "actor".to_string(),
+                    ..Default::default()
+                }],
+                read_models: vec![EsdmDoc {
+                    name: "course-roster".to_string(),
+                    kind: "read-model".to_string(),
+                    ..Default::default()
+                }],
+                queries: vec![
+                    EsdmDoc {
+                        name: "get-course-roster".to_string(),
+                        kind: "query".to_string(),
+                        read_model: Some("course-roster".to_string()),
+                        actors: Some(vec!["student".to_string()]),
+                        parameters: Some(DataSchema {
+                            properties: indexmap::IndexMap::from([(
+                                "course-id".to_string(),
+                                PropertySchema {
+                                    prop_type: Some("string".to_string()),
+                                    format: Some("identifier".to_string()),
+                                    ..Default::default()
+                                },
+                            )]),
+                            required: vec!["course-id".to_string()],
+                            ..Default::default()
+                        }),
+                        result: Some(PropertySchema {
+                            prop_type: Some("object".to_string()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                    EsdmDoc {
+                        name: "list-course-rosters".to_string(),
+                        kind: "query".to_string(),
+                        read_model: Some("course-roster".to_string()),
+                        actors: Some(vec!["student".to_string()]),
+                        result: Some(PropertySchema {
+                            prop_type: Some("array".to_string()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+        );
+
+        let contexts = std::collections::HashMap::new();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let out_dir = temp_dir.path().to_path_buf();
+        let routing = RoutingContext::default();
+
+        generate_application(&out_dir, &bc_contexts, &contexts, &routing).unwrap();
+
+        let bc_dir = resolve_bc_dir(&out_dir, "enrollment", &routing);
+        let get_rs = std::fs::read_to_string(
+            bc_dir.join("src/generated/application/query/get_course_roster.rs"),
+        )
+        .unwrap();
+        let list_rs = std::fs::read_to_string(
+            bc_dir.join("src/generated/application/query/list_course_rosters.rs"),
+        )
+        .unwrap();
+
+        assert!(get_rs.contains("#[serde(rename = \"course-id\")]"));
+        assert!(get_rs.contains("pub course_id: chromatofoor::Identifier"));
+        assert!(!get_rs.contains("#[derive(Default)]"));
+        assert!(get_rs.contains("self.course_id.to_string()"));
+        assert!(get_rs.contains("records"));
+        assert!(get_rs.contains(".get(&key)"));
+        assert!(syn::parse_file(&get_rs).is_ok());
+
+        assert!(list_rs.contains("#[derive(Default)]"));
+        assert!(list_rs.contains("type Output = Vec<CourseRosterRecord>;"));
+        assert!(list_rs.contains("read_model.records.all().await"));
+        assert!(syn::parse_file(&list_rs).is_ok());
     }
 }

@@ -30,4 +30,8 @@ export class DomainClient {
     return this.bridge.query('booking.get-cargo-tracking', params);
   }
 
+  async listCargoTrackings(params: Types.ListCargoTrackingsQuery): Promise<any> {
+    return this.bridge.query('booking.list-cargo-trackings', params);
+  }
+
 }

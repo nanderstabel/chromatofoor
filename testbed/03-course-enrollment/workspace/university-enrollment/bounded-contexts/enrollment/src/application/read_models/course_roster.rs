@@ -11,7 +11,7 @@ use chromatofoor::{
 /// Read Model: `course-roster` — Materialized course roster tracking capacity and active enrolled count per course.
 /// Projection: `course-published`
 ///
-/// Rule: Insert course roster entry with enrolled-count 0.
+/// Rule: Insert course roster entry keyed by course-id with enrolled-count 0.
 impl Project<CoursePublished> for CourseRoster {
     async fn project(&self, _event: Envelope<CoursePublished>) -> Result<(), ViewError> {
         todo!("implement Project::CoursePublished::project for CourseRoster")
@@ -20,7 +20,7 @@ impl Project<CoursePublished> for CourseRoster {
 /// Read Model: `course-roster` — Materialized course roster tracking capacity and active enrolled count per course.
 /// Projection: `course-capacity-updated`
 ///
-/// Rule: Update capacity for the matching course-id.
+/// Rule: Update capacity for the record keyed by course-id.
 impl Project<CourseCapacityUpdated> for CourseRoster {
     async fn project(&self, _event: Envelope<CourseCapacityUpdated>) -> Result<(), ViewError> {
         todo!("implement Project::CourseCapacityUpdated::project for CourseRoster")
@@ -29,7 +29,7 @@ impl Project<CourseCapacityUpdated> for CourseRoster {
 /// Read Model: `course-roster` — Materialized course roster tracking capacity and active enrolled count per course.
 /// Projection: `student-enrolled`
 ///
-/// Rule: Increment enrolled-count for the matching course-id.
+/// Rule: Increment enrolled-count for the record keyed by course-id.
 impl Project<StudentEnrolled> for CourseRoster {
     async fn project(&self, _event: Envelope<StudentEnrolled>) -> Result<(), ViewError> {
         todo!("implement Project::StudentEnrolled::project for CourseRoster")
@@ -38,7 +38,7 @@ impl Project<StudentEnrolled> for CourseRoster {
 /// Read Model: `course-roster` — Materialized course roster tracking capacity and active enrolled count per course.
 /// Projection: `enrollment-dropped`
 ///
-/// Rule: Decrement enrolled-count for the matching course-id.
+/// Rule: Decrement enrolled-count for the record keyed by course-id.
 impl Project<EnrollmentDropped> for CourseRoster {
     async fn project(&self, _event: Envelope<EnrollmentDropped>) -> Result<(), ViewError> {
         todo!("implement Project::EnrollmentDropped::project for CourseRoster")

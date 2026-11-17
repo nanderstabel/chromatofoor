@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use crate::generated::application::query::get_booking_status::GetBookingStatus;
+pub use crate::generated::application::query::list_booking_statuses::ListBookingStatuses;
 pub use crate::generated::application::read_models::booking_status::{
     BookingStatus, BookingStatusRecord,
 };

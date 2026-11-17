@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use crate::generated::application::query::get_course_roster::GetCourseRoster;
+pub use crate::generated::application::query::list_course_rosters::ListCourseRosters;
 pub use crate::generated::application::read_models::course_roster::{
     CourseRoster, CourseRosterRecord,
 };

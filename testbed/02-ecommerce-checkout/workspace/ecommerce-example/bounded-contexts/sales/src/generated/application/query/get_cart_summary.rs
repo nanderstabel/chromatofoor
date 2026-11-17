@@ -6,14 +6,20 @@ use crate::generated::application::read_models::cart_summary::{CartSummary, Cart
 use crate::generated::domain::Sales;
 use crate::generated::domain::actors::Customer;
 use chromatofoor::bounded_context::Query;
-/// Retrieves the projected shopping cart summary.
+/// Retrieves the projected shopping cart summary by cart ID.
 #[chromatofoor::query(scope = Sales, actors = [Customer])]
-#[derive(Default)]
-pub struct GetCartSummary {}
+pub struct GetCartSummary {
+    pub id: uuid::Uuid,
+}
 impl Query<CartSummary> for GetCartSummary {
     type Output = CartSummaryRecord;
     type Error = String;
     async fn execute(self, read_model: &CartSummary) -> Result<Self::Output, Self::Error> {
-        Ok(read_model.records.latest().await)
+        let key = self.id.to_string();
+        read_model
+            .records
+            .get(&key)
+            .await
+            .ok_or_else(|| format!("{} '{key}' not found", "cart-summary"))
     }
 }

@@ -195,7 +195,8 @@ scenarios:
           course-id: "cs-101"
     when:
       query: get-course-roster
-      parameters: {}
+      parameters:
+        course-id: "cs-101"
     then:
       result:
         course_id: "cs-101"

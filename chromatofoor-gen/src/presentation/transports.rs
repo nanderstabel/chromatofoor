@@ -338,7 +338,8 @@ mod tests {
                 .join("presentation/tauri-app/dist/index.html")
                 .is_file()
         );
-        let pkg = fs::read_to_string(dir.path().join("presentation/tauri-app/package.json")).unwrap();
+        let pkg =
+            fs::read_to_string(dir.path().join("presentation/tauri-app/package.json")).unwrap();
         assert!(pkg.contains("../../../../../../packages/ui"));
     }
 }

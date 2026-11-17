@@ -362,8 +362,7 @@ pub fn generate_consistency_units(
                 let mut ref_idents = std::collections::BTreeSet::new();
                 if let Some(data) = &ev.data {
                     ref_idents = crate::common::collect_schema_ref_idents(data);
-                    fields =
-                        generate_struct_fields(data, &struct_name_str, &mut extra_structs);
+                    fields = generate_struct_fields(data, &struct_name_str, &mut extra_structs);
                 }
 
                 let (ev_scope_import, ev_scope_ref) = if ctx.boundary.is_some() {
@@ -595,11 +594,8 @@ pub fn generate_consistency_units(
                     || ev_pascal_str == dcb_state_str
                     || ev_pascal_str == bc_pascal_str;
                 let local_ident = if collides {
-                    let alias = format_ident!(
-                        "{}{}",
-                        owner_unit.to_case(Case::Pascal),
-                        ev_pascal_str
-                    );
+                    let alias =
+                        format_ident!("{}{}", owner_unit.to_case(Case::Pascal), ev_pascal_str);
                     consult_imports.insert(
                         quote! {
                             use crate::generated::domain::#owner_snake::event::#ev_struct as #alias;
@@ -698,9 +694,9 @@ pub fn generate_consistency_units(
             let variant_ident = format_ident!("{}", inv.name.to_case(Case::Pascal));
             let name_str = &inv.name;
             let inv_doc = match inv.rule.as_deref().map(str::trim) {
-                Some(rule) if !rule.is_empty() => crate::common::make_doc_lines(&[format!(
-                    "Invariant `{name_str}` — {rule}"
-                )]),
+                Some(rule) if !rule.is_empty() => {
+                    crate::common::make_doc_lines(&[format!("Invariant `{name_str}` — {rule}")])
+                }
                 _ => crate::common::make_doc_lines(&[format!("Invariant `{name_str}`")]),
             };
             quote! {
@@ -768,12 +764,13 @@ pub fn generate_consistency_units(
         let manual_aggregate_rs = manual_base_path.join("aggregate.rs");
         if !manual_aggregate_rs.exists() {
             if let Some(ref boundary_doc) = ctx.boundary {
-                let mut doc_lines = vec![match boundary_doc.description.as_deref().map(str::trim) {
-                    Some(d) if !d.is_empty() => {
-                        format!("Dynamic Consistency Boundary: `{agg}` — {d}")
-                    }
-                    _ => format!("Dynamic Consistency Boundary: `{agg}`"),
-                }];
+                let mut doc_lines =
+                    vec![match boundary_doc.description.as_deref().map(str::trim) {
+                        Some(d) if !d.is_empty() => {
+                            format!("Dynamic Consistency Boundary: `{agg}` — {d}")
+                        }
+                        _ => format!("Dynamic Consistency Boundary: `{agg}`"),
+                    }];
                 if let Some(consults) = &boundary_doc.consults
                     && !consults.is_empty()
                 {
@@ -970,10 +967,11 @@ pub fn generate_consistency_units(
                     let manual_ev_file = manual_event_dir.join(format!("{file_mod_name}.rs"));
 
                     if !manual_ev_file.exists() {
-                        let mut ev_doc_lines = vec![match ev.description.as_deref().map(str::trim) {
-                            Some(d) if !d.is_empty() => format!("Event: `{}` — {d}", ev.name),
-                            _ => format!("Event: `{}`", ev.name),
-                        }];
+                        let mut ev_doc_lines =
+                            vec![match ev.description.as_deref().map(str::trim) {
+                                Some(d) if !d.is_empty() => format!("Event: `{}` — {d}", ev.name),
+                                _ => format!("Event: `{}`", ev.name),
+                            }];
                         if let Some(boundary_doc) = &ctx.boundary
                             && let Some(consults) = &boundary_doc.consults
                             && let Some(criteria) = consults
@@ -1217,11 +1215,8 @@ pub fn generate_schema_structs(
         let model_pascal_str = model.name.to_case(Case::Pascal);
         let ref_idents = crate::common::collect_schema_ref_idents(schema);
         let mut extra_structs = Vec::new();
-        let fields = crate::common::generate_struct_fields(
-            schema,
-            &model_pascal_str,
-            &mut extra_structs,
-        );
+        let fields =
+            crate::common::generate_struct_fields(schema, &model_pascal_str, &mut extra_structs);
 
         let bc_pascal_str = bc.to_case(Case::Pascal);
         let (bc_scope_import, bc_scope_ref) =
@@ -1237,8 +1232,7 @@ pub fn generate_schema_structs(
                     quote! { #bc_pascal },
                 )
             };
-        let ref_imports =
-            crate::common::emit_domain_ref_imports(&ref_idents, &[&model_pascal_str]);
+        let ref_imports = crate::common::emit_domain_ref_imports(&ref_idents, &[&model_pascal_str]);
 
         let model_doc = crate::common::make_doc_comment(model.description.as_deref());
 

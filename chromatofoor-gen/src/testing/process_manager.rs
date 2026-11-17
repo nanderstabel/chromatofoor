@@ -1,7 +1,5 @@
 use crate::integration::{resolve_pm_event_bc, resolve_pm_spec};
-use crate::testing::{
-    sanitize_test_ident_segment, scenario_doc_comment, sync_generated_test_dir,
-};
+use crate::testing::{sanitize_test_ident_segment, scenario_doc_comment, sync_generated_test_dir};
 use anyhow::Result;
 use convert_case::{Case, Casing};
 use esdm::EsdmDoc;

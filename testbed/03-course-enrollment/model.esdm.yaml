@@ -359,22 +359,42 @@ projections:
   - boundedContext: enrollment
     aggregate: course
     event: course-published
-    rule: Insert course roster entry with enrolled-count 0.
+    rule: Insert course roster entry keyed by course-id with enrolled-count 0.
   - boundedContext: enrollment
     aggregate: course
     event: course-capacity-updated
-    rule: Update capacity for the matching course-id.
+    rule: Update capacity for the record keyed by course-id.
   - boundedContext: enrollment
     event: student-enrolled
-    rule: Increment enrolled-count for the matching course-id.
+    rule: Increment enrolled-count for the record keyed by course-id.
   - boundedContext: enrollment
     event: enrollment-dropped
-    rule: Decrement enrolled-count for the matching course-id.
+    rule: Decrement enrolled-count for the record keyed by course-id.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: query
 name: get-course-roster
-description: Retrieves the projected roster summary for a course.
+description: Retrieves the projected roster summary for a course by course-id.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+readModel: course-roster
+paradigm: document
+actors: [registrar, student]
+parameters:
+  type: object
+  properties:
+    course-id:
+      type: string
+      format: identifier
+  required: [course-id]
+result:
+  type: object
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: list-course-rosters
+description: Lists projected roster summaries across all published courses.
 scope:
   domain: university-enrollment
   boundedContext: enrollment
@@ -384,4 +404,6 @@ actors: [registrar, student]
 parameters:
   type: object
 result:
-  type: object
+  type: array
+  items:
+    type: object

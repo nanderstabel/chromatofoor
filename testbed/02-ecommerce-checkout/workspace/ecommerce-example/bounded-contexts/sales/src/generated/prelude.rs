@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use crate::generated::application::query::get_cart_summary::GetCartSummary;
+pub use crate::generated::application::query::list_cart_summaries::ListCartSummaries;
 pub use crate::generated::application::read_models::cart_summary::{
     CartSummary, CartSummaryRecord,
 };

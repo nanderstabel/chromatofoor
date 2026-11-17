@@ -87,7 +87,8 @@ scenarios:
           voyage-number: "v-204"
     when:
       query: get-cargo-tracking
-      parameters: {}
+      parameters:
+        tracking-id: "cargo-900"
     then:
       result:
         tracking_id: "cargo-900"

@@ -1,6 +1,6 @@
-use esdm::EsdmDoc;
 use anyhow::Result;
 use convert_case::{Case, Casing};
+use esdm::EsdmDoc;
 use std::fs;
 use std::path::PathBuf;
 

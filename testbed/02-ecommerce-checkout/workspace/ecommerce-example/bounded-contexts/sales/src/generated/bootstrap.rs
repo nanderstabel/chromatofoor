@@ -15,5 +15,6 @@ pub fn register<D: Domain>(mut builder: DomainBuilder<D>) -> DomainBuilder<D> {
     let cart_summary_rm = Arc::new(CartSummary::new());
     builder = builder.register_read_model::<CartSummary>(cart_summary_rm.clone());
     builder = builder.register_query::<GetCartSummary, CartSummary>(cart_summary_rm.clone());
+    builder = builder.register_query::<ListCartSummaries, CartSummary>(cart_summary_rm.clone());
     builder
 }

@@ -139,12 +139,7 @@ tokio = {{ workspace = true }}
                 if seen_events.insert(full_event_name) {
                     let ev_pascal_str = ev.to_case(Case::Pascal);
                     *ev_pascal_counts.entry(ev_pascal_str.clone()).or_insert(0) += 1;
-                    raw_handles.push((
-                        bc.to_string(),
-                        agg.to_string(),
-                        ev_kebab,
-                        ev_pascal_str,
-                    ));
+                    raw_handles.push((bc.to_string(), agg.to_string(), ev_kebab, ev_pascal_str));
                 }
             }
         }
@@ -255,10 +250,8 @@ tokio = {{ workspace = true }}
             };
             emit_command_idents.push(local_ident);
         }
-        let parsed_emit_imports: Vec<proc_macro2::TokenStream> = emit_imports
-            .iter()
-            .filter_map(|s| s.parse().ok())
-            .collect();
+        let parsed_emit_imports: Vec<proc_macro2::TokenStream> =
+            emit_imports.iter().filter_map(|s| s.parse().ok()).collect();
 
         let (domain_import, domain_scope_ref) = if domain_pascal_str == handler_pascal_str {
             let alias = format_ident!("{}Domain", domain_pascal);

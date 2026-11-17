@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use crate::generated::application::query::get_account_summary::GetAccountSummary;
+pub use crate::generated::application::query::list_account_summaries::ListAccountSummaries;
 pub use crate::generated::application::read_models::account_summary::{
     AccountSummary, AccountSummaryRecord,
 };

@@ -15,8 +15,9 @@ use enrollment::generated::domain::student_course_enrollment::event::StudentEnro
 /// Querying get-course-roster reflects net active enrollments after drops.
 #[tokio::test]
 async fn test_course_roster_queries_return_projected_roster_count() {
-    chromatofoor::testing::given_read_model(
+    chromatofoor::testing::given_read_model_with_id(
             CourseRoster::default(),
+            "cs-101",
             vec![
                 CourseRosterEvents::from(serde_json::from_str:: < CoursePublished >
                 ("{\"course-id\":\"cs-101\",\"title\":\"Distributed Systems\",\"capacity\":25}")
@@ -34,7 +35,7 @@ async fn test_course_roster_queries_return_projected_roster_count() {
         )
         .await
         .when(
-            serde_json::from_str::<GetCourseRoster>("{}")
+            serde_json::from_str::<GetCourseRoster>("{\"course-id\":\"cs-101\"}")
                 .expect("Failed to deserialize query parameters"),
         )
         .await

@@ -1156,8 +1156,14 @@ fn make_envelope<E>(subject_str: &str, rev: u32, data: E) -> Envelope<E> {
 // 4. Read Model Fixture (`scope.readModel`)
 // ============================================================================
 
-/// Projects `history` into `read_model` using [`architecturekit::testing::project`] and returns a
-/// [`ReadModelFixture`] for asserting on the materialized view or executing a [`Query`].
+const DEFAULT_READ_MODEL_SUBJECT_ID: &str = "00000000-0000-0000-0000-000000000001";
+
+/// Projects `history` into `read_model` under `<R::TOPIC>/00000000-0000-0000-0000-000000000001`
+/// using [`architecturekit::testing::project`] and returns a [`ReadModelFixture`] for asserting on
+/// the materialized view or executing a [`Query`].
+///
+/// Use [`given_read_model_with_id`] when a subject-keyed projection expects a specific trailing
+/// subject segment.
 ///
 /// # Panics
 ///
@@ -1169,7 +1175,30 @@ pub async fn given_read_model<R: ReadModel>(
 where
     R::Event: Events,
 {
-    let subject = Subject::new(&format!("{}/test", R::TOPIC));
+    given_read_model_with_id(read_model, DEFAULT_READ_MODEL_SUBJECT_ID, history).await
+}
+
+/// Projects `history` into `read_model` under `<R::TOPIC>/<instance_id>` using
+/// [`architecturekit::testing::project`] and returns a [`ReadModelFixture`].
+///
+/// # Panics
+///
+/// Panics if projecting any event in `history` fails.
+pub async fn given_read_model_with_id<R: ReadModel>(
+    read_model: R,
+    instance_id: &str,
+    history: impl IntoIterator<Item = R::Event>,
+) -> ReadModelFixture<R>
+where
+    R::Event: Events,
+{
+    let trimmed = instance_id.trim_matches('/');
+    let segment = if trimmed.is_empty() {
+        DEFAULT_READ_MODEL_SUBJECT_ID
+    } else {
+        trimmed
+    };
+    let subject = Subject::new(&format!("{}/{segment}", R::TOPIC));
     let stored = stored_events(&subject, history);
     if let Err(err) = project(&read_model, &stored).await {
         panic!(

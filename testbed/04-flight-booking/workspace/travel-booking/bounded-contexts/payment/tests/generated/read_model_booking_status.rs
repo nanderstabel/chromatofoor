@@ -14,8 +14,9 @@ use payment::generated::domain::booking_payment::event::PaymentRequested;
 /// Querying get-booking-status returns Paid after payment-completed.
 #[tokio::test]
 async fn test_booking_status_queries_return_paid_booking_status() {
-    chromatofoor::testing::given_read_model(
+    chromatofoor::testing::given_read_model_with_id(
             BookingStatus::default(),
+            "bkg-100",
             vec![
                 BookingStatusEvents::from(serde_json::from_str:: < PaymentRequested >
                 ("{\"payment-id\":\"payment-bkg-100\",\"booking-id\":\"bkg-100\",\"amount-cents\":50000}")
@@ -27,7 +28,7 @@ async fn test_booking_status_queries_return_paid_booking_status() {
         )
         .await
         .when(
-            serde_json::from_str::<GetBookingStatus>("{}")
+            serde_json::from_str::<GetBookingStatus>("{\"booking-id\":\"bkg-100\"}")
                 .expect("Failed to deserialize query parameters"),
         )
         .await

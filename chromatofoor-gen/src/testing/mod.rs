@@ -13,7 +13,10 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
-pub(crate) fn scenario_doc_comment(feature: &esdm::EsdmDoc, scenario: &esdm::Scenario) -> TokenStream {
+pub(crate) fn scenario_doc_comment(
+    feature: &esdm::EsdmDoc,
+    scenario: &esdm::Scenario,
+) -> TokenStream {
     let mut lines = Vec::new();
     let feature_line = match feature.description.as_deref().map(str::trim) {
         Some(desc) if !desc.is_empty() => format!(" Feature: `{}` — {desc}", feature.name),

@@ -282,16 +282,36 @@ projections:
   - boundedContext: booking
     aggregate: cargo-booking
     event: cargo-booked
-    rule: Insert cargo-tracking record with routing-status NotRouted.
+    rule: Insert cargo-tracking record keyed by tracking-id with routing-status NotRouted.
   - boundedContext: booking
     aggregate: cargo-booking
     event: cargo-assigned-to-route
-    rule: Update routing-status to Routed and set voyage-number.
+    rule: Update routing-status to Routed and set voyage-number for the record keyed by tracking-id.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: query
 name: get-cargo-tracking
-description: Retrieves the current tracking summary for a booked cargo shipment.
+description: Retrieves the current tracking summary for a booked cargo shipment by tracking-id.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+readModel: cargo-tracking
+paradigm: document
+actors: [shipper]
+parameters:
+  type: object
+  properties:
+    tracking-id:
+      type: string
+      format: identifier
+  required: [tracking-id]
+result:
+  type: object
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: list-cargo-trackings
+description: Lists projected tracking summaries across all booked cargo shipments.
 scope:
   domain: cargo-shipping
   boundedContext: booking
@@ -301,7 +321,9 @@ actors: [shipper]
 parameters:
   type: object
 result:
-  type: object
+  type: array
+  items:
+    type: object
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: actor

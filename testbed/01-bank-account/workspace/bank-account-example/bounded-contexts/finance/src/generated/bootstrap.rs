@@ -16,5 +16,7 @@ pub fn register<D: Domain>(mut builder: DomainBuilder<D>) -> DomainBuilder<D> {
     builder = builder.register_read_model::<AccountSummary>(account_summary_rm.clone());
     builder =
         builder.register_query::<GetAccountSummary, AccountSummary>(account_summary_rm.clone());
+    builder =
+        builder.register_query::<ListAccountSummaries, AccountSummary>(account_summary_rm.clone());
     builder
 }

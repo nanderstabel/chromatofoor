@@ -14,5 +14,7 @@ pub fn register<D: Domain>(mut builder: DomainBuilder<D>) -> DomainBuilder<D> {
     let cargo_tracking_rm = Arc::new(CargoTracking::new());
     builder = builder.register_read_model::<CargoTracking>(cargo_tracking_rm.clone());
     builder = builder.register_query::<GetCargoTracking, CargoTracking>(cargo_tracking_rm.clone());
+    builder =
+        builder.register_query::<ListCargoTrackings, CargoTracking>(cargo_tracking_rm.clone());
     builder
 }

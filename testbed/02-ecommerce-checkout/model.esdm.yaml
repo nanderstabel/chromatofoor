@@ -224,20 +224,40 @@ projections:
   - boundedContext: sales
     aggregate: shopping-cart
     event: cart-initialized
-    rule: Initialize total-amount to 0, item-count to 0, and status to Open.
+    rule: Initialize record keyed by event subject ID with total-amount 0, item-count 0, and status Open.
   - boundedContext: sales
     aggregate: shopping-cart
     event: item-added-to-cart
-    rule: Add item.quantity * item.unit-price to total-amount and add item.quantity to item-count.
+    rule: Add item.quantity * item.unit-price to total-amount and add item.quantity to item-count for the event subject ID.
   - boundedContext: sales
     aggregate: shopping-cart
     event: cart-checked-out
-    rule: Set status to CheckedOut.
+    rule: Set status to CheckedOut for the event subject ID.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: query
 name: get-cart-summary
-description: Retrieves the projected shopping cart summary.
+description: Retrieves the projected shopping cart summary by cart ID.
+scope:
+  domain: ecommerce-example
+  boundedContext: sales
+readModel: cart-summary
+paradigm: document
+actors: [customer]
+parameters:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+  required: [id]
+result:
+  type: object
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: list-cart-summaries
+description: Lists projected summaries across all shopping carts.
 scope:
   domain: ecommerce-example
   boundedContext: sales
@@ -247,4 +267,6 @@ actors: [customer]
 parameters:
   type: object
 result:
-  type: object
+  type: array
+  items:
+    type: object

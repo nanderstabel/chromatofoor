@@ -34,7 +34,7 @@
 - **Given-When-Then Specification Harness** (`src/testing.rs`):
   - `given<S>`, `UnitFixture`, `UnitDecision` — Consistency-unit tests (`when`, `when_as`, `when_by`, `then_events`, `then_nothing`, `then_rejected`, `then_rejected_reason`, `then_state`, `then_preconditions`).
   - `given_process_manager<P>`, `ProcessFixture`, `ProcessDecision` — Stateful saga and timer tests (`when_event`, `when_timer`, `when_timer_named`, `then_emits`, `then_emits_command`, `then_set_timer`, `then_set_timers`, `then_cancel_timer`, `then_cancel_timers`, `then_state`, `then_state_json`, `then_ended`).
-  - `given_read_model<R>`, `ReadModelFixture`, `ReadModelDecision`, `assert_json_subset` — Read-model projection and query tests (`when`, `when_as`, `when_by`, `then_result`, `then_result_json`, `then_read_model`, `then_read_model_json`, `then_read_model_with`, `then_rejected_reason`).
+  - `given_read_model<R>`, `given_read_model_with_id<R>`, `ReadModelFixture`, `ReadModelDecision`, `assert_json_subset` — Read-model projection and query tests (`when`, `when_as`, `when_by`, `then_result`, `then_result_json`, `then_read_model`, `then_read_model_json`, `then_read_model_with`, `then_rejected_reason`).
 
 ## Invariants
 - **Strict Rust Safety & Lint Baseline** (`Cargo.toml`, `src/testing.rs`, `src/common/identified.rs`): Inherits workspace `#![deny(unsafe_code)]`, `clippy::pedantic`, and `deny(unwrap_used, expect_used, panic, todo, unimplemented)`. `#![allow(clippy::panic)]` is scoped to `src/testing.rs` assertion helpers, while `Identifier`'s `From<&str | String | &String | Uuid>` impls carry targeted `#[allow(clippy::panic)]` and panic at runtime if given an invalid segment (fallible callers must use `Identifier::try_new`, `FromStr`, or `Deserialize`).

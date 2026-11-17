@@ -12,7 +12,7 @@ use chromatofoor::{
 /// Read Model: `account-summary` — Materialized summary view of account owner and current balance.
 /// Projection: `account-opened`
 ///
-/// Rule: Insert a summary record with owner-name and current-balance equal to balance.
+/// Rule: Insert a summary record keyed by event subject ID with owner-name and current-balance equal to balance.
 impl Project<AccountOpened> for AccountSummary {
     async fn project(&self, _event: Envelope<AccountOpened>) -> Result<(), ViewError> {
         todo!("implement Project::AccountOpened::project for AccountSummary")
@@ -21,7 +21,7 @@ impl Project<AccountOpened> for AccountSummary {
 /// Read Model: `account-summary` — Materialized summary view of account owner and current balance.
 /// Projection: `funds-deposited`
 ///
-/// Rule: Update current-balance to new-balance.
+/// Rule: Update current-balance to new-balance for the event subject ID.
 impl Project<FundsDeposited> for AccountSummary {
     async fn project(&self, _event: Envelope<FundsDeposited>) -> Result<(), ViewError> {
         todo!("implement Project::FundsDeposited::project for AccountSummary")
@@ -30,7 +30,7 @@ impl Project<FundsDeposited> for AccountSummary {
 /// Read Model: `account-summary` — Materialized summary view of account owner and current balance.
 /// Projection: `funds-withdrawn`
 ///
-/// Rule: Update current-balance to new-balance.
+/// Rule: Update current-balance to new-balance for the event subject ID.
 impl Project<FundsWithdrawn> for AccountSummary {
     async fn project(&self, _event: Envelope<FundsWithdrawn>) -> Result<(), ViewError> {
         todo!("implement Project::FundsWithdrawn::project for AccountSummary")

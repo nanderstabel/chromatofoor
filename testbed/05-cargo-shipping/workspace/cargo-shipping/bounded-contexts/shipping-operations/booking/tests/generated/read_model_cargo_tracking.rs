@@ -14,8 +14,9 @@ use booking::generated::domain::cargo_booking::event::CargoBooked;
 /// Querying get-cargo-tracking returns Routed status and assigned voyage number.
 #[tokio::test]
 async fn test_cargo_tracking_queries_return_routed_cargo_tracking_summary() {
-    chromatofoor::testing::given_read_model(
+    chromatofoor::testing::given_read_model_with_id(
             CargoTracking::default(),
+            "cargo-900",
             vec![
                 CargoTrackingEvents::from(serde_json::from_str:: < CargoBooked >
                 ("{\"tracking-id\":\"cargo-900\",\"origin-locode\":\"NLRTM\",\"destination-locode\":\"USNYC\"}")
@@ -27,7 +28,7 @@ async fn test_cargo_tracking_queries_return_routed_cargo_tracking_summary() {
         )
         .await
         .when(
-            serde_json::from_str::<GetCargoTracking>("{}")
+            serde_json::from_str::<GetCargoTracking>("{\"tracking-id\":\"cargo-900\"}")
                 .expect("Failed to deserialize query parameters"),
         )
         .await

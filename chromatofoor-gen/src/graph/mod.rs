@@ -1,5 +1,5 @@
-use esdm::EsdmDoc;
 use anyhow::Result;
+use esdm::EsdmDoc;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -434,7 +434,6 @@ pub fn emit_graph_file(
 
     Ok(())
 }
-
 
 pub fn run_visualizer_server(input_path: &std::path::Path) -> Result<()> {
     use anyhow::Context;

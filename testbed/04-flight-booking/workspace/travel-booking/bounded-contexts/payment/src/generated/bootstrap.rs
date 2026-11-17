@@ -15,5 +15,7 @@ pub fn register<D: Domain>(mut builder: DomainBuilder<D>) -> DomainBuilder<D> {
     let booking_status_rm = Arc::new(BookingStatus::new());
     builder = builder.register_read_model::<BookingStatus>(booking_status_rm.clone());
     builder = builder.register_query::<GetBookingStatus, BookingStatus>(booking_status_rm.clone());
+    builder =
+        builder.register_query::<ListBookingStatuses, BookingStatus>(booking_status_rm.clone());
     builder
 }

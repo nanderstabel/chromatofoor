@@ -91,7 +91,9 @@ mod tests {
         let normalized_gen: String = gen_rs.split_whitespace().collect::<Vec<_>>().join(" ");
         assert_eq!(
             normalized_gen
-                .matches("pub use sales::generated::domain::order::event::Created as SalesOrderCreated;")
+                .matches(
+                    "pub use sales::generated::domain::order::event::Created as SalesOrderCreated;"
+                )
                 .count(),
             1
         );
@@ -99,11 +101,7 @@ mod tests {
             "pub use billing::generated::domain::invoice::event::Created as BillingInvoiceCreated;"
         ));
         let normalized_manual: String = manual_rs.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(
-            normalized_manual.contains("impl Handle<SalesOrderCreated> for AuditNotifier")
-        );
-        assert!(
-            normalized_manual.contains("impl Handle<BillingInvoiceCreated> for AuditNotifier")
-        );
+        assert!(normalized_manual.contains("impl Handle<SalesOrderCreated> for AuditNotifier"));
+        assert!(normalized_manual.contains("impl Handle<BillingInvoiceCreated> for AuditNotifier"));
     }
 }

@@ -188,20 +188,40 @@ projections:
   - boundedContext: finance
     aggregate: account
     event: account-opened
-    rule: Insert a summary record with owner-name and current-balance equal to balance.
+    rule: Insert a summary record keyed by event subject ID with owner-name and current-balance equal to balance.
   - boundedContext: finance
     aggregate: account
     event: funds-deposited
-    rule: Update current-balance to new-balance.
+    rule: Update current-balance to new-balance for the event subject ID.
   - boundedContext: finance
     aggregate: account
     event: funds-withdrawn
-    rule: Update current-balance to new-balance.
+    rule: Update current-balance to new-balance for the event subject ID.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: query
 name: get-account-summary
-description: Retrieves the current balance and owner details for an account.
+description: Retrieves the current balance and owner details for an account by ID.
+scope:
+  domain: bank-account-example
+  boundedContext: finance
+readModel: account-summary
+paradigm: document
+actors: [customer, bank-teller]
+parameters:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+  required: [id]
+result:
+  type: object
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: list-account-summaries
+description: Lists projected balance summaries across all accounts.
 scope:
   domain: bank-account-example
   boundedContext: finance
@@ -211,4 +231,6 @@ actors: [customer, bank-teller]
 parameters:
   type: object
 result:
-  type: object
+  type: array
+  items:
+    type: object

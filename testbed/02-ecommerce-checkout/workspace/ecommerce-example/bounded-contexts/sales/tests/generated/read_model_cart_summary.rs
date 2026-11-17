@@ -13,8 +13,9 @@ use sales::generated::domain::shopping_cart::event::ItemAddedToCart;
 /// Querying get-cart-summary returns total_amount, item_count, and CheckedOut status.
 #[tokio::test]
 async fn test_cart_summary_queries_return_projected_cart_totals() {
-    chromatofoor::testing::given_read_model(
+    chromatofoor::testing::given_read_model_with_id(
             CartSummary::default(),
+            "00000000-0000-0000-0000-000000000001",
             vec![
                 CartSummaryEvents::from(serde_json::from_str:: < CartInitialized >
                 ("{\"customer-id\":\"cust-101\"}")
@@ -29,7 +30,9 @@ async fn test_cart_summary_queries_return_projected_cart_totals() {
         )
         .await
         .when(
-            serde_json::from_str::<GetCartSummary>("{}")
+            serde_json::from_str::<
+                GetCartSummary,
+            >("{\"id\":\"00000000-0000-0000-0000-000000000001\"}")
                 .expect("Failed to deserialize query parameters"),
         )
         .await

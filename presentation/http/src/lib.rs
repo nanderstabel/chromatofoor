@@ -535,7 +535,7 @@ fn inject_query_id(params: &mut Value, query_schema: &Value, id: &str) {
         }
         if let Some(id_key) = props
             .keys()
-            .find(|k| k.ends_with("_id") && !obj.contains_key(*k))
+            .find(|k| (k.ends_with("_id") || k.ends_with("-id")) && !obj.contains_key(*k))
             .or_else(|| {
                 resolved
                     .get("required")
@@ -548,7 +548,11 @@ fn inject_query_id(params: &mut Value, query_schema: &Value, id: &str) {
                     .and_then(|k| props.get_key_value(k).map(|(key, _)| key))
             })
             .or_else(|| props.keys().find(|k| !obj.contains_key(*k)))
-            .or_else(|| props.keys().find(|k| k.ends_with("_id")))
+            .or_else(|| {
+                props
+                    .keys()
+                    .find(|k| k.ends_with("_id") || k.ends_with("-id"))
+            })
             .or_else(|| props.keys().next())
         {
             obj.entry(id_key.clone())

@@ -3,3 +3,4 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub mod get_booking_status;
+pub mod list_booking_statuses;

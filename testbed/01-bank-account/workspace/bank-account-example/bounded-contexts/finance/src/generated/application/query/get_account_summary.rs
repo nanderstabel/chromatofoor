@@ -8,14 +8,20 @@ use crate::generated::application::read_models::account_summary::{
 use crate::generated::domain::Finance;
 use crate::generated::domain::actors::{BankTeller, Customer};
 use chromatofoor::bounded_context::Query;
-/// Retrieves the current balance and owner details for an account.
+/// Retrieves the current balance and owner details for an account by ID.
 #[chromatofoor::query(scope = Finance, actors = [Customer, BankTeller])]
-#[derive(Default)]
-pub struct GetAccountSummary {}
+pub struct GetAccountSummary {
+    pub id: uuid::Uuid,
+}
 impl Query<AccountSummary> for GetAccountSummary {
     type Output = AccountSummaryRecord;
     type Error = String;
     async fn execute(self, read_model: &AccountSummary) -> Result<Self::Output, Self::Error> {
-        Ok(read_model.records.latest().await)
+        let key = self.id.to_string();
+        read_model
+            .records
+            .get(&key)
+            .await
+            .ok_or_else(|| format!("{} '{key}' not found", "account-summary"))
     }
 }
