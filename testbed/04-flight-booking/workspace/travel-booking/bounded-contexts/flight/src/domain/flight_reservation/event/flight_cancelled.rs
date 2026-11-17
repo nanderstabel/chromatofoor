@@ -4,9 +4,10 @@ use crate::generated::domain::flight_reservation::{
 use chromatofoor::bounded_context::Event;
 /// Event: `flight-cancelled` — Emitted when a held flight reservation is cancelled.
 impl Event<FlightReservation> for FlightCancelled {
-    fn evolve(&self, _state: FlightReservation) -> FlightReservation {
-        todo!(
-            "implement Event::FlightReservation::evolve for FlightCancelled (return _state if stateless)"
-        )
+    fn evolve(&self, mut state: FlightReservation) -> FlightReservation {
+        if let FlightReservation::Created(ref mut inner) = state {
+            inner.status = "Cancelled".to_owned();
+        }
+        state
     }
 }

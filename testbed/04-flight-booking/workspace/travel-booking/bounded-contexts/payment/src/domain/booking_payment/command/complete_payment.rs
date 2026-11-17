@@ -8,11 +8,16 @@ use chromatofoor::bounded_context::Command;
 /// - Publishes: `payment-completed`
 impl Command<BookingPayment> for CompletePayment {
     type Error = BookingPaymentError;
-    #[tracing::instrument(skip(self, _state))]
-    async fn decide(
-        self,
-        _state: &BookingPayment,
-    ) -> Result<Vec<BookingPaymentEvent>, Self::Error> {
-        todo!("implement Command::BookingPayment::decide for CompletePayment")
+    #[tracing::instrument(skip(self, state))]
+    async fn decide(self, state: &BookingPayment) -> Result<Vec<BookingPaymentEvent>, Self::Error> {
+        if state.is_none() {
+            return Ok(vec![]);
+        }
+        Ok(vec![BookingPaymentEvent::PaymentCompleted(
+            PaymentCompleted {
+                booking_id: self.booking_id,
+                payment_id: self.payment_id,
+            },
+        )])
     }
 }

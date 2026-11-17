@@ -14,8 +14,13 @@ use chromatofoor::{
 ///
 /// Rule: Insert booking-status record keyed by booking-id with payment-status Pending.
 impl Project<PaymentRequested> for BookingStatus {
-    async fn project(&self, _event: Envelope<PaymentRequested>) -> Result<(), ViewError> {
-        todo!("implement Project::PaymentRequested::project for BookingStatus")
+    async fn project(&self, event: Envelope<PaymentRequested>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.booking_id.as_str(), &event, |record| {
+                record.booking_id = event.data.booking_id.to_string();
+                record.payment_status = "Pending".to_owned();
+            })?;
+        Ok(())
     }
 }
 /// Read Model: `booking-status` — Materialized payment status view for travelers.
@@ -23,8 +28,13 @@ impl Project<PaymentRequested> for BookingStatus {
 ///
 /// Rule: Update payment-status to Paid for the record keyed by booking-id.
 impl Project<PaymentCompleted> for BookingStatus {
-    async fn project(&self, _event: Envelope<PaymentCompleted>) -> Result<(), ViewError> {
-        todo!("implement Project::PaymentCompleted::project for BookingStatus")
+    async fn project(&self, event: Envelope<PaymentCompleted>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.booking_id.as_str(), &event, |record| {
+                record.booking_id = event.data.booking_id.to_string();
+                record.payment_status = "Paid".to_owned();
+            })?;
+        Ok(())
     }
 }
 /// Read Model: `booking-status` — Materialized payment status view for travelers.
@@ -32,7 +42,12 @@ impl Project<PaymentCompleted> for BookingStatus {
 ///
 /// Rule: Update payment-status to Failed for the record keyed by booking-id.
 impl Project<PaymentFailed> for BookingStatus {
-    async fn project(&self, _event: Envelope<PaymentFailed>) -> Result<(), ViewError> {
-        todo!("implement Project::PaymentFailed::project for BookingStatus")
+    async fn project(&self, event: Envelope<PaymentFailed>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.booking_id.as_str(), &event, |record| {
+                record.booking_id = event.data.booking_id.to_string();
+                record.payment_status = "Failed".to_owned();
+            })?;
+        Ok(())
     }
 }

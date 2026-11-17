@@ -13,6 +13,12 @@ impl Command<FlightReservation> for ReserveFlight {
         self,
         _state: &FlightReservation,
     ) -> Result<Vec<FlightReservationEvent>, Self::Error> {
-        todo!("implement Command::FlightReservation::decide for ReserveFlight")
+        Ok(vec![FlightReservationEvent::FlightReserved(
+            FlightReserved {
+                booking_id: self.booking_id,
+                flight_number: self.flight_number,
+                reservation_id: self.reservation_id,
+            },
+        )])
     }
 }

@@ -13,6 +13,12 @@ impl Command<BookingPayment> for RequestPayment {
         self,
         _state: &BookingPayment,
     ) -> Result<Vec<BookingPaymentEvent>, Self::Error> {
-        todo!("implement Command::BookingPayment::decide for RequestPayment")
+        Ok(vec![BookingPaymentEvent::PaymentRequested(
+            PaymentRequested {
+                amount_cents: self.amount_cents,
+                booking_id: self.booking_id,
+                payment_id: self.payment_id,
+            },
+        )])
     }
 }

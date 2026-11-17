@@ -8,11 +8,19 @@ use chromatofoor::bounded_context::Command;
 /// - Publishes: `flight-cancelled`
 impl Command<FlightReservation> for CancelFlight {
     type Error = FlightReservationError;
-    #[tracing::instrument(skip(self, _state))]
+    #[tracing::instrument(skip(self, state))]
     async fn decide(
         self,
-        _state: &FlightReservation,
+        state: &FlightReservation,
     ) -> Result<Vec<FlightReservationEvent>, Self::Error> {
-        todo!("implement Command::FlightReservation::decide for CancelFlight")
+        if state.is_none() {
+            return Ok(vec![]);
+        }
+        Ok(vec![FlightReservationEvent::FlightCancelled(
+            FlightCancelled {
+                booking_id: self.booking_id,
+                reservation_id: self.reservation_id,
+            },
+        )])
     }
 }

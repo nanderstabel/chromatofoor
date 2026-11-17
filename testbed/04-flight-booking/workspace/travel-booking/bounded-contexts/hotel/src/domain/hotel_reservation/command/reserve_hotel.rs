@@ -13,6 +13,9 @@ impl Command<HotelReservation> for ReserveHotel {
         self,
         _state: &HotelReservation,
     ) -> Result<Vec<HotelReservationEvent>, Self::Error> {
-        todo!("implement Command::HotelReservation::decide for ReserveHotel")
+        Ok(vec![HotelReservationEvent::HotelReserved(HotelReserved {
+            booking_id: self.booking_id,
+            reservation_id: self.reservation_id,
+        })])
     }
 }
