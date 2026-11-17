@@ -1,7 +1,6 @@
-use crate::generated::domain::account::aggregate::Account;
-use crate::generated::domain::account::command::OpenAccount;
-use crate::generated::domain::account::error::AccountError;
-use crate::generated::domain::account::event::*;
+use crate::generated::domain::account::{
+    aggregate::Account, command::OpenAccount, error::AccountError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `open-account` — Opens a new bank account with an initial non-negative balance.
 ///

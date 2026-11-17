@@ -1,5 +1,8 @@
 #[allow(unused_imports)]
 use crate::generated::application::read_models::cart_summary::{CartSummary, CartSummaryRecord};
+use crate::generated::domain::shopping_cart::event::CartCheckedOut;
+use crate::generated::domain::shopping_cart::event::CartInitialized;
+use crate::generated::domain::shopping_cart::event::ItemAddedToCart;
 use chromatofoor::{
     architecturekit::{Envelope, ViewError},
     bounded_context::Project,
@@ -8,15 +11,8 @@ use chromatofoor::{
 /// Projection: `cart-initialized`
 ///
 /// Rule: Initialize total-amount to 0, item-count to 0, and status to Open.
-impl Project<crate::generated::domain::shopping_cart::event::cart_initialized::CartInitialized>
-    for CartSummary
-{
-    async fn project(
-        &self,
-        _event: Envelope<
-            crate::generated::domain::shopping_cart::event::cart_initialized::CartInitialized,
-        >,
-    ) -> Result<(), ViewError> {
+impl Project<CartInitialized> for CartSummary {
+    async fn project(&self, _event: Envelope<CartInitialized>) -> Result<(), ViewError> {
         todo!("implement Project::CartInitialized::project for CartSummary")
     }
 }
@@ -24,15 +20,8 @@ impl Project<crate::generated::domain::shopping_cart::event::cart_initialized::C
 /// Projection: `item-added-to-cart`
 ///
 /// Rule: Add item.quantity * item.unit-price to total-amount and add item.quantity to item-count.
-impl Project<crate::generated::domain::shopping_cart::event::item_added_to_cart::ItemAddedToCart>
-    for CartSummary
-{
-    async fn project(
-        &self,
-        _event: Envelope<
-            crate::generated::domain::shopping_cart::event::item_added_to_cart::ItemAddedToCart,
-        >,
-    ) -> Result<(), ViewError> {
+impl Project<ItemAddedToCart> for CartSummary {
+    async fn project(&self, _event: Envelope<ItemAddedToCart>) -> Result<(), ViewError> {
         todo!("implement Project::ItemAddedToCart::project for CartSummary")
     }
 }
@@ -40,15 +29,8 @@ impl Project<crate::generated::domain::shopping_cart::event::item_added_to_cart:
 /// Projection: `cart-checked-out`
 ///
 /// Rule: Set status to CheckedOut.
-impl Project<crate::generated::domain::shopping_cart::event::cart_checked_out::CartCheckedOut>
-    for CartSummary
-{
-    async fn project(
-        &self,
-        _event: Envelope<
-            crate::generated::domain::shopping_cart::event::cart_checked_out::CartCheckedOut,
-        >,
-    ) -> Result<(), ViewError> {
+impl Project<CartCheckedOut> for CartSummary {
+    async fn project(&self, _event: Envelope<CartCheckedOut>) -> Result<(), ViewError> {
         todo!("implement Project::CartCheckedOut::project for CartSummary")
     }
 }

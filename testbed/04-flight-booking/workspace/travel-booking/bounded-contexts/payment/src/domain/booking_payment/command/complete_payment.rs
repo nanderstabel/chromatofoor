@@ -1,7 +1,6 @@
-use crate::generated::domain::booking_payment::aggregate::BookingPayment;
-use crate::generated::domain::booking_payment::command::CompletePayment;
-use crate::generated::domain::booking_payment::error::BookingPaymentError;
-use crate::generated::domain::booking_payment::event::*;
+use crate::generated::domain::booking_payment::{
+    aggregate::BookingPayment, command::CompletePayment, error::BookingPaymentError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `complete-payment` — Records successful payment capture by the traveler.
 ///

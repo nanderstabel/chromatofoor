@@ -1,7 +1,6 @@
-use crate::generated::domain::shopping_cart::aggregate::ShoppingCart;
-use crate::generated::domain::shopping_cart::command::CheckoutCart;
-use crate::generated::domain::shopping_cart::error::ShoppingCartError;
-use crate::generated::domain::shopping_cart::event::*;
+use crate::generated::domain::shopping_cart::{
+    aggregate::ShoppingCart, command::CheckoutCart, error::ShoppingCartError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `checkout-cart` — Checks out a non-empty open cart with a validated shipping address.
 ///

@@ -1,5 +1,6 @@
-use crate::generated::domain::hotel_reservation::aggregate::HotelReservation;
-use crate::generated::domain::hotel_reservation::event::HotelReserved;
+use crate::generated::domain::hotel_reservation::{
+    aggregate::HotelReservation, event::HotelReserved,
+};
 use chromatofoor::bounded_context::Event;
 /// Event: `hotel-reserved` — Emitted when a hotel room is reserved for a booking.
 impl Event<HotelReservation> for HotelReserved {

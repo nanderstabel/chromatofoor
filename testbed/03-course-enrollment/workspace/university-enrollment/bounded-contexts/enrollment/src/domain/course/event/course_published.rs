@@ -1,5 +1,4 @@
-use crate::generated::domain::course::aggregate::Course;
-use crate::generated::domain::course::event::CoursePublished;
+use crate::generated::domain::course::{aggregate::Course, event::CoursePublished};
 use chromatofoor::bounded_context::Event;
 /// Event: `course-published` — Emitted when a new course offering is published.
 impl Event<Course> for CoursePublished {

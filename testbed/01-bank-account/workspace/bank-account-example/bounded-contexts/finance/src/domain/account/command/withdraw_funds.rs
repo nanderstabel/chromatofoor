@@ -1,7 +1,6 @@
-use crate::generated::domain::account::aggregate::Account;
-use crate::generated::domain::account::command::WithdrawFunds;
-use crate::generated::domain::account::error::AccountError;
-use crate::generated::domain::account::event::*;
+use crate::generated::domain::account::{
+    aggregate::Account, command::WithdrawFunds, error::AccountError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `withdraw-funds` — Withdraws funds from an existing bank account when sufficient balance is available.
 ///

@@ -1,7 +1,6 @@
-use crate::generated::domain::flight_reservation::aggregate::FlightReservation;
-use crate::generated::domain::flight_reservation::command::ReserveFlight;
-use crate::generated::domain::flight_reservation::error::FlightReservationError;
-use crate::generated::domain::flight_reservation::event::*;
+use crate::generated::domain::flight_reservation::{
+    aggregate::FlightReservation, command::ReserveFlight, error::FlightReservationError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `reserve-flight` — Places an initial hold on a flight seat for a booking.
 ///

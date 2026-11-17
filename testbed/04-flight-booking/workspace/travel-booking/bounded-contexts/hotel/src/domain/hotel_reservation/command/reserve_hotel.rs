@@ -1,7 +1,6 @@
-use crate::generated::domain::hotel_reservation::aggregate::HotelReservation;
-use crate::generated::domain::hotel_reservation::command::ReserveHotel;
-use crate::generated::domain::hotel_reservation::error::HotelReservationError;
-use crate::generated::domain::hotel_reservation::event::*;
+use crate::generated::domain::hotel_reservation::{
+    aggregate::HotelReservation, command::ReserveHotel, error::HotelReservationError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `reserve-hotel` — Reserves a hotel room for a booking.
 ///

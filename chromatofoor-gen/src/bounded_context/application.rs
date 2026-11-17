@@ -1,7 +1,7 @@
 use crate::common::{
-    BoundedContextGenerator, GeneratorContext, RoutingContext, ensure_manual_mod_file,
-    generate_type_for_prop, make_doc_comment, make_doc_lines, resolve_bc_dir,
-    write_manual_rust_file, write_rust_file,
+    BoundedContextGenerator, GeneratorContext, RoutingContext, collect_schema_ref_idents,
+    emit_domain_ref_imports, ensure_manual_mod_file, generate_type_for_prop, make_doc_comment,
+    make_doc_lines, resolve_bc_dir, write_manual_rust_file, write_rust_file,
 };
 use anyhow::Result;
 use convert_case::Casing;
@@ -119,7 +119,9 @@ pub fn generate_application(
 
                 let mut type_ts = quote! { {} };
                 let mut extra_structs = Vec::new();
+                let mut rm_ref_idents = std::collections::BTreeSet::new();
                 if let Some(schema) = &rm.schema {
+                    rm_ref_idents = collect_schema_ref_idents(schema);
                     let mut props = Vec::new();
                     for (prop_name, prop_schema) in &schema.properties {
                         let prop_ident =
@@ -145,7 +147,101 @@ pub fn generate_application(
                 }
 
                 let mut rm_chunks = Vec::new();
+
+                let rm_doc = make_doc_comment(rm.description.as_deref());
+                let bc_pascal_str = bc.to_case(convert_case::Case::Pascal);
+                let bc_pascal = format_ident!("{}", bc_pascal_str);
+                let rm_record_str = rm_record_ident.to_string();
+
+                let mut ev_pascal_counts: std::collections::HashMap<String, usize> =
+                    std::collections::HashMap::new();
+                for (_, ev_name, _) in &projected_events {
+                    *ev_pascal_counts
+                        .entry(ev_name.to_case(convert_case::Case::Pascal))
+                        .or_insert(0) += 1;
+                }
+
+                let mut rm_event_imports = std::collections::BTreeSet::new();
+                let projected_event_entries: Vec<(
+                    String,
+                    String,
+                    Option<String>,
+                    syn::Ident,
+                )> = projected_events
+                    .iter()
+                    .map(|(owner_unit, ev_name, proj_rule)| {
+                        let owner_snake =
+                            format_ident!("{}", owner_unit.to_case(convert_case::Case::Snake));
+                        let ev_pascal_str = ev_name.to_case(convert_case::Case::Pascal);
+                        let ev_struct = format_ident!("{}", ev_pascal_str);
+                        let collides = ev_pascal_counts.get(&ev_pascal_str).copied().unwrap_or(0)
+                            > 1
+                            || ev_pascal_str == rm_pascal
+                            || ev_pascal_str == rm_record_str
+                            || ev_pascal_str == bc_pascal_str
+                            || rm_ref_idents.contains(&ev_pascal_str);
+                        let local_ident = if collides {
+                            let alias = format_ident!(
+                                "{}{}",
+                                owner_unit.to_case(convert_case::Case::Pascal),
+                                ev_pascal_str
+                            );
+                            rm_event_imports.insert(
+                                quote! {
+                                    use crate::generated::domain::#owner_snake::event::#ev_struct as #alias;
+                                }
+                                .to_string(),
+                            );
+                            alias
+                        } else {
+                            rm_event_imports.insert(
+                                quote! {
+                                    use crate::generated::domain::#owner_snake::event::#ev_struct;
+                                }
+                                .to_string(),
+                            );
+                            ev_struct
+                        };
+                        (
+                            ev_name.clone(),
+                            ev_pascal_str,
+                            proj_rule.clone(),
+                            local_ident,
+                        )
+                    })
+                    .collect();
+
+                let projected_event_idents: Vec<_> = projected_event_entries
+                    .iter()
+                    .map(|(_, _, _, ident)| ident)
+                    .collect();
+                let parsed_event_imports: Vec<proc_macro2::TokenStream> = rm_event_imports
+                    .iter()
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+
+                let (bc_scope_import, bc_scope_ref) = if bc_pascal_str == rm_pascal
+                    || bc_pascal_str == rm_record_str
+                    || rm_ref_idents.contains(&bc_pascal_str)
+                {
+                    let alias = format_ident!("{}Scope", bc_pascal);
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal as #alias; },
+                        quote! { #alias },
+                    )
+                } else {
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal; },
+                        quote! { #bc_pascal },
+                    )
+                };
+                let rm_ref_imports =
+                    emit_domain_ref_imports(&rm_ref_idents, &[&rm_pascal, &rm_record_str]);
+
                 rm_chunks.push(quote! {
+                    #bc_scope_import
+                    #rm_ref_imports
+                    #(#parsed_event_imports)*
                     #[allow(unused_imports)]
                     use chromatofoor::validator::Validate;
                     use serde::{Deserialize, Serialize};
@@ -155,38 +251,6 @@ pub fn generate_application(
                     rm_chunks.push(est);
                 }
 
-                let rm_doc = make_doc_comment(rm.description.as_deref());
-                let bc_pascal = format_ident!("{}", bc.to_case(convert_case::Case::Pascal));
-
-                let projected_event_entries: Vec<(
-                    String,
-                    String,
-                    Option<String>,
-                    proc_macro2::TokenStream,
-                )> = projected_events
-                    .iter()
-                    .map(|(owner_unit, ev_name, proj_rule)| {
-                        let owner_snake =
-                            format_ident!("{}", owner_unit.to_case(convert_case::Case::Snake));
-                        let ev_mod =
-                            format_ident!("{}", ev_name.to_case(convert_case::Case::Snake));
-                        let ev_pascal_str = ev_name.to_case(convert_case::Case::Pascal);
-                        let ev_struct = format_ident!("{}", ev_pascal_str);
-                        (
-                            ev_name.clone(),
-                            ev_pascal_str,
-                            proj_rule.clone(),
-                            quote! {
-                                crate::generated::domain::#owner_snake::event::#ev_mod::#ev_struct
-                            },
-                        )
-                    })
-                    .collect();
-                let projected_event_paths: Vec<_> = projected_event_entries
-                    .iter()
-                    .map(|(_, _, _, path)| path)
-                    .collect();
-
                 rm_chunks.push(quote! {
                     #rm_doc
                     #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema)]
@@ -195,8 +259,8 @@ pub fn generate_application(
 
                     #rm_doc
                     #[chromatofoor::read_model(
-                        scope = crate::generated::domain::#bc_pascal,
-                        events = [#(#projected_event_paths),*],
+                        scope = #bc_scope_ref,
+                        events = [#(#projected_event_idents),*],
                     )]
                     #[derive(Default, Debug, Serialize)]
                     #[serde(transparent)]
@@ -221,7 +285,7 @@ pub fn generate_application(
                     };
                     let manual_rm_impls: Vec<_> = projected_event_entries
                         .iter()
-                        .map(|(ev_kebab, ev_pascal_str, proj_rule, ev_path)| {
+                        .map(|(ev_kebab, ev_pascal_str, proj_rule, ev_local_ident)| {
                             let mut doc_lines = vec![
                                 rm_header.clone(),
                                 format!("Projection: `{ev_kebab}`"),
@@ -238,10 +302,10 @@ pub fn generate_application(
                             );
                             quote! {
                                 #proj_doc
-                                impl Project<#ev_path> for #rm_ident {
+                                impl Project<#ev_local_ident> for #rm_ident {
                                     async fn project(
                                         &self,
-                                        _event: Envelope<#ev_path>,
+                                        _event: Envelope<#ev_local_ident>,
                                     ) -> Result<(), ViewError> {
                                         todo!(#todo_msg)
                                     }
@@ -259,6 +323,7 @@ pub fn generate_application(
                         quote! {
                             #[allow(unused_imports)]
                             use crate::generated::application::read_models::#rm_snake_ident::{#rm_ident, #rm_record_ident};
+                            #(#parsed_event_imports)*
                             use chromatofoor::{
                                 architecturekit::{Envelope, ViewError},
                                 bounded_context::Project,
@@ -322,8 +387,10 @@ pub fn generate_application(
                 let mut type_ts = quote! { {} };
                 let mut query_has_id = false;
                 let mut query_id_is_option = false;
+                let mut q_ref_idents = std::collections::BTreeSet::new();
 
                 if let Some(params) = &q.parameters {
+                    q_ref_idents = collect_schema_ref_idents(params);
                     let mut props = Vec::new();
                     for (prop_name, prop_schema) in &params.properties {
                         let prop_ident =
@@ -351,12 +418,13 @@ pub fn generate_application(
                     }
                 }
 
-                q_chunks.push(quote! { #(#uses)* });
-
                 let q_doc = make_doc_comment(q.description.as_deref());
-                let bc_pascal = format_ident!("{}", bc.to_case(convert_case::Case::Pascal));
+                let bc_pascal_str = bc.to_case(convert_case::Case::Pascal);
+                let bc_pascal = format_ident!("{}", bc_pascal_str);
+                let rm_record_str = rm_record_ident.to_string();
 
-                let mut actor_paths = Vec::new();
+                let mut actor_idents = Vec::new();
+                let mut sorted_actor_names = std::collections::BTreeSet::new();
                 if let Some(actors) = &q.actors {
                     let bc_actors = bc_ctx.map(|b| &b.actors);
                     for a in actors {
@@ -370,23 +438,67 @@ pub fn generate_application(
                                 a
                             );
                         }
-                        let actor_pascal =
-                            format_ident!("{}", a.to_case(convert_case::Case::Pascal));
-                        actor_paths.push(quote! {
-                            crate::generated::domain::actors::#actor_pascal
-                        });
+                        let actor_pascal_str = a.to_case(convert_case::Case::Pascal);
+                        sorted_actor_names.insert(actor_pascal_str.clone());
+                        actor_idents.push(format_ident!("{}", actor_pascal_str));
                     }
                 }
 
-                let query_attr = if actor_paths.is_empty() {
+                let (bc_scope_import, bc_scope_ref) = if bc_pascal_str == q_pascal
+                    || bc_pascal_str == rm_pascal
+                    || bc_pascal_str == rm_record_str
+                    || sorted_actor_names.contains(&bc_pascal_str)
+                    || q_ref_idents.contains(&bc_pascal_str)
+                {
+                    let alias = format_ident!("{}Scope", bc_pascal);
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal as #alias; },
+                        quote! { #alias },
+                    )
+                } else {
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal; },
+                        quote! { #bc_pascal },
+                    )
+                };
+
+                let actor_imports = if sorted_actor_names.is_empty() {
+                    quote! {}
+                } else if sorted_actor_names.len() == 1 {
+                    let single = format_ident!(
+                        "{}",
+                        sorted_actor_names.iter().next().map_or("", String::as_str)
+                    );
+                    quote! { use crate::generated::domain::actors::#single; }
+                } else {
+                    let list: Vec<_> = sorted_actor_names
+                        .iter()
+                        .map(|n| format_ident!("{n}"))
+                        .collect();
+                    quote! { use crate::generated::domain::actors::{#(#list),*}; }
+                };
+
+                let q_ref_imports = emit_domain_ref_imports(
+                    &q_ref_idents,
+                    &[&q_pascal, &rm_pascal, &rm_record_str],
+                );
+
+                q_chunks.push(quote! {
+                    #(#uses)*
+                    #bc_scope_import
+                    #actor_imports
+                    #q_ref_imports
+                });
+
+                let query_attr = if actor_idents.is_empty() {
                     quote! {
-                        #[chromatofoor::query(scope = crate::generated::domain::#bc_pascal)]
+                        #[chromatofoor::query(scope = #bc_scope_ref)]
                     }
                 } else {
                     quote! {
                         #[chromatofoor::query(
-                            scope = crate::generated::domain::#bc_pascal,
-                            actors = [#(#actor_paths),*],
+                            scope = #bc_scope_ref,
+                            actors = [#(#actor_idents),*],
                         )]
                     }
                 };

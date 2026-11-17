@@ -2,12 +2,52 @@ use convert_case::{Case, Casing};
 use esdm::{DataSchema, PropertySchema};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+use std::collections::BTreeSet;
+
+pub fn collect_prop_ref_idents(prop: &PropertySchema, out: &mut BTreeSet<String>) {
+    if let Some(ref ref_path) = prop.ref_path {
+        let type_name = ref_path.split('/').next_back().unwrap_or(ref_path);
+        out.insert(type_name.to_case(Case::Pascal));
+    }
+    if let Some(ref items) = prop.items {
+        collect_prop_ref_idents(items, out);
+    }
+    if let Some(ref props) = prop.properties {
+        for child in props.values() {
+            collect_prop_ref_idents(child, out);
+        }
+    }
+}
+
+pub fn collect_schema_ref_idents(schema: &DataSchema) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    for prop in schema.properties.values() {
+        collect_prop_ref_idents(prop, &mut out);
+    }
+    out
+}
+
+pub fn emit_domain_ref_imports(refs: &BTreeSet<String>, exclude: &[&str]) -> TokenStream {
+    let idents: Vec<syn::Ident> = refs
+        .iter()
+        .filter(|name| !exclude.contains(&name.as_str()))
+        .map(|name| format_ident!("{name}"))
+        .collect();
+    if idents.is_empty() {
+        quote! {}
+    } else if idents.len() == 1 {
+        let single = &idents[0];
+        quote! { use crate::generated::domain::#single; }
+    } else {
+        quote! { use crate::generated::domain::{#(#idents),*}; }
+    }
+}
 
 pub fn map_type(prop: &PropertySchema) -> TokenStream {
     if let Some(ref ref_path) = prop.ref_path {
         let type_name = ref_path.split('/').next_back().unwrap_or(ref_path);
         let struct_ident = format_ident!("{}", type_name.to_case(Case::Pascal));
-        return quote! { crate::generated::domain::#struct_ident };
+        return quote! { #struct_ident };
     }
 
     let prop_type = prop.prop_type.as_deref().unwrap_or("object");
@@ -143,7 +183,7 @@ pub fn generate_type_for_prop(
     if let Some(ref ref_path) = prop.ref_path {
         let type_name = ref_path.split('/').next_back().unwrap_or(ref_path);
         let struct_ident = format_ident!("{}", type_name.to_case(Case::Pascal));
-        return (quote! { crate::generated::domain::#struct_ident }, vec![]);
+        return (quote! { #struct_ident }, vec![]);
     }
 
     let prop_type = prop.prop_type.as_deref().unwrap_or("object");

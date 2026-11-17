@@ -1,5 +1,4 @@
-use crate::generated::domain::account::aggregate::Account;
-use crate::generated::domain::account::event::FundsDeposited;
+use crate::generated::domain::account::{aggregate::Account, event::FundsDeposited};
 use chromatofoor::bounded_context::Event;
 /// Event: `funds-deposited` — Emitted when positive funds have been deposited into a bank account.
 impl Event<Account> for FundsDeposited {

@@ -5,13 +5,11 @@
 use crate::generated::application::read_models::account_summary::{
     AccountSummary, AccountSummaryRecord,
 };
+use crate::generated::domain::Finance;
+use crate::generated::domain::actors::{BankTeller, Customer};
 use chromatofoor::bounded_context::Query;
 /// Retrieves the current balance and owner details for an account.
-#[chromatofoor::query(
-    scope = crate::generated::domain::Finance,
-    actors = [crate::generated::domain::actors::Customer,
-    crate::generated::domain::actors::BankTeller],
-)]
+#[chromatofoor::query(scope = Finance, actors = [Customer, BankTeller])]
 #[derive(Default)]
 pub struct GetAccountSummary {}
 impl Query<AccountSummary> for GetAccountSummary {

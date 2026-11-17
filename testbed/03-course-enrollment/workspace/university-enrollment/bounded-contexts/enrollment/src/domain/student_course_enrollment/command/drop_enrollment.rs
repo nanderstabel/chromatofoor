@@ -1,7 +1,7 @@
-use crate::generated::domain::student_course_enrollment::aggregate::StudentCourseEnrollment;
-use crate::generated::domain::student_course_enrollment::command::DropEnrollment;
-use crate::generated::domain::student_course_enrollment::error::StudentCourseEnrollmentError;
-use crate::generated::domain::student_course_enrollment::event::*;
+use crate::generated::domain::student_course_enrollment::{
+    aggregate::StudentCourseEnrollment, command::DropEnrollment,
+    error::StudentCourseEnrollmentError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `drop-enrollment` — Drops a student's active enrollment in a course (idempotent if not currently enrolled).
 ///

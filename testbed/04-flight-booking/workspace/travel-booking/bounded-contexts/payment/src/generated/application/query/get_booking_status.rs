@@ -5,13 +5,11 @@
 use crate::generated::application::read_models::booking_status::{
     BookingStatus, BookingStatusRecord,
 };
+use crate::generated::domain::Payment;
+use crate::generated::domain::actors::{BookingCoordinator, Traveler};
 use chromatofoor::bounded_context::Query;
 /// Retrieves the payment status of a travel booking.
-#[chromatofoor::query(
-    scope = crate::generated::domain::Payment,
-    actors = [crate::generated::domain::actors::Traveler,
-    crate::generated::domain::actors::BookingCoordinator],
-)]
+#[chromatofoor::query(scope = Payment, actors = [Traveler, BookingCoordinator])]
 #[derive(Default)]
 pub struct GetBookingStatus {}
 impl Query<BookingStatus> for GetBookingStatus {

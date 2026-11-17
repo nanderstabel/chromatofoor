@@ -1,7 +1,7 @@
-use crate::generated::domain::customs_declaration::aggregate::CustomsDeclaration;
-use crate::generated::domain::customs_declaration::command::LodgeCustomsDeclaration;
-use crate::generated::domain::customs_declaration::error::CustomsDeclarationError;
-use crate::generated::domain::customs_declaration::event::*;
+use crate::generated::domain::customs_declaration::{
+    aggregate::CustomsDeclaration, command::LodgeCustomsDeclaration,
+    error::CustomsDeclarationError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `lodge-customs-declaration` — Lodges a customs declaration for a booked cargo shipment.
 ///

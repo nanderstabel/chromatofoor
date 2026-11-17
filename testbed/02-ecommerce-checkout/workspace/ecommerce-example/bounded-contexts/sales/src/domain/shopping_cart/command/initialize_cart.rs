@@ -1,7 +1,6 @@
-use crate::generated::domain::shopping_cart::aggregate::ShoppingCart;
-use crate::generated::domain::shopping_cart::command::InitializeCart;
-use crate::generated::domain::shopping_cart::error::ShoppingCartError;
-use crate::generated::domain::shopping_cart::event::*;
+use crate::generated::domain::shopping_cart::{
+    aggregate::ShoppingCart, command::InitializeCart, error::ShoppingCartError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `initialize-cart` — Initializes a new empty shopping cart for a customer.
 ///

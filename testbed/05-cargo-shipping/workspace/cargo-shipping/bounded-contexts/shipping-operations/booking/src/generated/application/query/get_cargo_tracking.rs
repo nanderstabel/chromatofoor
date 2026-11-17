@@ -5,12 +5,11 @@
 use crate::generated::application::read_models::cargo_tracking::{
     CargoTracking, CargoTrackingRecord,
 };
+use crate::generated::domain::Booking;
+use crate::generated::domain::actors::Shipper;
 use chromatofoor::bounded_context::Query;
 /// Retrieves the current tracking summary for a booked cargo shipment.
-#[chromatofoor::query(
-    scope = crate::generated::domain::Booking,
-    actors = [crate::generated::domain::actors::Shipper],
-)]
+#[chromatofoor::query(scope = Booking, actors = [Shipper])]
 #[derive(Default)]
 pub struct GetCargoTracking {}
 impl Query<CargoTracking> for GetCargoTracking {

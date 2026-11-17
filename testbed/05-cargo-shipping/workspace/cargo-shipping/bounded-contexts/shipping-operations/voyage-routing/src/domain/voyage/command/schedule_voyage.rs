@@ -1,7 +1,6 @@
-use crate::generated::domain::voyage::aggregate::Voyage;
-use crate::generated::domain::voyage::command::ScheduleVoyage;
-use crate::generated::domain::voyage::error::VoyageError;
-use crate::generated::domain::voyage::event::*;
+use crate::generated::domain::voyage::{
+    aggregate::Voyage, command::ScheduleVoyage, error::VoyageError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `schedule-voyage` — Schedules a new vessel voyage between departure and arrival UN/LOCODE ports.
 ///

@@ -1,5 +1,4 @@
-use crate::generated::domain::cargo_booking::aggregate::CargoBooking;
-use crate::generated::domain::cargo_booking::event::CargoBooked;
+use crate::generated::domain::cargo_booking::{aggregate::CargoBooking, event::CargoBooked};
 use chromatofoor::bounded_context::Event;
 /// Event: `cargo-booked` — Emitted when a new cargo shipment is booked.
 impl Event<CargoBooking> for CargoBooked {

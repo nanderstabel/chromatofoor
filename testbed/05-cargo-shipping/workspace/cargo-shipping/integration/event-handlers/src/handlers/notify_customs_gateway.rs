@@ -1,4 +1,6 @@
-use crate::generated::handlers::notify_customs_gateway::NotifyCustomsGateway;
+use crate::generated::handlers::notify_customs_gateway::{
+    CargoAssignedToRoute, NotifyCustomsGateway,
+};
 use chromatofoor::{
     architecturekit::{DomainError, Envelope},
     integration::Handle,
@@ -10,15 +12,8 @@ pub struct NotifyCustomsGatewayDeps {}
 ///
 /// - Side Effects:
 ///   - `external-call` (`customs-clearance-gateway`) — Submit electronic cargo manifest to customs-clearance-gateway for the assigned voyage.
-impl Handle<
-    booking::generated::domain::cargo_booking::event::cargo_assigned_to_route::CargoAssignedToRoute,
-> for NotifyCustomsGateway {
-    async fn handle(
-        &self,
-        _event: Envelope<
-            booking::generated::domain::cargo_booking::event::cargo_assigned_to_route::CargoAssignedToRoute,
-        >,
-    ) -> Result<(), DomainError> {
+impl Handle<CargoAssignedToRoute> for NotifyCustomsGateway {
+    async fn handle(&self, _event: Envelope<CargoAssignedToRoute>) -> Result<(), DomainError> {
         todo!("implement Handle::CargoAssignedToRoute::handle for NotifyCustomsGateway")
     }
 }

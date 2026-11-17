@@ -1,7 +1,7 @@
-use crate::generated::domain::student_course_enrollment::aggregate::StudentCourseEnrollment;
-use crate::generated::domain::student_course_enrollment::command::EnrollStudent;
-use crate::generated::domain::student_course_enrollment::error::StudentCourseEnrollmentError;
-use crate::generated::domain::student_course_enrollment::event::*;
+use crate::generated::domain::student_course_enrollment::{
+    aggregate::StudentCourseEnrollment, command::EnrollStudent,
+    error::StudentCourseEnrollmentError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `enroll-student` — Enrolls a registered student in a published course when seat capacity and course-load limits allow.
 ///

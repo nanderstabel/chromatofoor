@@ -101,7 +101,10 @@ pub fn generate_consistency_units(
             let mut gen_mod_rs_chunks = Vec::new();
 
             gen_mod_rs_chunks.push(quote! {
-                use crate::generated::domain::#agg_snake::aggregate::#agg_pascal;
+                use crate::generated::domain::#agg_snake::{
+                    aggregate::#agg_pascal,
+                    error::#error_ident,
+                };
             });
 
             let mut command_mods = Vec::new();
@@ -128,7 +131,7 @@ pub fn generate_consistency_units(
             gen_mod_rs_chunks.push(quote! {
                 #[chromatofoor::command(
                     scope = #agg_pascal,
-                    error = crate::generated::domain::#agg_snake::error::#error_ident,
+                    error = #error_ident,
                     validate,
                 )]
                 pub enum #command_enum_ident {
@@ -138,24 +141,20 @@ pub fn generate_consistency_units(
 
             for cmd in &ctx.commands {
                 let cmd_file_name = format_ident!("{}", cmd.name.to_case(Case::Snake));
-                let struct_name = format_ident!("{}", cmd.name.to_case(Case::Pascal));
+                let struct_name_str = cmd.name.to_case(Case::Pascal);
+                let struct_name = format_ident!("{}", struct_name_str);
 
                 let mut cmd_code_chunks = Vec::new();
 
-                cmd_code_chunks.push(quote! {
-                    #[allow(unused_imports)]
-                    use chromatofoor::validator::Validate;
-                    #[allow(unused_imports)]
-                    use serde::{Deserialize, Serialize};
-                });
-
                 let mut extra_structs = Vec::new();
                 let mut fields = Vec::new();
+                let mut ref_idents = std::collections::BTreeSet::new();
 
                 if let Some(data) = &cmd.data {
+                    ref_idents = crate::common::collect_schema_ref_idents(data);
                     fields = crate::common::generate_struct_fields(
                         data,
-                        &struct_name.to_string(),
+                        &struct_name_str,
                         &mut extra_structs,
                     );
                 }
@@ -168,13 +167,10 @@ pub fn generate_consistency_units(
                     ctx.boundary.is_none()
                 };
 
-                for e in extra_structs {
-                    cmd_code_chunks.push(e);
-                }
-
                 let cmd_doc = crate::common::make_doc_comment(cmd.description.as_deref());
 
-                let mut actor_paths = Vec::new();
+                let mut actor_idents = Vec::new();
+                let mut sorted_actor_names = std::collections::BTreeSet::new();
                 if let Some(actors) = &cmd.actors {
                     let bc_actors = bc_contexts.get(bc).map(|b| &b.actors);
                     for a in actors {
@@ -188,11 +184,60 @@ pub fn generate_consistency_units(
                                 a
                             );
                         }
-                        let actor_pascal = format_ident!("{}", a.to_case(Case::Pascal));
-                        actor_paths.push(quote! {
-                            crate::generated::domain::actors::#actor_pascal
-                        });
+                        let actor_pascal_str = a.to_case(Case::Pascal);
+                        sorted_actor_names.insert(actor_pascal_str.clone());
+                        actor_idents.push(format_ident!("{}", actor_pascal_str));
                     }
+                }
+
+                let agg_pascal_str = agg.to_case(Case::Pascal);
+                let (scope_import, scope_ref) = if agg_pascal_str == struct_name_str
+                    || sorted_actor_names.contains(&agg_pascal_str)
+                    || ref_idents.contains(&agg_pascal_str)
+                {
+                    let alias = format_ident!("{}Scope", agg_pascal);
+                    (
+                        quote! { use crate::generated::domain::#agg_snake::aggregate::#agg_pascal as #alias; },
+                        quote! { #alias },
+                    )
+                } else {
+                    (
+                        quote! { use crate::generated::domain::#agg_snake::aggregate::#agg_pascal; },
+                        quote! { #agg_pascal },
+                    )
+                };
+
+                let actor_imports = if sorted_actor_names.is_empty() {
+                    quote! {}
+                } else if sorted_actor_names.len() == 1 {
+                    let single = format_ident!(
+                        "{}",
+                        sorted_actor_names.iter().next().map_or("", String::as_str)
+                    );
+                    quote! { use crate::generated::domain::actors::#single; }
+                } else {
+                    let list: Vec<_> = sorted_actor_names
+                        .iter()
+                        .map(|n| format_ident!("{n}"))
+                        .collect();
+                    quote! { use crate::generated::domain::actors::{#(#list),*}; }
+                };
+
+                let ref_imports =
+                    crate::common::emit_domain_ref_imports(&ref_idents, &[&struct_name_str]);
+
+                cmd_code_chunks.push(quote! {
+                    #scope_import
+                    #actor_imports
+                    #ref_imports
+                    #[allow(unused_imports)]
+                    use chromatofoor::validator::Validate;
+                    #[allow(unused_imports)]
+                    use serde::{Deserialize, Serialize};
+                });
+
+                for e in extra_structs {
+                    cmd_code_chunks.push(e);
                 }
 
                 let creates_tok = if is_create {
@@ -201,10 +246,10 @@ pub fn generate_consistency_units(
                     quote! {}
                 };
 
-                let cmd_attr = if actor_paths.is_empty() {
+                let cmd_attr = if actor_idents.is_empty() {
                     quote! {
                         #[chromatofoor::command(
-                            scope = crate::generated::domain::#agg_snake::aggregate::#agg_pascal,
+                            scope = #scope_ref,
                             #creates_tok
                             validate,
                         )]
@@ -212,10 +257,10 @@ pub fn generate_consistency_units(
                 } else {
                     quote! {
                         #[chromatofoor::command(
-                            scope = crate::generated::domain::#agg_snake::aggregate::#agg_pascal,
+                            scope = #scope_ref,
                             #creates_tok
                             validate,
-                            actors = [#(#actor_paths),*],
+                            actors = [#(#actor_idents),*],
                         )]
                     }
                 };
@@ -307,38 +352,71 @@ pub fn generate_consistency_units(
 
             for ev in &ctx.events {
                 let ev_file_name = format_ident!("{}", ev.name.to_case(Case::Snake));
-                let struct_name = format_ident!("{}", ev.name.to_case(Case::Pascal));
+                let struct_name_str = ev.name.to_case(Case::Pascal);
+                let struct_name = format_ident!("{}", struct_name_str);
 
                 let mut ev_code_chunks = Vec::new();
 
+                let mut extra_structs = Vec::new();
+                let mut fields = Vec::new();
+                let mut ref_idents = std::collections::BTreeSet::new();
+                if let Some(data) = &ev.data {
+                    ref_idents = crate::common::collect_schema_ref_idents(data);
+                    fields =
+                        generate_struct_fields(data, &struct_name_str, &mut extra_structs);
+                }
+
+                let (ev_scope_import, ev_scope_ref) = if ctx.boundary.is_some() {
+                    let bc_pascal_str = bc.to_case(Case::Pascal);
+                    if bc_pascal_str == struct_name_str || ref_idents.contains(&bc_pascal_str) {
+                        let alias = format_ident!("{}Scope", bc_pascal);
+                        (
+                            quote! { use crate::generated::domain::#bc_pascal as #alias; },
+                            quote! { #alias },
+                        )
+                    } else {
+                        (
+                            quote! { use crate::generated::domain::#bc_pascal; },
+                            quote! { #bc_pascal },
+                        )
+                    }
+                } else {
+                    let agg_pascal_str = agg.to_case(Case::Pascal);
+                    if agg_pascal_str == struct_name_str || ref_idents.contains(&agg_pascal_str) {
+                        let alias = format_ident!("{}Scope", agg_pascal);
+                        (
+                            quote! { use crate::generated::domain::#agg_snake::aggregate::#agg_pascal as #alias; },
+                            quote! { #alias },
+                        )
+                    } else {
+                        (
+                            quote! { use crate::generated::domain::#agg_snake::aggregate::#agg_pascal; },
+                            quote! { #agg_pascal },
+                        )
+                    }
+                };
+
+                let ref_imports =
+                    crate::common::emit_domain_ref_imports(&ref_idents, &[&struct_name_str]);
+
                 ev_code_chunks.push(quote! {
+                    #ev_scope_import
+                    #ref_imports
                     #[allow(unused_imports)]
                     use chromatofoor::validator::Validate;
                     #[allow(unused_imports)]
                     use serde::{Deserialize, Serialize};
                 });
 
-                let mut extra_structs = Vec::new();
-                let mut fields = Vec::new();
-                if let Some(data) = &ev.data {
-                    fields =
-                        generate_struct_fields(data, &struct_name.to_string(), &mut extra_structs);
-                }
-
                 for e in extra_structs {
                     ev_code_chunks.push(e);
                 }
 
                 let ev_doc = crate::common::make_doc_comment(ev.description.as_deref());
-                let ev_scope_ty = if ctx.boundary.is_some() {
-                    quote! { crate::generated::domain::#bc_pascal }
-                } else {
-                    quote! { crate::generated::domain::#agg_snake::aggregate::#agg_pascal }
-                };
 
                 ev_code_chunks.push(quote! {
                     #ev_doc
-                    #[chromatofoor::event(scope = #ev_scope_ty)]
+                    #[chromatofoor::event(scope = #ev_scope_ref)]
                     #[derive(chromatofoor::validator::Validate)]
                     #[validate(crate = "chromatofoor::validator")]
                     pub struct #struct_name {
@@ -417,10 +495,53 @@ pub fn generate_consistency_units(
             .map_or(quote! {}, |d| crate::common::make_doc_comment(Some(d)));
 
         if ctx.boundary.is_none() {
+            let mut inner_struct_fields = Vec::new();
+            let mut extra_structs = Vec::new();
+            let mut ref_idents = std::collections::BTreeSet::new();
+
+            if let Some(agg_doc) = &ctx.aggregate
+                && let Some(state) = &agg_doc.state
+            {
+                ref_idents = crate::common::collect_schema_ref_idents(state);
+                inner_struct_fields =
+                    generate_struct_fields(state, &agg_pascal.to_string(), &mut extra_structs);
+            }
+
+            let bc_pascal_str = bc.to_case(Case::Pascal);
+            let agg_pascal_str = agg.to_case(Case::Pascal);
+            let inner_struct_str = inner_struct.to_string();
+            let (bc_scope_import, bc_scope_ref) = if bc_pascal_str == agg_pascal_str
+                || bc_pascal_str == inner_struct_str
+                || ref_idents.contains(&bc_pascal_str)
+            {
+                let alias = format_ident!("{}Scope", bc_pascal);
+                (
+                    quote! { use crate::generated::domain::#bc_pascal as #alias; },
+                    quote! { #alias },
+                )
+            } else {
+                (
+                    quote! { use crate::generated::domain::#bc_pascal; },
+                    quote! { #bc_pascal },
+                )
+            };
+            let ref_imports = crate::common::emit_domain_ref_imports(
+                &ref_idents,
+                &[&agg_pascal_str, &inner_struct_str],
+            );
+
+            agg_code_chunks.insert(
+                0,
+                quote! {
+                    #bc_scope_import
+                    #ref_imports
+                },
+            );
+
             agg_code_chunks.push(quote! {
                 #agg_doc
                 #[chromatofoor::aggregate(
-                    scope = crate::generated::domain::#bc_pascal,
+                    scope = #bc_scope_ref,
                     identified_by = [#(#id_attr_specs),*],
                 )]
                 #[derive(Default, Deserialize, Serialize, Debug, Clone)]
@@ -430,16 +551,6 @@ pub fn generate_consistency_units(
                     Created(#inner_struct),
                 }
             });
-
-            let mut inner_struct_fields = Vec::new();
-            let mut extra_structs = Vec::new();
-
-            if let Some(agg_doc) = &ctx.aggregate
-                && let Some(state) = &agg_doc.state
-            {
-                inner_struct_fields =
-                    generate_struct_fields(state, &agg_pascal.to_string(), &mut extra_structs);
-            }
 
             for extra in extra_structs {
                 agg_code_chunks.push(extra);
@@ -461,32 +572,95 @@ pub fn generate_consistency_units(
                 }
             });
         } else {
-            let consult_paths: Vec<_> = dcb_events
+            let bc_pascal_str = bc.to_case(Case::Pascal);
+            let agg_pascal_str = agg.to_case(Case::Pascal);
+            let dcb_state_str = dcb_state_ident.to_string();
+
+            let mut ev_pascal_counts: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
+            for (_, ev_doc) in &dcb_events {
+                *ev_pascal_counts
+                    .entry(ev_doc.name.to_case(Case::Pascal))
+                    .or_insert(0) += 1;
+            }
+
+            let mut consult_imports = std::collections::BTreeSet::new();
+            let mut consult_idents = Vec::new();
+            for (owner_unit, ev_doc) in &dcb_events {
+                let owner_snake = format_ident!("{}", owner_unit.to_case(Case::Snake));
+                let ev_pascal_str = ev_doc.name.to_case(Case::Pascal);
+                let ev_struct = format_ident!("{}", ev_pascal_str);
+                let collides = ev_pascal_counts.get(&ev_pascal_str).copied().unwrap_or(0) > 1
+                    || ev_pascal_str == agg_pascal_str
+                    || ev_pascal_str == dcb_state_str
+                    || ev_pascal_str == bc_pascal_str;
+                let local_ident = if collides {
+                    let alias = format_ident!(
+                        "{}{}",
+                        owner_unit.to_case(Case::Pascal),
+                        ev_pascal_str
+                    );
+                    consult_imports.insert(
+                        quote! {
+                            use crate::generated::domain::#owner_snake::event::#ev_struct as #alias;
+                        }
+                        .to_string(),
+                    );
+                    alias
+                } else {
+                    consult_imports.insert(
+                        quote! {
+                            use crate::generated::domain::#owner_snake::event::#ev_struct;
+                        }
+                        .to_string(),
+                    );
+                    ev_struct
+                };
+                consult_idents.push(local_ident);
+            }
+
+            let parsed_consult_imports: Vec<proc_macro2::TokenStream> = consult_imports
                 .iter()
-                .map(|(owner_unit, ev_doc)| {
-                    let owner_snake = format_ident!("{}", owner_unit.to_case(Case::Snake));
-                    let ev_mod = format_ident!("{}", ev_doc.name.to_case(Case::Snake));
-                    let ev_struct = format_ident!("{}", ev_doc.name.to_case(Case::Pascal));
-                    quote! {
-                        crate::generated::domain::#owner_snake::event::#ev_mod::#ev_struct
-                    }
-                })
+                .filter_map(|s| s.parse().ok())
                 .collect();
+
+            let (bc_scope_import, bc_scope_ref) =
+                if bc_pascal_str == agg_pascal_str || bc_pascal_str == dcb_state_str {
+                    let alias = format_ident!("{}Scope", bc_pascal);
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal as #alias; },
+                        quote! { #alias },
+                    )
+                } else {
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal; },
+                        quote! { #bc_pascal },
+                    )
+                };
+
+            agg_code_chunks.insert(
+                0,
+                quote! {
+                    use crate::domain::#agg_snake::aggregate::#dcb_state_ident;
+                    #bc_scope_import
+                    #(#parsed_consult_imports)*
+                },
+            );
 
             agg_code_chunks.push(quote! {
                 #agg_doc
                 #[chromatofoor::dynamic_consistency_boundary(
-                    scope = crate::generated::domain::#bc_pascal,
+                    scope = #bc_scope_ref,
                     identified_by = [#(#id_attr_specs),*],
-                    consults = [#(#consult_paths),*],
+                    consults = [#(#consult_idents),*],
                 )]
                 #[derive(Default, Deserialize, Serialize, Debug, Clone, PartialEq)]
                 pub struct #agg_pascal {
-                    pub state: crate::domain::#agg_snake::aggregate::#dcb_state_ident,
+                    pub state: #dcb_state_ident,
                 }
 
                 impl std::ops::Deref for #agg_pascal {
-                    type Target = crate::domain::#agg_snake::aggregate::#dcb_state_ident;
+                    type Target = #dcb_state_ident;
 
                     fn deref(&self) -> &Self::Target {
                         &self.state
@@ -739,10 +913,12 @@ pub fn generate_consistency_units(
                     crate::common::write_manual_rust_file(
                         &manual_cmd_file,
                         quote! {
-                            use crate::generated::domain::#agg_snake::aggregate::#agg_pascal;
-                            use crate::generated::domain::#agg_snake::command::#struct_ident;
-                            use crate::generated::domain::#agg_snake::error::#agg_error_ident;
-                            use crate::generated::domain::#agg_snake::event::*;
+                            use crate::generated::domain::#agg_snake::{
+                                aggregate::#agg_pascal,
+                                command::#struct_ident,
+                                error::#agg_error_ident,
+                                event::*,
+                            };
                             use chromatofoor::bounded_context::Command;
 
                             #cmd_impl_doc
@@ -790,7 +966,6 @@ pub fn generate_consistency_units(
                     manual_event_mods.push(file_mod_name.clone());
 
                     let owner_snake = format_ident!("{}", owner_unit.to_case(Case::Snake));
-                    let ev_mod = format_ident!("{}", ev_snake);
                     let struct_ident = format_ident!("{}", ev.name.to_case(Case::Pascal));
                     let manual_ev_file = manual_event_dir.join(format!("{file_mod_name}.rs"));
 
@@ -820,11 +995,25 @@ pub fn generate_consistency_units(
                         let todo_msg = format!(
                             "implement Event::{agg_pascal}::evolve for {struct_ident} (return _state if stateless)"
                         );
+                        let ev_imports = if owner_snake == agg_snake {
+                            quote! {
+                                use crate::generated::domain::#agg_snake::{
+                                    aggregate::#agg_pascal,
+                                    event::#struct_ident,
+                                };
+                            }
+                        } else {
+                            quote! {
+                                use crate::generated::domain::{
+                                    #agg_snake::aggregate::#agg_pascal,
+                                    #owner_snake::event::#struct_ident,
+                                };
+                            }
+                        };
                         crate::common::write_manual_rust_file(
                             &manual_ev_file,
                             quote! {
-                                use crate::generated::domain::#agg_snake::aggregate::#agg_pascal;
-                                use crate::generated::domain::#owner_snake::event::#ev_mod::#struct_ident;
+                                #ev_imports
                                 use chromatofoor::bounded_context::Event;
 
                                 #ev_impl_doc
@@ -873,8 +1062,10 @@ pub fn generate_consistency_units(
                     crate::common::write_manual_rust_file(
                         &manual_ev_file,
                         quote! {
-                            use crate::generated::domain::#agg_snake::aggregate::#agg_pascal;
-                            use crate::generated::domain::#agg_snake::event::#struct_ident;
+                            use crate::generated::domain::#agg_snake::{
+                                aggregate::#agg_pascal,
+                                event::#struct_ident,
+                            };
                             use chromatofoor::bounded_context::Event;
 
                             #ev_impl_doc
@@ -935,10 +1126,23 @@ pub fn generate_actors(
     let actors_dir = out_dir.join("actors");
     std::fs::create_dir_all(&actors_dir)?;
 
-    let bc_pascal = quote::format_ident!(
-        "{}",
-        convert_case::Casing::to_case(&bc, convert_case::Case::Pascal)
-    );
+    let bc_pascal_str = convert_case::Casing::to_case(&bc, convert_case::Case::Pascal);
+    let bc_pascal = quote::format_ident!("{}", bc_pascal_str);
+    let has_actor_collision = actors.iter().any(|actor| {
+        convert_case::Casing::to_case(&actor.name, convert_case::Case::Pascal) == bc_pascal_str
+    });
+    let (bc_import, bc_scope_ref) = if has_actor_collision {
+        let alias = quote::format_ident!("{}Scope", bc_pascal);
+        (
+            quote::quote! { use crate::generated::domain::#bc_pascal as #alias; },
+            quote::quote! { #alias },
+        )
+    } else {
+        (
+            quote::quote! { use crate::generated::domain::#bc_pascal; },
+            quote::quote! { #bc_pascal },
+        )
+    };
     let mut actor_structs = Vec::new();
 
     for actor in actors {
@@ -957,7 +1161,7 @@ pub fn generate_actors(
         actor_structs.push(quote::quote! {
             #actor_doc
             #[chromatofoor::actor(
-                scope = crate::generated::domain::#bc_pascal,
+                scope = #bc_scope_ref,
                 type = #type_ident,
             )]
             pub struct #actor_pascal;
@@ -965,6 +1169,8 @@ pub fn generate_actors(
     }
 
     let actors_code = quote::quote! {
+        #bc_import
+
         #(#actor_structs)*
     };
 
@@ -1008,12 +1214,31 @@ pub fn generate_schema_structs(
             continue;
         };
 
+        let model_pascal_str = model.name.to_case(Case::Pascal);
+        let ref_idents = crate::common::collect_schema_ref_idents(schema);
         let mut extra_structs = Vec::new();
         let fields = crate::common::generate_struct_fields(
             schema,
-            &model.name.to_case(Case::Pascal),
+            &model_pascal_str,
             &mut extra_structs,
         );
+
+        let bc_pascal_str = bc.to_case(Case::Pascal);
+        let (bc_scope_import, bc_scope_ref) =
+            if bc_pascal_str == model_pascal_str || ref_idents.contains(&bc_pascal_str) {
+                let alias = format_ident!("{}Scope", bc_pascal);
+                (
+                    quote! { use crate::generated::domain::#bc_pascal as #alias; },
+                    quote! { #alias },
+                )
+            } else {
+                (
+                    quote! { use crate::generated::domain::#bc_pascal; },
+                    quote! { #bc_pascal },
+                )
+            };
+        let ref_imports =
+            crate::common::emit_domain_ref_imports(&ref_idents, &[&model_pascal_str]);
 
         let model_doc = crate::common::make_doc_comment(model.description.as_deref());
 
@@ -1039,17 +1264,19 @@ pub fn generate_schema_structs(
             }
             quote! {
                 #[chromatofoor::entity(
-                    scope = crate::generated::domain::#bc_pascal,
+                    scope = #bc_scope_ref,
                     identified_by = [#(#id_specs),*],
                 )]
             }
         } else {
             quote! {
-                #[chromatofoor::value_object(scope = crate::generated::domain::#bc_pascal)]
+                #[chromatofoor::value_object(scope = #bc_scope_ref)]
             }
         };
 
         let model_struct = quote! {
+            #bc_scope_import
+            #ref_imports
             #[allow(unused_imports)]
             use chromatofoor::validator::Validate;
             #[allow(unused_imports)]

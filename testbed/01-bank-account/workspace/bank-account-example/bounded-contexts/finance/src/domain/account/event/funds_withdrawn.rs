@@ -1,5 +1,4 @@
-use crate::generated::domain::account::aggregate::Account;
-use crate::generated::domain::account::event::FundsWithdrawn;
+use crate::generated::domain::account::{aggregate::Account, event::FundsWithdrawn};
 use chromatofoor::bounded_context::Event;
 /// Event: `funds-withdrawn` — Emitted when funds have been withdrawn from a bank account.
 impl Event<Account> for FundsWithdrawn {

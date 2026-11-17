@@ -1,5 +1,9 @@
 #[allow(unused_imports)]
 use crate::generated::application::read_models::course_roster::{CourseRoster, CourseRosterRecord};
+use crate::generated::domain::course::event::CourseCapacityUpdated;
+use crate::generated::domain::course::event::CoursePublished;
+use crate::generated::domain::student_course_enrollment::event::EnrollmentDropped;
+use crate::generated::domain::student_course_enrollment::event::StudentEnrolled;
 use chromatofoor::{
     architecturekit::{Envelope, ViewError},
     bounded_context::Project,
@@ -8,15 +12,8 @@ use chromatofoor::{
 /// Projection: `course-published`
 ///
 /// Rule: Insert course roster entry with enrolled-count 0.
-impl Project<crate::generated::domain::course::event::course_published::CoursePublished>
-    for CourseRoster
-{
-    async fn project(
-        &self,
-        _event: Envelope<
-            crate::generated::domain::course::event::course_published::CoursePublished,
-        >,
-    ) -> Result<(), ViewError> {
+impl Project<CoursePublished> for CourseRoster {
+    async fn project(&self, _event: Envelope<CoursePublished>) -> Result<(), ViewError> {
         todo!("implement Project::CoursePublished::project for CourseRoster")
     }
 }
@@ -24,16 +21,8 @@ impl Project<crate::generated::domain::course::event::course_published::CoursePu
 /// Projection: `course-capacity-updated`
 ///
 /// Rule: Update capacity for the matching course-id.
-impl
-    Project<crate::generated::domain::course::event::course_capacity_updated::CourseCapacityUpdated>
-    for CourseRoster
-{
-    async fn project(
-        &self,
-        _event: Envelope<
-            crate::generated::domain::course::event::course_capacity_updated::CourseCapacityUpdated,
-        >,
-    ) -> Result<(), ViewError> {
+impl Project<CourseCapacityUpdated> for CourseRoster {
+    async fn project(&self, _event: Envelope<CourseCapacityUpdated>) -> Result<(), ViewError> {
         todo!("implement Project::CourseCapacityUpdated::project for CourseRoster")
     }
 }
@@ -41,15 +30,8 @@ impl
 /// Projection: `student-enrolled`
 ///
 /// Rule: Increment enrolled-count for the matching course-id.
-impl Project<
-    crate::generated::domain::student_course_enrollment::event::student_enrolled::StudentEnrolled,
-> for CourseRoster {
-    async fn project(
-        &self,
-        _event: Envelope<
-            crate::generated::domain::student_course_enrollment::event::student_enrolled::StudentEnrolled,
-        >,
-    ) -> Result<(), ViewError> {
+impl Project<StudentEnrolled> for CourseRoster {
+    async fn project(&self, _event: Envelope<StudentEnrolled>) -> Result<(), ViewError> {
         todo!("implement Project::StudentEnrolled::project for CourseRoster")
     }
 }
@@ -57,15 +39,8 @@ impl Project<
 /// Projection: `enrollment-dropped`
 ///
 /// Rule: Decrement enrolled-count for the matching course-id.
-impl Project<
-    crate::generated::domain::student_course_enrollment::event::enrollment_dropped::EnrollmentDropped,
-> for CourseRoster {
-    async fn project(
-        &self,
-        _event: Envelope<
-            crate::generated::domain::student_course_enrollment::event::enrollment_dropped::EnrollmentDropped,
-        >,
-    ) -> Result<(), ViewError> {
+impl Project<EnrollmentDropped> for CourseRoster {
+    async fn project(&self, _event: Envelope<EnrollmentDropped>) -> Result<(), ViewError> {
         todo!("implement Project::EnrollmentDropped::project for CourseRoster")
     }
 }

@@ -3,13 +3,11 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 use crate::generated::application::read_models::course_roster::{CourseRoster, CourseRosterRecord};
+use crate::generated::domain::Enrollment;
+use crate::generated::domain::actors::{Registrar, Student};
 use chromatofoor::bounded_context::Query;
 /// Retrieves the projected roster summary for a course.
-#[chromatofoor::query(
-    scope = crate::generated::domain::Enrollment,
-    actors = [crate::generated::domain::actors::Registrar,
-    crate::generated::domain::actors::Student],
-)]
+#[chromatofoor::query(scope = Enrollment, actors = [Registrar, Student])]
 #[derive(Default)]
 pub struct GetCourseRoster {}
 impl Query<CourseRoster> for GetCourseRoster {

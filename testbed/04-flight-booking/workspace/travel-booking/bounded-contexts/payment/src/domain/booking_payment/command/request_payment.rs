@@ -1,7 +1,6 @@
-use crate::generated::domain::booking_payment::aggregate::BookingPayment;
-use crate::generated::domain::booking_payment::command::RequestPayment;
-use crate::generated::domain::booking_payment::error::BookingPaymentError;
-use crate::generated::domain::booking_payment::event::*;
+use crate::generated::domain::booking_payment::{
+    aggregate::BookingPayment, command::RequestPayment, error::BookingPaymentError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `request-payment` — Initiates a payment request once flight and hotel holds are in place.
 ///

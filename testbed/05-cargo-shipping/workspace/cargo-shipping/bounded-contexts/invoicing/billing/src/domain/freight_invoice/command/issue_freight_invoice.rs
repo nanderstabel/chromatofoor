@@ -1,7 +1,6 @@
-use crate::generated::domain::freight_invoice::aggregate::FreightInvoice;
-use crate::generated::domain::freight_invoice::command::IssueFreightInvoice;
-use crate::generated::domain::freight_invoice::error::FreightInvoiceError;
-use crate::generated::domain::freight_invoice::event::*;
+use crate::generated::domain::freight_invoice::{
+    aggregate::FreightInvoice, command::IssueFreightInvoice, error::FreightInvoiceError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `issue-freight-invoice` — Issues a commercial freight invoice for a booked shipment.
 ///

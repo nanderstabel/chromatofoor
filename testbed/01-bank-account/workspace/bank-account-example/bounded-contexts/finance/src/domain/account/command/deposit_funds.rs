@@ -1,7 +1,6 @@
-use crate::generated::domain::account::aggregate::Account;
-use crate::generated::domain::account::command::DepositFunds;
-use crate::generated::domain::account::error::AccountError;
-use crate::generated::domain::account::event::*;
+use crate::generated::domain::account::{
+    aggregate::Account, command::DepositFunds, error::AccountError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `deposit-funds` — Deposits funds into an existing bank account (a zero-amount deposit is an idempotent no-op).
 ///

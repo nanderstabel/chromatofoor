@@ -1,7 +1,7 @@
-use crate::generated::domain::student_registration::aggregate::StudentRegistration;
-use crate::generated::domain::student_registration::command::RegisterStudent;
-use crate::generated::domain::student_registration::error::StudentRegistrationError;
-use crate::generated::domain::student_registration::event::*;
+use crate::generated::domain::student_registration::{
+    aggregate::StudentRegistration, command::RegisterStudent, error::StudentRegistrationError,
+    event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `register-student` — Registers a student in the enrollment bounded context.
 ///

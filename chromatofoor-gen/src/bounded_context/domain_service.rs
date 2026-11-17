@@ -1,6 +1,7 @@
 use crate::common::{
-    BoundedContextGenerator, RoutingContext, ensure_manual_mod_file, generate_struct_fields,
-    make_doc_comment, make_doc_lines, resolve_bc_dir, write_manual_rust_file, write_rust_file,
+    BoundedContextGenerator, RoutingContext, collect_schema_ref_idents, emit_domain_ref_imports,
+    ensure_manual_mod_file, generate_struct_fields, make_doc_comment, make_doc_lines,
+    resolve_bc_dir, write_manual_rust_file, write_rust_file,
 };
 use anyhow::Result;
 use convert_case::{Case, Casing};
@@ -68,6 +69,9 @@ pub fn generate_domain_services(
             let mut manual_methods = Vec::new();
             let mut structs = Vec::new();
             let mut errors = Vec::new();
+            let mut ref_idents = std::collections::BTreeSet::new();
+            let mut manual_import_names = std::collections::BTreeSet::new();
+            manual_import_names.insert(service_ident.to_string());
 
             if let Some(functions) = &service.functions {
                 for func in functions {
@@ -77,6 +81,13 @@ pub fn generate_domain_services(
                     let req_ident = format_ident!("{}Request", func_pascal);
                     let res_ident = format_ident!("{}Response", func_pascal);
                     let err_ident = format_ident!("{}Error", func_pascal);
+
+                    manual_import_names.insert(req_ident.to_string());
+                    manual_import_names.insert(res_ident.to_string());
+                    manual_import_names.insert(err_ident.to_string());
+
+                    ref_idents.extend(collect_schema_ref_idents(&func.arguments));
+                    ref_idents.extend(collect_schema_ref_idents(&func.returns));
 
                     let req_fields = generate_struct_fields(
                         &func.arguments,
@@ -140,15 +151,17 @@ pub fn generate_domain_services(
                         format!("implement {service_ident}::{func_snake} for {service_pascal}");
                     manual_methods.push(quote! {
                         #func_doc
-                        async fn #func_snake(&self, _req: crate::generated::domain::services::#service_snake_ident::#req_ident) -> Result<crate::generated::domain::services::#service_snake_ident::#res_ident, crate::generated::domain::services::#service_snake_ident::#err_ident> {
+                        async fn #func_snake(&self, _req: #req_ident) -> Result<#res_ident, #err_ident> {
                             todo!(#todo_msg)
                         }
                     });
                 }
             }
 
+            let ref_imports = emit_domain_ref_imports(&ref_idents, &[]);
             let service_file_path = services_dir.join(format!("{service_snake_str}.rs"));
             let service_code = quote! {
+                #ref_imports
                 use async_trait::async_trait;
                 #[allow(unused_imports)]
                 use chromatofoor::validator::Validate;
@@ -167,21 +180,44 @@ pub fn generate_domain_services(
 
             write_rust_file(&service_file_path, service_code)?;
 
-            let bc_pascal = format_ident!("{}", bc.to_case(Case::Pascal));
+            let bc_pascal_str = bc.to_case(Case::Pascal);
+            let bc_pascal = format_ident!("{}", bc_pascal_str);
             let service_doc = make_doc_comment(service.description.as_deref());
             let manual_service_file_path =
                 manual_services_dir.join(format!("{service_snake_str}.rs"));
             if !manual_service_file_path.exists() {
+                let (bc_scope_import, bc_scope_ref) = if bc_pascal_str == service_pascal_str
+                    || manual_import_names.contains(&bc_pascal_str)
+                {
+                    let alias = format_ident!("{}Scope", bc_pascal);
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal as #alias; },
+                        quote! { #alias },
+                    )
+                } else {
+                    (
+                        quote! { use crate::generated::domain::#bc_pascal; },
+                        quote! { #bc_pascal },
+                    )
+                };
+                let service_imports: Vec<_> = manual_import_names
+                    .iter()
+                    .map(|n| format_ident!("{n}"))
+                    .collect();
                 let manual_service_code = quote! {
+                    #bc_scope_import
+                    use crate::generated::domain::services::#service_snake_ident::{
+                        #(#service_imports),*
+                    };
                     use async_trait::async_trait;
 
                     #service_doc
-                    #[chromatofoor::domain_service(scope = crate::generated::domain::#bc_pascal)]
+                    #[chromatofoor::domain_service(scope = #bc_scope_ref)]
                     #[derive(Default, Clone)]
                     pub struct #service_pascal;
 
                     #[async_trait]
-                    impl crate::generated::domain::services::#service_snake_ident::#service_ident for #service_pascal {
+                    impl #service_ident for #service_pascal {
                         #(#manual_methods)*
                     }
                 };

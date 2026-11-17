@@ -1,7 +1,6 @@
-use crate::generated::domain::flight_reservation::aggregate::FlightReservation;
-use crate::generated::domain::flight_reservation::command::ConfirmFlight;
-use crate::generated::domain::flight_reservation::error::FlightReservationError;
-use crate::generated::domain::flight_reservation::event::*;
+use crate::generated::domain::flight_reservation::{
+    aggregate::FlightReservation, command::ConfirmFlight, error::FlightReservationError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `confirm-flight` — Confirms a held flight reservation after payment succeeds.
 ///

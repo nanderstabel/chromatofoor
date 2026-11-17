@@ -1,5 +1,4 @@
-use crate::generated::domain::account::aggregate::Account;
-use crate::generated::domain::account::event::AccountOpened;
+use crate::generated::domain::account::{aggregate::Account, event::AccountOpened};
 use chromatofoor::bounded_context::Event;
 /// Event: `account-opened` — Emitted when a new bank account has been opened.
 impl Event<Account> for AccountOpened {

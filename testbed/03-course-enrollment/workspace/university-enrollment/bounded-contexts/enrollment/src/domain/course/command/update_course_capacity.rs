@@ -1,7 +1,6 @@
-use crate::generated::domain::course::aggregate::Course;
-use crate::generated::domain::course::command::UpdateCourseCapacity;
-use crate::generated::domain::course::error::CourseError;
-use crate::generated::domain::course::event::*;
+use crate::generated::domain::course::{
+    aggregate::Course, command::UpdateCourseCapacity, error::CourseError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `update-course-capacity` — Updates the maximum seat capacity of an existing course.
 ///

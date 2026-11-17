@@ -1,5 +1,6 @@
-use crate::generated::domain::student_course_enrollment::aggregate::StudentCourseEnrollment;
-use crate::generated::domain::student_course_enrollment::event::student_enrolled::StudentEnrolled;
+use crate::generated::domain::student_course_enrollment::{
+    aggregate::StudentCourseEnrollment, event::StudentEnrolled,
+};
 use chromatofoor::bounded_context::Event;
 /// Event: `student-enrolled` — Free-standing bounded-context event emitted when a student enrolls in a course.
 ///

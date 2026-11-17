@@ -1,5 +1,7 @@
-use crate::generated::domain::course::event::course_capacity_updated::CourseCapacityUpdated;
-use crate::generated::domain::student_course_enrollment::aggregate::StudentCourseEnrollment;
+use crate::generated::domain::{
+    course::event::CourseCapacityUpdated,
+    student_course_enrollment::aggregate::StudentCourseEnrollment,
+};
 use chromatofoor::bounded_context::Event;
 /// Event: `course-capacity-updated` — Emitted when a course offering's seat capacity is updated.
 ///

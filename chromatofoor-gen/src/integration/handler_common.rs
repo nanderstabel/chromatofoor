@@ -121,14 +121,10 @@ tokio = {{ workspace = true }}
         gen_mod_chunks.push(quote! { pub mod #handler_snake; });
         manual_mod_names.push(handler_snake_str);
 
-        let mut handle_event_entries: Vec<(
-            String,
-            String,
-            String,
-            String,
-            proc_macro2::TokenStream,
-        )> = Vec::new();
-        let mut seen_events = std::collections::HashSet::new();
+        let mut raw_handles: Vec<(String, String, String, String)> = Vec::new();
+        let mut seen_events = HashSet::new();
+        let mut ev_pascal_counts: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
 
         if let Some(handles) = &doc.handles {
             for h in handles {
@@ -141,30 +137,69 @@ tokio = {{ workspace = true }}
                 let ev_kebab = ev.to_case(Case::Kebab);
                 let full_event_name = format_scope_path(domain, &[bc, agg, &ev_kebab]);
                 if seen_events.insert(full_event_name) {
-                    let bc_ident = format_ident!("{}", bc.to_case(Case::Snake));
-                    let agg_snake = format_ident!("{}", agg.to_case(Case::Snake));
-                    let ev_mod = format_ident!("{}", ev.to_case(Case::Snake));
                     let ev_pascal_str = ev.to_case(Case::Pascal);
-                    let ev_pascal = format_ident!("{}", ev_pascal_str);
-                    handle_event_entries.push((
+                    *ev_pascal_counts.entry(ev_pascal_str.clone()).or_insert(0) += 1;
+                    raw_handles.push((
                         bc.to_string(),
                         agg.to_string(),
                         ev_kebab,
                         ev_pascal_str,
-                        quote! {
-                            #bc_ident::generated::domain::#agg_snake::event::#ev_mod::#ev_pascal
-                        },
                     ));
                 }
             }
         }
-        let handle_event_paths: Vec<_> = handle_event_entries
+
+        let handler_pascal_str = handler_pascal.to_string();
+        let domain_pascal_str = domain_pascal.to_string();
+        let mut handle_imports = std::collections::BTreeSet::new();
+        let mut handle_event_entries: Vec<(String, String, String, String, syn::Ident)> =
+            Vec::new();
+        for (bc, agg, ev_kebab, ev_pascal_str) in raw_handles {
+            let bc_ident = format_ident!("{}", bc.to_case(Case::Snake));
+            let agg_snake = format_ident!("{}", agg.to_case(Case::Snake));
+            let ev_pascal = format_ident!("{}", ev_pascal_str);
+            let collides = ev_pascal_counts.get(&ev_pascal_str).copied().unwrap_or(0) > 1
+                || ev_pascal_str == handler_pascal_str
+                || ev_pascal_str == domain_pascal_str;
+            let local_ident = if collides {
+                let alias = format_ident!(
+                    "{}{}{}",
+                    bc.to_case(Case::Pascal),
+                    agg.to_case(Case::Pascal),
+                    ev_pascal_str
+                );
+                handle_imports.insert(
+                    quote! {
+                        pub use #bc_ident::generated::domain::#agg_snake::event::#ev_pascal as #alias;
+                    }
+                    .to_string(),
+                );
+                alias
+            } else {
+                handle_imports.insert(
+                    quote! {
+                        pub use #bc_ident::generated::domain::#agg_snake::event::#ev_pascal;
+                    }
+                    .to_string(),
+                );
+                ev_pascal
+            };
+            handle_event_entries.push((bc, agg, ev_kebab, ev_pascal_str, local_ident));
+        }
+
+        let handle_event_idents: Vec<_> = handle_event_entries
             .iter()
-            .map(|(_, _, _, _, p)| p)
+            .map(|(_, _, _, _, ident)| ident)
+            .collect();
+        let parsed_handle_imports: Vec<proc_macro2::TokenStream> = handle_imports
+            .iter()
+            .filter_map(|s| s.parse().ok())
             .collect();
 
-        let mut emit_command_paths = Vec::new();
-        let mut seen_commands = std::collections::HashSet::new();
+        let mut raw_emits: Vec<(String, String, String)> = Vec::new();
+        let mut seen_commands = HashSet::new();
+        let mut cmd_pascal_counts: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
         if matches!(kind, IntegrationHandlerKind::Policy)
             && let Some(emits) = &doc.emits
         {
@@ -178,16 +213,65 @@ tokio = {{ workspace = true }}
                 let cmd_kebab = cmd.to_case(Case::Kebab);
                 let full_cmd_name = format_scope_path(domain, &[bc, agg, &cmd_kebab]);
                 if seen_commands.insert(full_cmd_name) {
-                    let bc_ident = format_ident!("{}", bc.to_case(Case::Snake));
-                    let agg_snake = format_ident!("{}", agg.to_case(Case::Snake));
-                    let cmd_mod = format_ident!("{}", cmd.to_case(Case::Snake));
-                    let cmd_pascal = format_ident!("{}", cmd.to_case(Case::Pascal));
-                    emit_command_paths.push(quote! {
-                        #bc_ident::generated::domain::#agg_snake::command::#cmd_mod::#cmd_pascal
-                    });
+                    let cmd_pascal_str = cmd.to_case(Case::Pascal);
+                    *cmd_pascal_counts.entry(cmd_pascal_str.clone()).or_insert(0) += 1;
+                    raw_emits.push((bc.to_string(), agg.to_string(), cmd_pascal_str));
                 }
             }
         }
+
+        let mut emit_imports = std::collections::BTreeSet::new();
+        let mut emit_command_idents = Vec::new();
+        for (bc, agg, cmd_pascal_str) in raw_emits {
+            let bc_ident = format_ident!("{}", bc.to_case(Case::Snake));
+            let agg_snake = format_ident!("{}", agg.to_case(Case::Snake));
+            let cmd_pascal = format_ident!("{}", cmd_pascal_str);
+            let collides = cmd_pascal_counts.get(&cmd_pascal_str).copied().unwrap_or(0) > 1
+                || cmd_pascal_str == handler_pascal_str
+                || cmd_pascal_str == domain_pascal_str
+                || handle_event_idents.iter().any(|id| **id == cmd_pascal);
+            let local_ident = if collides {
+                let alias = format_ident!(
+                    "{}{}{}",
+                    bc.to_case(Case::Pascal),
+                    agg.to_case(Case::Pascal),
+                    cmd_pascal_str
+                );
+                emit_imports.insert(
+                    quote! {
+                        pub use #bc_ident::generated::domain::#agg_snake::command::#cmd_pascal as #alias;
+                    }
+                    .to_string(),
+                );
+                alias
+            } else {
+                emit_imports.insert(
+                    quote! {
+                        pub use #bc_ident::generated::domain::#agg_snake::command::#cmd_pascal;
+                    }
+                    .to_string(),
+                );
+                cmd_pascal
+            };
+            emit_command_idents.push(local_ident);
+        }
+        let parsed_emit_imports: Vec<proc_macro2::TokenStream> = emit_imports
+            .iter()
+            .filter_map(|s| s.parse().ok())
+            .collect();
+
+        let (domain_import, domain_scope_ref) = if domain_pascal_str == handler_pascal_str {
+            let alias = format_ident!("{}Domain", domain_pascal);
+            (
+                quote! { use ::domain::#domain_pascal as #alias; },
+                quote! { #alias },
+            )
+        } else {
+            (
+                quote! { use ::domain::#domain_pascal; },
+                quote! { #domain_pascal },
+            )
+        };
 
         let handler_doc = make_doc_comment(doc.description.as_deref());
         let dg_and_idem = format_delivery_and_idempotency_tokens(doc);
@@ -196,19 +280,23 @@ tokio = {{ workspace = true }}
             IntegrationHandlerKind::EventHandler => {
                 let deps_ident = format_ident!("{}Deps", handler_pascal);
                 quote! {
+                    use crate::handlers::#handler_snake::#deps_ident;
+                    #domain_import
+                    #(#parsed_handle_imports)*
+
                     #handler_doc
                     #[chromatofoor::event_handler(
-                        scope = ::domain::#domain_pascal,
-                        handles = [#(#handle_event_paths),*],
+                        scope = #domain_scope_ref,
+                        handles = [#(#handle_event_idents),*],
                         #dg_and_idem
                     )]
                     #[derive(Clone, Default, Debug)]
                     pub struct #handler_pascal {
-                        pub deps: crate::handlers::#handler_snake::#deps_ident,
+                        pub deps: #deps_ident,
                     }
 
                     impl std::ops::Deref for #handler_pascal {
-                        type Target = crate::handlers::#handler_snake::#deps_ident;
+                        type Target = #deps_ident;
 
                         fn deref(&self) -> &Self::Target {
                             &self.deps
@@ -224,11 +312,15 @@ tokio = {{ workspace = true }}
             }
             IntegrationHandlerKind::Policy => {
                 quote! {
+                    #domain_import
+                    #(#parsed_handle_imports)*
+                    #(#parsed_emit_imports)*
+
                     #handler_doc
                     #[chromatofoor::policy(
-                        scope = ::domain::#domain_pascal,
-                        handles = [#(#handle_event_paths),*],
-                        emits = [#(#emit_command_paths),*],
+                        scope = #domain_scope_ref,
+                        handles = [#(#handle_event_idents),*],
+                        emits = [#(#emit_command_idents),*],
                         #dg_and_idem
                     )]
                     #[derive(Clone, Copy, Default, Debug)]
@@ -244,9 +336,19 @@ tokio = {{ workspace = true }}
 
         let manual_file = manual_handlers_dir.join(format!("{handler_snake}.rs"));
         if !manual_file.exists() {
+            let mut sorted_manual_exports = std::collections::BTreeSet::new();
+            sorted_manual_exports.insert(handler_pascal.to_string());
+            for id in &handle_event_idents {
+                sorted_manual_exports.insert(id.to_string());
+            }
+
             let manual_content = match kind {
                 IntegrationHandlerKind::EventHandler => {
                     let deps_ident = format_ident!("{}Deps", handler_pascal);
+                    let manual_export_idents: Vec<_> = sorted_manual_exports
+                        .iter()
+                        .map(|n| format_ident!("{n}"))
+                        .collect();
                     let eh_header = match doc.description.as_deref().map(str::trim) {
                         Some(d) if !d.is_empty() => {
                             format!("Event Handler: `{}` — {d}", doc.name)
@@ -254,7 +356,7 @@ tokio = {{ workspace = true }}
                         _ => format!("Event Handler: `{}`", doc.name),
                     };
                     let handle_impls = handle_event_entries.iter().map(
-                        |(ev_bc, ev_agg, ev_kebab, ev_pascal_str, ev_path)| {
+                        |(ev_bc, ev_agg, ev_kebab, ev_pascal_str, ev_local_ident)| {
                             let mut doc_lines = vec![
                                 eh_header.clone(),
                                 format!("Trigger: `{ev_bc}` / `{ev_agg}` / `{ev_kebab}`"),
@@ -306,10 +408,10 @@ tokio = {{ workspace = true }}
                             );
                             quote! {
                                 #impl_doc
-                                impl Handle<#ev_path> for #handler_pascal {
+                                impl Handle<#ev_local_ident> for #handler_pascal {
                                     async fn handle(
                                         &self,
-                                        _event: Envelope<#ev_path>,
+                                        _event: Envelope<#ev_local_ident>,
                                     ) -> Result<(), DomainError> {
                                         todo!(#todo_msg)
                                     }
@@ -318,7 +420,9 @@ tokio = {{ workspace = true }}
                         },
                     );
                     quote! {
-                        use crate::generated::handlers::#handler_snake::#handler_pascal;
+                        use crate::generated::handlers::#handler_snake::{
+                            #(#manual_export_idents),*
+                        };
                         use chromatofoor::{
                             architecturekit::{DomainError, Envelope},
                             integration::Handle,
@@ -332,12 +436,17 @@ tokio = {{ workspace = true }}
                 }
                 IntegrationHandlerKind::Policy => {
                     let commands_enum_ident = format_ident!("{}Commands", handler_pascal);
+                    sorted_manual_exports.insert(commands_enum_ident.to_string());
+                    let manual_export_idents: Vec<_> = sorted_manual_exports
+                        .iter()
+                        .map(|n| format_ident!("{n}"))
+                        .collect();
                     let policy_header = match doc.description.as_deref().map(str::trim) {
                         Some(d) if !d.is_empty() => format!("Policy: `{}` — {d}", doc.name),
                         _ => format!("Policy: `{}`", doc.name),
                     };
                     let react_impls = handle_event_entries.iter().map(
-                        |(ev_bc, ev_agg, ev_kebab, ev_pascal_str, ev_path)| {
+                        |(ev_bc, ev_agg, ev_kebab, ev_pascal_str, ev_local_ident)| {
                             let mut doc_lines = vec![
                                 policy_header.clone(),
                                 format!("Trigger: `{ev_bc}` / `{ev_agg}` / `{ev_kebab}`"),
@@ -385,10 +494,10 @@ tokio = {{ workspace = true }}
                             );
                             quote! {
                                 #impl_doc
-                                impl React<#ev_path> for #handler_pascal {
+                                impl React<#ev_local_ident> for #handler_pascal {
                                     fn react(
                                         &self,
-                                        _event: Envelope<#ev_path>,
+                                        _event: Envelope<#ev_local_ident>,
                                     ) -> Vec<#commands_enum_ident> {
                                         todo!(#todo_msg)
                                     }
@@ -398,7 +507,7 @@ tokio = {{ workspace = true }}
                     );
                     quote! {
                         use crate::generated::handlers::#handler_snake::{
-                            #commands_enum_ident, #handler_pascal,
+                            #(#manual_export_idents),*
                         };
                         use chromatofoor::{architecturekit::Envelope, integration::React};
 

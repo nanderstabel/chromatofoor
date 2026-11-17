@@ -2,6 +2,9 @@
 use crate::generated::application::read_models::account_summary::{
     AccountSummary, AccountSummaryRecord,
 };
+use crate::generated::domain::account::event::AccountOpened;
+use crate::generated::domain::account::event::FundsDeposited;
+use crate::generated::domain::account::event::FundsWithdrawn;
 use chromatofoor::{
     architecturekit::{Envelope, ViewError},
     bounded_context::Project,
@@ -10,13 +13,8 @@ use chromatofoor::{
 /// Projection: `account-opened`
 ///
 /// Rule: Insert a summary record with owner-name and current-balance equal to balance.
-impl Project<crate::generated::domain::account::event::account_opened::AccountOpened>
-    for AccountSummary
-{
-    async fn project(
-        &self,
-        _event: Envelope<crate::generated::domain::account::event::account_opened::AccountOpened>,
-    ) -> Result<(), ViewError> {
+impl Project<AccountOpened> for AccountSummary {
+    async fn project(&self, _event: Envelope<AccountOpened>) -> Result<(), ViewError> {
         todo!("implement Project::AccountOpened::project for AccountSummary")
     }
 }
@@ -24,13 +22,8 @@ impl Project<crate::generated::domain::account::event::account_opened::AccountOp
 /// Projection: `funds-deposited`
 ///
 /// Rule: Update current-balance to new-balance.
-impl Project<crate::generated::domain::account::event::funds_deposited::FundsDeposited>
-    for AccountSummary
-{
-    async fn project(
-        &self,
-        _event: Envelope<crate::generated::domain::account::event::funds_deposited::FundsDeposited>,
-    ) -> Result<(), ViewError> {
+impl Project<FundsDeposited> for AccountSummary {
+    async fn project(&self, _event: Envelope<FundsDeposited>) -> Result<(), ViewError> {
         todo!("implement Project::FundsDeposited::project for AccountSummary")
     }
 }
@@ -38,13 +31,8 @@ impl Project<crate::generated::domain::account::event::funds_deposited::FundsDep
 /// Projection: `funds-withdrawn`
 ///
 /// Rule: Update current-balance to new-balance.
-impl Project<crate::generated::domain::account::event::funds_withdrawn::FundsWithdrawn>
-    for AccountSummary
-{
-    async fn project(
-        &self,
-        _event: Envelope<crate::generated::domain::account::event::funds_withdrawn::FundsWithdrawn>,
-    ) -> Result<(), ViewError> {
+impl Project<FundsWithdrawn> for AccountSummary {
+    async fn project(&self, _event: Envelope<FundsWithdrawn>) -> Result<(), ViewError> {
         todo!("implement Project::FundsWithdrawn::project for AccountSummary")
     }
 }

@@ -1,7 +1,6 @@
-use crate::generated::domain::booking_payment::aggregate::BookingPayment;
-use crate::generated::domain::booking_payment::command::FailPayment;
-use crate::generated::domain::booking_payment::error::BookingPaymentError;
-use crate::generated::domain::booking_payment::event::*;
+use crate::generated::domain::booking_payment::{
+    aggregate::BookingPayment, command::FailPayment, error::BookingPaymentError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `fail-payment` — Records a declined payment attempt.
 ///

@@ -1,5 +1,6 @@
-use crate::generated::domain::flight_reservation::aggregate::FlightReservation;
-use crate::generated::domain::flight_reservation::event::FlightConfirmed;
+use crate::generated::domain::flight_reservation::{
+    aggregate::FlightReservation, event::FlightConfirmed,
+};
 use chromatofoor::bounded_context::Event;
 /// Event: `flight-confirmed` — Emitted when a held flight reservation is confirmed.
 impl Event<FlightReservation> for FlightConfirmed {

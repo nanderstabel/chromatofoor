@@ -3,12 +3,11 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 use crate::generated::application::read_models::cart_summary::{CartSummary, CartSummaryRecord};
+use crate::generated::domain::Sales;
+use crate::generated::domain::actors::Customer;
 use chromatofoor::bounded_context::Query;
 /// Retrieves the projected shopping cart summary.
-#[chromatofoor::query(
-    scope = crate::generated::domain::Sales,
-    actors = [crate::generated::domain::actors::Customer],
-)]
+#[chromatofoor::query(scope = Sales, actors = [Customer])]
 #[derive(Default)]
 pub struct GetCartSummary {}
 impl Query<CartSummary> for GetCartSummary {

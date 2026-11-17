@@ -1,5 +1,4 @@
-use crate::generated::domain::shopping_cart::aggregate::ShoppingCart;
-use crate::generated::domain::shopping_cart::event::CartInitialized;
+use crate::generated::domain::shopping_cart::{aggregate::ShoppingCart, event::CartInitialized};
 use chromatofoor::bounded_context::Event;
 /// Event: `cart-initialized` — Emitted when a new shopping cart is initialized.
 impl Event<ShoppingCart> for CartInitialized {

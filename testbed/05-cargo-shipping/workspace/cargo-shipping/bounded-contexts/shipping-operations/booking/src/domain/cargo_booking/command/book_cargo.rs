@@ -1,7 +1,6 @@
-use crate::generated::domain::cargo_booking::aggregate::CargoBooking;
-use crate::generated::domain::cargo_booking::command::BookCargo;
-use crate::generated::domain::cargo_booking::error::CargoBookingError;
-use crate::generated::domain::cargo_booking::event::*;
+use crate::generated::domain::cargo_booking::{
+    aggregate::CargoBooking, command::BookCargo, error::CargoBookingError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `book-cargo` — Books a new cargo shipment between an origin port and a distinct destination port.
 ///

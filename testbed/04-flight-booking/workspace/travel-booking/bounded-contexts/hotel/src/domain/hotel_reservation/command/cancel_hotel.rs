@@ -1,7 +1,6 @@
-use crate::generated::domain::hotel_reservation::aggregate::HotelReservation;
-use crate::generated::domain::hotel_reservation::command::CancelHotel;
-use crate::generated::domain::hotel_reservation::error::HotelReservationError;
-use crate::generated::domain::hotel_reservation::event::*;
+use crate::generated::domain::hotel_reservation::{
+    aggregate::HotelReservation, command::CancelHotel, error::HotelReservationError, event::*,
+};
 use chromatofoor::bounded_context::Command;
 /// Command: `cancel-hotel` — Cancels a hotel reservation during saga compensation.
 ///

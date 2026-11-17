@@ -1,5 +1,6 @@
-use crate::generated::domain::student_course_enrollment::aggregate::StudentCourseEnrollment;
-use crate::generated::domain::student_course_enrollment::event::enrollment_dropped::EnrollmentDropped;
+use crate::generated::domain::student_course_enrollment::{
+    aggregate::StudentCourseEnrollment, event::EnrollmentDropped,
+};
 use chromatofoor::bounded_context::Event;
 /// Event: `enrollment-dropped` — Free-standing bounded-context event emitted when a student drops a course enrollment.
 ///

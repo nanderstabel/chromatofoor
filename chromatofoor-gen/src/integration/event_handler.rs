@@ -88,19 +88,22 @@ mod tests {
         )
         .unwrap();
 
+        let normalized_gen: String = gen_rs.split_whitespace().collect::<Vec<_>>().join(" ");
         assert_eq!(
-            gen_rs
-                .matches("sales::generated::domain::order::event::created::Created")
+            normalized_gen
+                .matches("pub use sales::generated::domain::order::event::Created as SalesOrderCreated;")
                 .count(),
             1
         );
-        assert!(gen_rs.contains("billing::generated::domain::invoice::event::created::Created"));
+        assert!(normalized_gen.contains(
+            "pub use billing::generated::domain::invoice::event::Created as BillingInvoiceCreated;"
+        ));
         let normalized_manual: String = manual_rs.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(normalized_manual.contains(
-            "impl Handle<sales::generated::domain::order::event::created::Created> for AuditNotifier"
-        ));
-        assert!(normalized_manual.contains(
-            "impl Handle<billing::generated::domain::invoice::event::created::Created> for AuditNotifier"
-        ));
+        assert!(
+            normalized_manual.contains("impl Handle<SalesOrderCreated> for AuditNotifier")
+        );
+        assert!(
+            normalized_manual.contains("impl Handle<BillingInvoiceCreated> for AuditNotifier")
+        );
     }
 }

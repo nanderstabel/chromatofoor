@@ -121,6 +121,13 @@ pub fn generate_tests(
             let command_enum = format_ident!("{}Command", agg_pascal);
             let event_enum = format_ident!("{}Event", agg_pascal);
 
+            let mut dcb_ev_counts: HashMap<String, usize> = HashMap::new();
+            for (_, ev_name) in &dcb_events {
+                *dcb_ev_counts
+                    .entry(ev_name.to_case(Case::Pascal))
+                    .or_insert(0) += 1;
+            }
+            let mut unit_extra_imports: BTreeSet<String> = BTreeSet::new();
             let mut scenario_fns = Vec::new();
 
             for feature in &ctx.features {
@@ -132,7 +139,8 @@ pub fn generate_tests(
 
                         let mut given_stmts = Vec::new();
                         for g in &scenario.given {
-                            let ev_pascal = format_ident!("{}", g.event.to_case(Case::Pascal));
+                            let ev_pascal_str = g.event.to_case(Case::Pascal);
+                            let ev_pascal = format_ident!("{}", ev_pascal_str);
                             let json_str =
                                 serde_json::to_string(&g.data).unwrap_or_else(|_| "{}".to_string());
 
@@ -155,13 +163,30 @@ pub fn generate_tests(
                                 };
                                 let owner_snake =
                                     format_ident!("{}", owner_unit.to_case(Case::Snake));
-                                let ev_mod = format_ident!("{}", g.event.to_case(Case::Snake));
+                                let collides =
+                                    dcb_ev_counts.get(&ev_pascal_str).copied().unwrap_or(0) > 1;
+                                let ev_ty_ident = if collides {
+                                    let alias = format_ident!(
+                                        "{}{}",
+                                        owner_unit.to_case(Case::Pascal),
+                                        ev_pascal_str
+                                    );
+                                    unit_extra_imports.insert(
+                                        quote! {
+                                            use #bc_ident::generated::domain::#owner_snake::event::#ev_pascal as #alias;
+                                        }
+                                        .to_string(),
+                                    );
+                                    alias
+                                } else {
+                                    ev_pascal.clone()
+                                };
                                 let expect_msg = format!(
                                     "Failed to deserialize payload for given event '{event_enum}::{ev_pascal}'"
                                 );
                                 given_stmts.push(quote! {
                                     #event_enum::from(
-                                        serde_json::from_str::<#bc_ident::generated::domain::#owner_snake::event::#ev_mod::#ev_pascal>(#json_str)
+                                        serde_json::from_str::<#ev_ty_ident>(#json_str)
                                             .expect(#expect_msg),
                                     )
                                 });
@@ -215,10 +240,31 @@ pub fn generate_tests(
                                             .map_or(agg.as_str(), |(owner, _)| owner.as_str());
                                         let owner_snake =
                                             format_ident!("{}", owner_unit.to_case(Case::Snake));
-                                        let ev_mod = format_ident!("{}", e.event.to_case(Case::Snake));
+                                        let ev_pascal_str = e.event.to_case(Case::Pascal);
+                                        let collides = dcb_ev_counts
+                                            .get(&ev_pascal_str)
+                                            .copied()
+                                            .unwrap_or(0)
+                                            > 1;
+                                        let ev_ty_ident = if collides {
+                                            let alias = format_ident!(
+                                                "{}{}",
+                                                owner_unit.to_case(Case::Pascal),
+                                                ev_pascal_str
+                                            );
+                                            unit_extra_imports.insert(
+                                                quote! {
+                                                    use #bc_ident::generated::domain::#owner_snake::event::#ev_pascal as #alias;
+                                                }
+                                                .to_string(),
+                                            );
+                                            alias
+                                        } else {
+                                            ev_pascal.clone()
+                                        };
                                         then_events.push(quote! {
                                             #event_enum::from(
-                                                serde_json::from_str::<#bc_ident::generated::domain::#owner_snake::event::#ev_mod::#ev_pascal>(#json_str)
+                                                serde_json::from_str::<#ev_ty_ident>(#json_str)
                                                     .expect(#expect_msg),
                                             )
                                         });
@@ -271,11 +317,18 @@ pub fn generate_tests(
             }
 
             if !scenario_fns.is_empty() {
+                let parsed_extra_imports: Vec<TokenStream> = unit_extra_imports
+                    .iter()
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
                 let unit_tokens = quote! {
-                    use #bc_ident::generated::domain::#agg_ident_snake::aggregate::#agg_pascal;
-                    use #bc_ident::generated::domain::#agg_ident_snake::command::*;
-                    use #bc_ident::generated::domain::#agg_ident_snake::error::#error_ident;
-                    use #bc_ident::generated::domain::#agg_ident_snake::event::*;
+                    use #bc_ident::generated::domain::#agg_ident_snake::{
+                        aggregate::#agg_pascal,
+                        command::*,
+                        error::#error_ident,
+                        event::*,
+                    };
+                    #(#parsed_extra_imports)*
 
                     #(#scenario_fns)*
                 };
@@ -346,6 +399,13 @@ pub fn generate_tests(
                     }
                 }
 
+                let mut rm_ev_counts: HashMap<String, usize> = HashMap::new();
+                for (_, ev_name) in &projected_events {
+                    *rm_ev_counts
+                        .entry(ev_name.to_case(Case::Pascal))
+                        .or_insert(0) += 1;
+                }
+                let mut rm_extra_imports: BTreeSet<String> = BTreeSet::new();
                 let mut scenario_fns = Vec::new();
 
                 for feature in features {
@@ -382,14 +442,40 @@ pub fn generate_tests(
                                 };
 
                                 let agg_ident = format_ident!("{}", event_agg.to_case(Case::Snake));
-                                let ev_mod = format_ident!("{}", g.event.to_case(Case::Snake));
-                                let ev_pascal = format_ident!("{}", g.event.to_case(Case::Pascal));
+                                let ev_pascal_str = g.event.to_case(Case::Pascal);
+                                let ev_pascal = format_ident!("{}", ev_pascal_str);
                                 let json_str = serde_json::to_string(&g.data)
                                     .unwrap_or_else(|_| "{}".to_string());
 
+                                let collides =
+                                    rm_ev_counts.get(&ev_pascal_str).copied().unwrap_or(0) > 1
+                                        || ev_pascal_str == rm_pascal;
+                                let ev_ty_ident = if collides {
+                                    let alias = format_ident!(
+                                        "{}{}",
+                                        event_agg.to_case(Case::Pascal),
+                                        ev_pascal_str
+                                    );
+                                    rm_extra_imports.insert(
+                                        quote! {
+                                            use #bc_ident::generated::domain::#agg_ident::event::#ev_pascal as #alias;
+                                        }
+                                        .to_string(),
+                                    );
+                                    alias
+                                } else {
+                                    rm_extra_imports.insert(
+                                        quote! {
+                                            use #bc_ident::generated::domain::#agg_ident::event::#ev_pascal;
+                                        }
+                                        .to_string(),
+                                    );
+                                    ev_pascal
+                                };
+
                                 given_events.push(quote! {
                                     #rm_events_ident::from(
-                                        serde_json::from_str::<#bc_ident::generated::domain::#agg_ident::event::#ev_mod::#ev_pascal>(#json_str)
+                                        serde_json::from_str::<#ev_ty_ident>(#json_str)
                                             .expect("Failed to deserialize given event payload"),
                                     )
                                 });
@@ -398,12 +484,30 @@ pub fn generate_tests(
                             let has_query = scenario.when.query.is_some();
                             let when_stmt = if let Some(query_name) = &scenario.when.query {
                                 let q_snake = format_ident!("{}", query_name.to_case(Case::Snake));
-                                let q_pascal =
-                                    format_ident!("{}", query_name.to_case(Case::Pascal));
+                                let q_pascal_str = query_name.to_case(Case::Pascal);
+                                let q_pascal = format_ident!("{}", q_pascal_str);
+                                let q_ty_ident = if q_pascal_str == rm_pascal {
+                                    let alias = format_ident!("{}Query", q_pascal);
+                                    rm_extra_imports.insert(
+                                        quote! {
+                                            use #bc_ident::generated::application::query::#q_snake::#q_pascal as #alias;
+                                        }
+                                        .to_string(),
+                                    );
+                                    alias
+                                } else {
+                                    rm_extra_imports.insert(
+                                        quote! {
+                                            use #bc_ident::generated::application::query::#q_snake::#q_pascal;
+                                        }
+                                        .to_string(),
+                                    );
+                                    q_pascal
+                                };
                                 let params_json = serde_json::to_string(&scenario.when.parameters)
                                     .unwrap_or_else(|_| "{}".to_string());
                                 let query_expr = quote! {
-                                    serde_json::from_str::<#bc_ident::generated::application::query::#q_snake::#q_pascal>(#params_json)
+                                    serde_json::from_str::<#q_ty_ident>(#params_json)
                                         .expect("Failed to deserialize query parameters")
                                 };
                                 if let Some(actor) = &scenario.when.actor {
@@ -488,8 +592,13 @@ pub fn generate_tests(
                 }
 
                 if !scenario_fns.is_empty() {
+                    let parsed_rm_imports: Vec<TokenStream> = rm_extra_imports
+                        .iter()
+                        .filter_map(|s| s.parse().ok())
+                        .collect();
                     let rm_tokens = quote! {
                         use #bc_ident::generated::application::read_models::#rm_snake::{#rm_events_ident, #rm_ident};
+                        #(#parsed_rm_imports)*
 
                         #(#scenario_fns)*
                     };
