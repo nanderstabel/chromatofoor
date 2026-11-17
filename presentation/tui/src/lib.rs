@@ -31,20 +31,25 @@ use std::{
 };
 
 use chromatofoor::{
+    architecturekit::eventsourcingdb::Event as StoredEvent,
     domain::DomainRuntime,
     runtime::{CommandDescriptor, Presentation, QueryDescriptor},
 };
 use crossterm::{
-    event::{self, DisableBracketedPaste, EnableBracketedPaste, Event as CEvent, KeyCode},
+    event::{
+        self, DisableBracketedPaste, EnableBracketedPaste, Event as CEvent, KeyCode, KeyEventKind,
+        KeyModifiers,
+    },
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
-    Terminal,
+    Frame, Terminal,
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
 use ratatui_textarea::TextArea;
 use serde_json::Value;
@@ -75,9 +80,54 @@ impl Presentation for Tui {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResultKind {
+    Success,
+    Error,
+}
+
+#[derive(Debug, Clone)]
+struct EventEntry {
+    subject: String,
+    event_type: String,
+    payload_pretty: String,
+    payload_compact: String,
+}
+
+impl EventEntry {
+    fn from_stored(event: &StoredEvent) -> Self {
+        let payload_compact = serde_json::to_string(event.data()).unwrap_or_default();
+        let payload_pretty =
+            serde_json::to_string_pretty(event.data()).unwrap_or_else(|_| payload_compact.clone());
+        Self {
+            subject: event.subject().to_string(),
+            event_type: event.ty().to_owned(),
+            payload_pretty,
+            payload_compact,
+        }
+    }
+
+    fn matches_filter(&self, filter_lower: &str) -> bool {
+        if filter_lower.is_empty() {
+            return true;
+        }
+        self.subject.to_lowercase().contains(filter_lower)
+            || self.event_type.to_lowercase().contains(filter_lower)
+            || self.payload_compact.to_lowercase().contains(filter_lower)
+    }
+
+    fn detail_body(&self) -> String {
+        format!(
+            "Type:    {}\nSubject: {}\n\nPayload:\n{}",
+            self.event_type, self.subject, self.payload_pretty
+        )
+    }
+}
+
 enum AppState {
     SelectActor(ListState, Vec<String>),
     Menu,
+    EventStream,
     CommandList(ListState, Vec<CommandDescriptor>),
     EnterCommandPayload {
         cmd: CommandDescriptor,
@@ -90,8 +140,71 @@ enum AppState {
     },
     EnterEventFilter {
         textarea: TextArea<'static>,
+        return_to_stream: bool,
     },
-    ResultView(String),
+    ResultView {
+        kind: ResultKind,
+        title: String,
+        body: String,
+        scroll: u16,
+    },
+}
+
+fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
+    let width = max_width.max(8);
+    let mut out = Vec::new();
+
+    for raw_line in text.split('\n') {
+        if raw_line.is_empty() {
+            out.push(String::new());
+            continue;
+        }
+
+        let leading_spaces = raw_line.chars().take_while(|c| *c == ' ').count();
+        let indent = " ".repeat(leading_spaces.min(width / 2));
+        let mut current = indent.clone();
+
+        for word in raw_line.split_whitespace() {
+            let word_len = word.chars().count();
+            let cur_len = current.chars().count();
+            let sep = usize::from(cur_len > indent.len());
+
+            if cur_len + sep + word_len <= width {
+                if sep == 1 {
+                    current.push(' ');
+                }
+                current.push_str(word);
+            } else {
+                if cur_len > indent.len() {
+                    out.push(current);
+                    current = indent.clone();
+                }
+                if indent.len() + word_len <= width {
+                    current.push_str(word);
+                } else {
+                    let chunk_cap = width.saturating_sub(indent.len()).max(1);
+                    let mut chars = word.chars().peekable();
+                    while chars.peek().is_some() {
+                        let chunk: String = chars.by_ref().take(chunk_cap).collect();
+                        if chars.peek().is_some() {
+                            out.push(format!("{indent}{chunk}"));
+                        } else {
+                            current = format!("{indent}{chunk}");
+                        }
+                    }
+                }
+            }
+        }
+
+        if !current.is_empty() {
+            out.push(current);
+        }
+    }
+
+    if out.is_empty() {
+        out.push(String::new());
+    }
+    out
 }
 
 fn resolve_schema<'a>(prop: &'a Value, root_schema: &'a Value) -> &'a Value {
@@ -231,31 +344,443 @@ fn filter_queries(runtime: &DomainRuntime, actor: &str) -> Vec<QueryDescriptor> 
 fn textarea_from_schema(schema: &Value) -> TextArea<'static> {
     let template = generate_template(schema);
     let mut ta = TextArea::default();
-    for line in template.lines() {
+    let lines: Vec<&str> = template.lines().collect();
+    for (idx, line) in lines.iter().enumerate() {
         ta.insert_str(line);
-        ta.insert_newline();
+        if idx + 1 < lines.len() {
+            ta.insert_newline();
+        }
     }
     ta
+}
+
+fn format_command_success(cmd_name: &str, events: &[StoredEvent]) -> String {
+    if events.is_empty() {
+        return format!("Command '{cmd_name}' succeeded (0 events emitted).");
+    }
+
+    let mut sections = vec![format!(
+        "Command '{cmd_name}' succeeded — {} event(s) emitted:",
+        events.len()
+    )];
+    for (idx, ev) in events.iter().enumerate() {
+        let payload = serde_json::to_string_pretty(ev.data()).unwrap_or_default();
+        sections.push(format!(
+            "\n#{} {}\nSubject: {}\nPayload:\n{}",
+            idx + 1,
+            ev.ty(),
+            ev.subject(),
+            payload
+        ));
+    }
+    sections.join("\n")
+}
+
+fn build_wrapped_list_item(
+    header: String,
+    description: &str,
+    inner_width: usize,
+) -> ListItem<'static> {
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    for (idx, wrapped) in wrap_text(&header, inner_width).into_iter().enumerate() {
+        let prefix = if idx == 0 { "" } else { "  " };
+        lines.push(Line::from(Span::styled(
+            format!("{prefix}{wrapped}"),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+    }
+    if !description.trim().is_empty() {
+        let desc_width = inner_width.saturating_sub(2);
+        for wrapped in wrap_text(description.trim(), desc_width) {
+            lines.push(Line::from(Span::styled(
+                format!("  {wrapped}"),
+                Style::default().fg(Color::Gray),
+            )));
+        }
+    }
+    ListItem::new(Text::from(lines))
+}
+
+fn build_event_list_item(entry: &EventEntry, inner_width: usize) -> ListItem<'static> {
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    let header = format!("{}  [{}]", entry.event_type, entry.subject);
+    for (idx, wrapped) in wrap_text(&header, inner_width).into_iter().enumerate() {
+        if idx == 0 {
+            if let Some((ev_ty, rest)) = wrapped.split_once("  ") {
+                lines.push(Line::from(vec![
+                    Span::styled(
+                        ev_ty.to_owned(),
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw("  "),
+                    Span::styled(rest.to_owned(), Style::default().fg(Color::Cyan)),
+                ]));
+            } else {
+                lines.push(Line::from(Span::styled(
+                    wrapped,
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                )));
+            }
+        } else {
+            lines.push(Line::from(Span::styled(
+                format!("  {wrapped}"),
+                Style::default().fg(Color::Cyan),
+            )));
+        }
+    }
+
+    let payload_width = inner_width.saturating_sub(2);
+    let payload_line = format!("payload: {}", entry.payload_compact);
+    for wrapped in wrap_text(&payload_line, payload_width) {
+        lines.push(Line::from(Span::styled(
+            format!("  {wrapped}"),
+            Style::default().fg(Color::Gray),
+        )));
+    }
+
+    ListItem::new(Text::from(lines))
+}
+
+fn split_header_and_editor(area: Rect, header_text: &str) -> (Rect, Rect) {
+    let inner_width = usize::from(area.width.saturating_sub(2)).max(8);
+    let wrapped_count = wrap_text(header_text, inner_width).len() as u16;
+    let header_height = (wrapped_count + 2).clamp(4, area.height.saturating_sub(5).max(4));
+    let parts = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(header_height), Constraint::Min(3)])
+        .split(area);
+    (parts[0], parts[1])
+}
+
+fn render_ui(
+    f: &mut Frame<'_>,
+    domain_name: &str,
+    current_actor: &str,
+    event_filter: &str,
+    log: &VecDeque<EventEntry>,
+    event_list_state: &mut ListState,
+    state: &mut AppState,
+) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(42), Constraint::Percentage(58)])
+        .split(f.area());
+
+    let left_pane = chunks[0];
+    let right_pane = chunks[1];
+
+    let left_inner_width = usize::from(left_pane.width.saturating_sub(4)).max(8);
+    let right_inner_width = usize::from(right_pane.width.saturating_sub(4)).max(8);
+
+    let filter_lower = event_filter.to_lowercase();
+    let filtered_entries: Vec<&EventEntry> = log
+        .iter()
+        .filter(|entry| entry.matches_filter(&filter_lower))
+        .collect();
+
+    if filtered_entries.is_empty() {
+        event_list_state.select(None);
+    } else if let Some(sel) = event_list_state.selected() {
+        if sel >= filtered_entries.len() {
+            event_list_state.select(Some(filtered_entries.len() - 1));
+        }
+    } else if matches!(state, AppState::EventStream) {
+        event_list_state.select(Some(0));
+    }
+
+    let event_items: Vec<ListItem> = filtered_entries
+        .iter()
+        .map(|entry| build_event_list_item(entry, right_inner_width))
+        .collect();
+
+    let stream_focused = matches!(state, AppState::EventStream);
+    let count_badge = if event_filter.is_empty() {
+        format!("{}", filtered_entries.len())
+    } else {
+        format!("{}/{}", filtered_entries.len(), log.len())
+    };
+    let stream_title = match (stream_focused, event_filter.is_empty()) {
+        (true, true) => {
+            format!(" Event Stream [{count_badge}] (Enter inspect, f filter, x clear, Esc back) ")
+        }
+        (true, false) => format!(
+            " Event Stream [{count_badge}] filter=\"{event_filter}\" (Enter inspect, r reset, Esc back) "
+        ),
+        (false, true) => format!(" Event Stream [{count_badge}] ([e] inspect, [f] filter) "),
+        (false, false) => {
+            format!(" Event Stream [{count_badge}] (filter: \"{event_filter}\", [r] reset) ")
+        }
+    };
+    let stream_border_style = if stream_focused {
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Green)
+    };
+    let events_list = List::new(event_items)
+        .block(
+            Block::default()
+                .title(stream_title)
+                .borders(Borders::ALL)
+                .border_style(stream_border_style),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+    f.render_stateful_widget(events_list, right_pane, event_list_state);
+
+    match state {
+        AppState::SelectActor(list_state, actors) => {
+            let items: Vec<ListItem> = actors.iter().map(|a| ListItem::new(a.as_str())).collect();
+            let list = List::new(items)
+                .block(
+                    Block::default()
+                        .title(" Select Actor (Enter select, Esc exit) ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+            f.render_stateful_widget(list, left_pane, list_state);
+        }
+        AppState::Menu => {
+            let filter_label = if event_filter.is_empty() {
+                "[f] Filter Event Stream".to_owned()
+            } else {
+                format!("[f] Edit Event Filter (active: \"{event_filter}\")")
+            };
+            let mut menu_lines = vec![
+                format!("Domain: {domain_name}"),
+                format!("Actor:  {current_actor}"),
+                String::new(),
+                "[c] Dispatch Command".to_owned(),
+                "[q] Execute Query".to_owned(),
+                "[e] Inspect / Scroll Event Stream (Tab)".to_owned(),
+                "[a] Switch Actor".to_owned(),
+                filter_label,
+            ];
+            if !event_filter.is_empty() {
+                menu_lines.push("[r] Reset Event Filter".to_owned());
+            }
+            menu_lines.push("[x] Clear Event Stream".to_owned());
+            menu_lines.push("[Esc] Exit".to_owned());
+            menu_lines.push(String::new());
+            menu_lines.push("Press a shortcut key to continue.".to_owned());
+
+            let menu = Paragraph::new(menu_lines.join("\n"))
+                .block(
+                    Block::default()
+                        .title(" Menu ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .style(Style::default().fg(Color::Cyan))
+                .wrap(Wrap { trim: false });
+            f.render_widget(menu, left_pane);
+        }
+        AppState::EventStream => {
+            let mut help_lines = vec![
+                format!("Domain: {domain_name}"),
+                format!("Actor:  {current_actor}"),
+                String::new(),
+                "Event Stream Focus Active:".to_owned(),
+                "  [Up/Down]   Select event".to_owned(),
+                "  [PgUp/PgDn] Jump 10 events".to_owned(),
+                "  [Home]      Newest event".to_owned(),
+                "  [Enter]     Inspect full event payload".to_owned(),
+                "  [f]         Filter events (case-insensitive)".to_owned(),
+            ];
+            if !event_filter.is_empty() {
+                help_lines.push(format!(
+                    "  [r]         Reset active filter (\"{event_filter}\")"
+                ));
+            }
+            help_lines.push("  [x]         Clear event stream".to_owned());
+            help_lines.push("  [Esc/Tab]   Return to Menu".to_owned());
+
+            let panel = Paragraph::new(help_lines.join("\n"))
+                .block(
+                    Block::default()
+                        .title(" Event Stream Controls ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Yellow)),
+                )
+                .style(Style::default().fg(Color::Yellow))
+                .wrap(Wrap { trim: false });
+            f.render_widget(panel, left_pane);
+        }
+        AppState::CommandList(list_state, cmds) => {
+            let items: Vec<ListItem> = cmds
+                .iter()
+                .map(|c| {
+                    let header = format!(
+                        "[{}] {} / {} / {}",
+                        c.target_kind, c.bounded_context, c.target, c.name
+                    );
+                    build_wrapped_list_item(header, c.description, left_inner_width)
+                })
+                .collect();
+            let list = List::new(items)
+                .block(
+                    Block::default()
+                        .title(" Select Command (Enter select, Esc back) ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+            f.render_stateful_widget(list, left_pane, list_state);
+        }
+        AppState::EnterCommandPayload { cmd, textarea } => {
+            let header_body = format!(
+                "[{}] {} / {} / {}\n{}\nCtrl+S: Submit  |  Esc: Back",
+                cmd.target_kind, cmd.bounded_context, cmd.target, cmd.name, cmd.description
+            );
+            let (header_area, editor_area) = split_header_and_editor(left_pane, &header_body);
+            let header = Paragraph::new(header_body)
+                .block(
+                    Block::default()
+                        .title(" Command ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .style(Style::default().fg(Color::Cyan))
+                .wrap(Wrap { trim: false });
+            f.render_widget(header, header_area);
+
+            textarea.set_block(
+                Block::default()
+                    .title(" Payload JSON (Ctrl+S submit, Esc back) ")
+                    .borders(Borders::ALL),
+            );
+            f.render_widget(&*textarea, editor_area);
+        }
+        AppState::QueryList(list_state, queries) => {
+            let items: Vec<ListItem> = queries
+                .iter()
+                .map(|q| {
+                    let header = format!("{} / {}", q.bounded_context, q.name);
+                    build_wrapped_list_item(header, q.description, left_inner_width)
+                })
+                .collect();
+            let list = List::new(items)
+                .block(
+                    Block::default()
+                        .title(" Select Query (Enter select, Esc back) ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+            f.render_stateful_widget(list, left_pane, list_state);
+        }
+        AppState::EnterQueryParams { query, textarea } => {
+            let header_body = format!(
+                "{} / {} (read-model: {})\n{}\nCtrl+S: Submit  |  Esc: Back",
+                query.bounded_context, query.name, query.read_model, query.description
+            );
+            let (header_area, editor_area) = split_header_and_editor(left_pane, &header_body);
+            let header = Paragraph::new(header_body)
+                .block(
+                    Block::default()
+                        .title(" Query ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan)),
+                )
+                .style(Style::default().fg(Color::Cyan))
+                .wrap(Wrap { trim: false });
+            f.render_widget(header, header_area);
+
+            textarea.set_block(
+                Block::default()
+                    .title(" Parameters JSON (Ctrl+S submit, Esc back) ")
+                    .borders(Borders::ALL),
+            );
+            f.render_widget(&*textarea, editor_area);
+        }
+        AppState::EnterEventFilter { textarea, .. } => {
+            let header_body = "Case-insensitive substring match across subject, event type, and payload.\nEnter / Ctrl+S: Apply  |  Ctrl+U: Clear  |  Esc: Cancel";
+            let (header_area, editor_area) = split_header_and_editor(left_pane, header_body);
+            let header = Paragraph::new(header_body)
+                .block(
+                    Block::default()
+                        .title(" Filter Event Stream ")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Yellow)),
+                )
+                .style(Style::default().fg(Color::Yellow))
+                .wrap(Wrap { trim: false });
+            f.render_widget(header, header_area);
+
+            textarea.set_block(
+                Block::default()
+                    .title(" Filter Text (empty clears filter) ")
+                    .borders(Borders::ALL),
+            );
+            f.render_widget(&*textarea, editor_area);
+        }
+        AppState::ResultView {
+            kind,
+            title,
+            body,
+            scroll,
+        } => {
+            let (border_style, text_style, badge) = match kind {
+                ResultKind::Success => (
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::White),
+                    "OK",
+                ),
+                ResultKind::Error => (
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::LightRed),
+                    "ERROR",
+                ),
+            };
+            let block_title = format!(" [{badge}] {title} (Up/Down scroll, Esc back) ");
+            let p = Paragraph::new(body.as_str())
+                .block(
+                    Block::default()
+                        .title(block_title)
+                        .borders(Borders::ALL)
+                        .border_style(border_style),
+                )
+                .style(text_style)
+                .wrap(Wrap { trim: false })
+                .scroll((*scroll, 0));
+            f.render_widget(p, left_pane);
+        }
+    }
+}
+
+fn open_filter_editor(current_filter: &str, return_to_stream: bool) -> AppState {
+    let mut textarea = TextArea::default();
+    if !current_filter.is_empty() {
+        textarea.insert_str(current_filter);
+    }
+    AppState::EnterEventFilter {
+        textarea,
+        return_to_stream,
+    }
 }
 
 /// Runs the interactive terminal UI connected to `runtime`.
 pub async fn run(runtime: Arc<DomainRuntime>) {
     let mut current_actor = String::new();
     let mut event_filter = String::new();
-    let event_log = Arc::new(Mutex::new(VecDeque::new()));
+    let event_log: Arc<Mutex<VecDeque<EventEntry>>> = Arc::new(Mutex::new(VecDeque::new()));
+    let mut event_list_state = ListState::default();
 
     let mut rx = runtime.subscribe_events();
     let log_clone = Arc::clone(&event_log);
     tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
             let mut log = log_clone.lock().unwrap();
-            let payload_str = serde_json::to_string(event.data()).unwrap_or_default();
-            log.push_front(format!(
-                "[{}] {} | payload: {}",
-                event.subject(),
-                event.ty(),
-                payload_str
-            ));
+            log.push_front(EventEntry::from_stored(&event));
             if log.len() > 1000 {
                 log.pop_back();
             }
@@ -278,140 +803,16 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
     loop {
         terminal
             .draw(|f| {
-                let chunks = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
-                    .split(f.area());
-
-                let left_pane = chunks[0];
-                let right_pane = chunks[1];
-
                 let log = event_log.lock().unwrap();
-                let items: Vec<ListItem> = log
-                    .iter()
-                    .filter(|msg| event_filter.is_empty() || msg.contains(&event_filter))
-                    .map(|msg| ListItem::new(msg.as_str()))
-                    .collect();
-                let stream_title = if event_filter.is_empty() {
-                    " Event Stream ".to_owned()
-                } else {
-                    format!(" Event Stream (filter: \"{event_filter}\") ")
-                };
-                let events_list = List::new(items)
-                    .block(Block::default().title(stream_title).borders(Borders::ALL))
-                    .style(Style::default().fg(Color::Green));
-                f.render_widget(events_list, right_pane);
-
-                match &mut state {
-                    AppState::SelectActor(list_state, actors) => {
-                        let items: Vec<ListItem> =
-                            actors.iter().map(|a| ListItem::new(a.as_str())).collect();
-                        let list = List::new(items)
-                            .block(
-                                Block::default()
-                                    .title(" Select Actor (Enter to select, Esc to exit) ")
-                                    .borders(Borders::ALL),
-                            )
-                            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-                        f.render_stateful_widget(list, left_pane, list_state);
-                    }
-                    AppState::Menu => {
-                        let filter_label = if event_filter.is_empty() {
-                            "[f] Filter Event Stream".to_owned()
-                        } else {
-                            format!("[f] Filter Event Stream (active: \"{event_filter}\")")
-                        };
-                        let menu_text = [
-                            format!("Domain: {} (Actor: {current_actor})", runtime.domain_name()),
-                            String::new(),
-                            "[c] Dispatch Command".to_owned(),
-                            "[q] Execute Query".to_owned(),
-                            "[a] Switch Actor".to_owned(),
-                            filter_label,
-                            "[x] Clear Event Stream".to_owned(),
-                            "[ESC] Exit".to_owned(),
-                            String::new(),
-                            "Press a key to select an action.".to_owned(),
-                        ];
-                        let menu = Paragraph::new(menu_text.join("\n"))
-                            .block(Block::default().title(" Menu ").borders(Borders::ALL))
-                            .style(Style::default().fg(Color::Cyan));
-                        f.render_widget(menu, left_pane);
-                    }
-                    AppState::CommandList(list_state, cmds) => {
-                        let items: Vec<ListItem> = cmds
-                            .iter()
-                            .map(|c| {
-                                ListItem::new(format!(
-                                    "[{}] {} / {} / {} — {}",
-                                    c.target_kind,
-                                    c.bounded_context,
-                                    c.target,
-                                    c.name,
-                                    c.description
-                                ))
-                            })
-                            .collect();
-                        let list = List::new(items)
-                            .block(
-                                Block::default()
-                                    .title(" Select Command (Enter to select, Esc to go back) ")
-                                    .borders(Borders::ALL),
-                            )
-                            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-                        f.render_stateful_widget(list, left_pane, list_state);
-                    }
-                    AppState::EnterCommandPayload { cmd, textarea } => {
-                        let title = format!(
-                            " [{}] {} — {} (Ctrl+S submit, Esc back) ",
-                            cmd.target_kind, cmd.name, cmd.description
-                        );
-                        textarea.set_block(Block::default().title(title).borders(Borders::ALL));
-                        f.render_widget(&*textarea, left_pane);
-                    }
-                    AppState::QueryList(list_state, queries) => {
-                        let items: Vec<ListItem> = queries
-                            .iter()
-                            .map(|q| {
-                                ListItem::new(format!(
-                                    "{} / {} — {}",
-                                    q.bounded_context, q.name, q.description
-                                ))
-                            })
-                            .collect();
-                        let list = List::new(items)
-                            .block(
-                                Block::default()
-                                    .title(" Select Query (Enter to select, Esc to go back) ")
-                                    .borders(Borders::ALL),
-                            )
-                            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-                        f.render_stateful_widget(list, left_pane, list_state);
-                    }
-                    AppState::EnterQueryParams { query, textarea } => {
-                        let title = format!(
-                            " {} — {} (Ctrl+S submit, Esc back) ",
-                            query.name, query.description
-                        );
-                        textarea.set_block(Block::default().title(title).borders(Borders::ALL));
-                        f.render_widget(&*textarea, left_pane);
-                    }
-                    AppState::EnterEventFilter { textarea } => {
-                        let title = " Event Stream Filter (Enter to apply, Esc to cancel) ";
-                        textarea.set_block(Block::default().title(title).borders(Borders::ALL));
-                        f.render_widget(&*textarea, left_pane);
-                    }
-                    AppState::ResultView(msg) => {
-                        let p = Paragraph::new(msg.as_str())
-                            .block(
-                                Block::default()
-                                    .title(" Result (Esc to go back) ")
-                                    .borders(Borders::ALL),
-                            )
-                            .style(Style::default().fg(Color::Yellow));
-                        f.render_widget(p, left_pane);
-                    }
-                }
+                render_ui(
+                    f,
+                    runtime.domain_name(),
+                    &current_actor,
+                    &event_filter,
+                    &log,
+                    &mut event_list_state,
+                    &mut state,
+                );
             })
             .unwrap();
 
@@ -420,6 +821,11 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
             let mut next_state = None;
 
             if let CEvent::Key(key) = &evt {
+                if key.kind == KeyEventKind::Release {
+                    continue;
+                }
+                let is_ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+
                 match &mut state {
                     AppState::SelectActor(list_state, actors) => match key.code {
                         KeyCode::Esc => break,
@@ -472,18 +878,95 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                             }
                             next_state = Some(AppState::QueryList(ls, queries));
                         }
-                        KeyCode::Char('f') => {
-                            let mut textarea = TextArea::default();
-                            if !event_filter.is_empty() {
-                                textarea.insert_str(&event_filter);
+                        KeyCode::Char('e') | KeyCode::Tab => {
+                            if event_list_state.selected().is_none() {
+                                event_list_state.select(Some(0));
                             }
-                            next_state = Some(AppState::EnterEventFilter { textarea });
+                            next_state = Some(AppState::EventStream);
+                        }
+                        KeyCode::Char('f') => {
+                            next_state = Some(open_filter_editor(&event_filter, false));
+                        }
+                        KeyCode::Char('r') => {
+                            event_filter.clear();
                         }
                         KeyCode::Char('x') => {
                             event_log.lock().unwrap().clear();
+                            event_list_state.select(None);
                         }
                         _ => {}
                     },
+                    AppState::EventStream => {
+                        let filtered_len = {
+                            let log = event_log.lock().unwrap();
+                            let filter_lower = event_filter.to_lowercase();
+                            log.iter()
+                                .filter(|entry| entry.matches_filter(&filter_lower))
+                                .count()
+                        };
+                        match key.code {
+                            KeyCode::Esc | KeyCode::Tab => {
+                                next_state = Some(AppState::Menu);
+                            }
+                            KeyCode::Down | KeyCode::Char('j') if filtered_len > 0 => {
+                                let i = event_list_state.selected().unwrap_or(0);
+                                if i < filtered_len - 1 {
+                                    event_list_state.select(Some(i + 1));
+                                }
+                            }
+                            KeyCode::Up | KeyCode::Char('k') => {
+                                if let Some(i) = event_list_state.selected()
+                                    && i > 0
+                                {
+                                    event_list_state.select(Some(i - 1));
+                                }
+                            }
+                            KeyCode::PageDown if filtered_len > 0 => {
+                                let i = event_list_state.selected().unwrap_or(0);
+                                event_list_state.select(Some((i + 10).min(filtered_len - 1)));
+                            }
+                            KeyCode::PageUp => {
+                                if let Some(i) = event_list_state.selected() {
+                                    event_list_state.select(Some(i.saturating_sub(10)));
+                                }
+                            }
+                            KeyCode::Home if filtered_len > 0 => {
+                                event_list_state.select(Some(0));
+                            }
+                            KeyCode::Enter => {
+                                if let Some(i) = event_list_state.selected() {
+                                    let detail = {
+                                        let log = event_log.lock().unwrap();
+                                        let filter_lower = event_filter.to_lowercase();
+                                        log.iter()
+                                            .filter(|e| e.matches_filter(&filter_lower))
+                                            .nth(i)
+                                            .cloned()
+                                    };
+                                    if let Some(entry) = detail {
+                                        next_state = Some(AppState::ResultView {
+                                            kind: ResultKind::Success,
+                                            title: format!("Event: {}", entry.event_type),
+                                            body: entry.detail_body(),
+                                            scroll: 0,
+                                        });
+                                    }
+                                }
+                            }
+                            KeyCode::Char('f') => {
+                                next_state = Some(open_filter_editor(&event_filter, true));
+                            }
+                            KeyCode::Char('r') => {
+                                event_filter.clear();
+                                event_list_state.select(Some(0));
+                            }
+                            KeyCode::Char('x') => {
+                                event_log.lock().unwrap().clear();
+                                event_list_state.select(None);
+                            }
+                            _ => {}
+                        }
+                    }
                     AppState::CommandList(list_state, cmds) => match key.code {
                         KeyCode::Esc => next_state = Some(AppState::Menu),
                         KeyCode::Down => {
@@ -508,12 +991,20 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                                 next_state = Some(AppState::EnterCommandPayload { cmd, textarea });
                             }
                         }
+                        KeyCode::Char('f') => {
+                            next_state = Some(open_filter_editor(&event_filter, false));
+                        }
+                        KeyCode::Char('r') => {
+                            event_filter.clear();
+                        }
+                        KeyCode::Char('x') => {
+                            event_log.lock().unwrap().clear();
+                            event_list_state.select(None);
+                        }
                         _ => {}
                     },
                     AppState::EnterCommandPayload { cmd, textarea } => {
-                        if key.code == KeyCode::Char('s')
-                            && key.modifiers.contains(event::KeyModifiers::CONTROL)
-                        {
+                        if key.code == KeyCode::Char('s') && is_ctrl {
                             let json_str = textarea.lines().join("\n");
                             match serde_json::from_str::<Value>(&json_str) {
                                 Ok(payload) => {
@@ -529,21 +1020,30 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                                     match res {
                                         Ok(events) => {
                                             let _ = runtime.wait_caught_up().await;
-                                            next_state = Some(AppState::ResultView(format!(
-                                                "Command dispatched ({} event(s) emitted).",
-                                                events.len()
-                                            )));
+                                            next_state = Some(AppState::ResultView {
+                                                kind: ResultKind::Success,
+                                                title: format!("Command: {}", cmd.name),
+                                                body: format_command_success(cmd.name, &events),
+                                                scroll: 0,
+                                            });
                                         }
                                         Err(e) => {
-                                            next_state = Some(AppState::ResultView(format!(
-                                                "Command failed:\n{e}"
-                                            )));
+                                            next_state = Some(AppState::ResultView {
+                                                kind: ResultKind::Error,
+                                                title: format!("Command Failed: {}", cmd.name),
+                                                body: format!("{e}"),
+                                                scroll: 0,
+                                            });
                                         }
                                     }
                                 }
                                 Err(e) => {
-                                    next_state =
-                                        Some(AppState::ResultView(format!("Invalid JSON:\n{e}")));
+                                    next_state = Some(AppState::ResultView {
+                                        kind: ResultKind::Error,
+                                        title: "Invalid Command JSON".to_owned(),
+                                        body: format!("{e}"),
+                                        scroll: 0,
+                                    });
                                 }
                             }
                         } else if key.code == KeyCode::Esc {
@@ -581,12 +1081,20 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                                 next_state = Some(AppState::EnterQueryParams { query, textarea });
                             }
                         }
+                        KeyCode::Char('f') => {
+                            next_state = Some(open_filter_editor(&event_filter, false));
+                        }
+                        KeyCode::Char('r') => {
+                            event_filter.clear();
+                        }
+                        KeyCode::Char('x') => {
+                            event_log.lock().unwrap().clear();
+                            event_list_state.select(None);
+                        }
                         _ => {}
                     },
                     AppState::EnterQueryParams { query, textarea } => {
-                        if key.code == KeyCode::Char('s')
-                            && key.modifiers.contains(event::KeyModifiers::CONTROL)
-                        {
+                        if key.code == KeyCode::Char('s') && is_ctrl {
                             let json_str = textarea.lines().join("\n");
                             match serde_json::from_str::<Value>(&json_str) {
                                 Ok(params) => {
@@ -600,21 +1108,31 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                                         .await;
                                     match res {
                                         Ok(val) => {
-                                            next_state = Some(AppState::ResultView(
-                                                serde_json::to_string_pretty(&val)
+                                            next_state = Some(AppState::ResultView {
+                                                kind: ResultKind::Success,
+                                                title: format!("Query: {}", query.name),
+                                                body: serde_json::to_string_pretty(&val)
                                                     .unwrap_or_default(),
-                                            ));
+                                                scroll: 0,
+                                            });
                                         }
                                         Err(e) => {
-                                            next_state = Some(AppState::ResultView(format!(
-                                                "Query failed:\n{e}"
-                                            )));
+                                            next_state = Some(AppState::ResultView {
+                                                kind: ResultKind::Error,
+                                                title: format!("Query Failed: {}", query.name),
+                                                body: format!("{e}"),
+                                                scroll: 0,
+                                            });
                                         }
                                     }
                                 }
                                 Err(e) => {
-                                    next_state =
-                                        Some(AppState::ResultView(format!("Invalid JSON:\n{e}")));
+                                    next_state = Some(AppState::ResultView {
+                                        kind: ResultKind::Error,
+                                        title: "Invalid Query JSON".to_owned(),
+                                        body: format!("{e}"),
+                                        scroll: 0,
+                                    });
                                 }
                             }
                         } else if key.code == KeyCode::Esc {
@@ -628,33 +1146,82 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                             textarea.input(evt.clone());
                         }
                     }
-                    AppState::EnterEventFilter { textarea } => match key.code {
-                        KeyCode::Enter => {
-                            event_filter = textarea.lines().join("").trim().to_owned();
-                            next_state = Some(AppState::Menu);
-                        }
-                        KeyCode::Esc => {
-                            next_state = Some(AppState::Menu);
-                        }
-                        _ => {
+                    AppState::EnterEventFilter {
+                        textarea,
+                        return_to_stream,
+                    } => {
+                        let back_state = || {
+                            if *return_to_stream {
+                                AppState::EventStream
+                            } else {
+                                AppState::Menu
+                            }
+                        };
+                        if key.code == KeyCode::Enter || (key.code == KeyCode::Char('s') && is_ctrl)
+                        {
+                            event_filter = textarea.lines().join(" ").trim().to_owned();
+                            next_state = Some(back_state());
+                        } else if key.code == KeyCode::Char('u') && is_ctrl {
+                            *textarea = TextArea::default();
+                        } else if key.code == KeyCode::Esc {
+                            next_state = Some(back_state());
+                        } else {
                             textarea.input(evt.clone());
                         }
-                    },
-                    AppState::ResultView(_) => {
-                        if key.code == KeyCode::Esc {
+                    }
+                    AppState::ResultView { scroll, .. } => match key.code {
+                        KeyCode::Esc | KeyCode::Enter => {
                             next_state = Some(AppState::Menu);
                         }
-                    }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            *scroll = scroll.saturating_add(1);
+                        }
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            *scroll = scroll.saturating_sub(1);
+                        }
+                        KeyCode::PageDown => {
+                            *scroll = scroll.saturating_add(10);
+                        }
+                        KeyCode::PageUp => {
+                            *scroll = scroll.saturating_sub(10);
+                        }
+                        KeyCode::Home => {
+                            *scroll = 0;
+                        }
+                        KeyCode::Char('f') => {
+                            next_state = Some(open_filter_editor(&event_filter, false));
+                        }
+                        KeyCode::Char('r') => {
+                            event_filter.clear();
+                        }
+                        KeyCode::Char('x') => {
+                            event_log.lock().unwrap().clear();
+                            event_list_state.select(None);
+                        }
+                        _ => {}
+                    },
                 }
             } else if let CEvent::Paste(text) = &evt {
                 match &mut state {
                     AppState::EnterCommandPayload { textarea, .. }
-                    | AppState::EnterQueryParams { textarea, .. }
-                    | AppState::EnterEventFilter { textarea } => {
-                        for line in text.lines() {
-                            textarea.insert_str(line);
-                            textarea.insert_newline();
+                    | AppState::EnterQueryParams { textarea, .. } => {
+                        let parts: Vec<&str> = text.split('\n').collect();
+                        for (idx, part) in parts.iter().enumerate() {
+                            let clean = part.strip_suffix('\r').unwrap_or(part);
+                            textarea.insert_str(clean);
+                            if idx + 1 < parts.len() {
+                                textarea.insert_newline();
+                            }
                         }
+                    }
+                    AppState::EnterEventFilter { textarea, .. } => {
+                        let single_line = text
+                            .lines()
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty())
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        textarea.insert_str(&single_line);
                     }
                     _ => {}
                 }
@@ -678,6 +1245,7 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
 
 #[cfg(test)]
 mod tests {
+    use ratatui::backend::TestBackend;
     use serde_json::json;
 
     use super::*;
@@ -717,5 +1285,108 @@ mod tests {
                 }
             })
         );
+    }
+
+    #[test]
+    fn wrap_text_breaks_long_descriptions_and_unbroken_tokens() {
+        let wrapped = wrap_text(
+            "Opens a new bank account with an owner name and initial balance.",
+            24,
+        );
+        assert!(wrapped.len() >= 3);
+        assert!(wrapped.iter().all(|line| line.chars().count() <= 24));
+
+        let long_token = wrap_text(
+            "/bank-account-example/finance/account/00000000-0000-0000-0000-000000000001",
+            20,
+        );
+        assert!(long_token.len() >= 4);
+        assert!(long_token.iter().all(|line| line.chars().count() <= 20));
+    }
+
+    #[test]
+    fn event_entry_filter_is_case_insensitive_across_fields() {
+        let entry = EventEntry {
+            subject: "/bank-account-example/finance/account/acc-1".to_owned(),
+            event_type: "account-opened".to_owned(),
+            payload_pretty: "{\n  \"owner-name\": \"Alice\"\n}".to_owned(),
+            payload_compact: "{\"owner-name\":\"Alice\"}".to_owned(),
+        };
+
+        assert!(entry.matches_filter(""));
+        assert!(entry.matches_filter("account-opened"));
+        assert!(entry.matches_filter(&"ALICE".to_lowercase()));
+        assert!(entry.matches_filter(&"ACC-1".to_lowercase()));
+        assert!(!entry.matches_filter("bob"));
+    }
+
+    #[test]
+    fn render_ui_distinguishes_success_and_error_results_and_wraps_events() {
+        let backend = TestBackend::new(100, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut log = VecDeque::new();
+        log.push_front(EventEntry {
+            subject: "/bank-account-example/finance/account/00000000-0000-0000-0000-000000000001"
+                .to_owned(),
+            event_type: "account-opened".to_owned(),
+            payload_pretty: "{\n  \"owner-name\": \"Alice\",\n  \"balance\": 100\n}".to_owned(),
+            payload_compact: "{\"owner-name\":\"Alice\",\"balance\":100}".to_owned(),
+        });
+        let mut event_ls = ListState::default();
+
+        let mut error_state = AppState::ResultView {
+            kind: ResultKind::Error,
+            title: "Command Failed: withdraw-funds".to_owned(),
+            body: "insufficient-funds: Withdrawal amount cannot exceed current balance.".to_owned(),
+            scroll: 0,
+        };
+
+        terminal
+            .draw(|f| {
+                render_ui(
+                    f,
+                    "bank-account-example",
+                    "customer",
+                    "alice",
+                    &log,
+                    &mut event_ls,
+                    &mut error_state,
+                );
+            })
+            .unwrap();
+
+        let buf = terminal.backend().buffer();
+        assert_eq!(buf[(0, 0)].fg, Color::Red);
+        let screen_text: String = (0..24)
+            .map(|y| (0..100).map(|x| buf[(x, y)].symbol()).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(screen_text.contains("[ERROR] Command Failed: withdraw-funds"));
+        assert!(screen_text.contains("Withdrawal amount"));
+        assert!(screen_text.contains("filter: \"alice\""));
+        assert!(screen_text.contains("balance"));
+
+        let mut success_state = AppState::ResultView {
+            kind: ResultKind::Success,
+            title: "Command: open-account".to_owned(),
+            body: "Command 'open-account' succeeded — 1 event(s) emitted.".to_owned(),
+            scroll: 0,
+        };
+        terminal
+            .draw(|f| {
+                render_ui(
+                    f,
+                    "bank-account-example",
+                    "customer",
+                    "",
+                    &log,
+                    &mut event_ls,
+                    &mut success_state,
+                );
+            })
+            .unwrap();
+
+        let buf = terminal.backend().buffer();
+        assert_eq!(buf[(0, 0)].fg, Color::Green);
     }
 }
