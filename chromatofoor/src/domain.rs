@@ -1,5 +1,6 @@
 pub use crate::runtime::{
-    ConsumerDescriptor, DispatchError, DomainBuilder, DomainRuntime, Presentation,
+    ConsumerDescriptor, DispatchError, DomainBuilder, DomainRuntime, Presentation, Problem,
+    ProblemDetails,
 };
 use crate::{bounded_context::BoundedContext, common::Kind};
 

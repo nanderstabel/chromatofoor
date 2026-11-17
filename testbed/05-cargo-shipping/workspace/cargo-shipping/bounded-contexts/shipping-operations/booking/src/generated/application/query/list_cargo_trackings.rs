@@ -7,14 +7,14 @@ use crate::generated::application::read_models::cargo_tracking::{
 };
 use crate::generated::domain::Booking;
 use crate::generated::domain::actors::Shipper;
-use chromatofoor::bounded_context::Query;
+use chromatofoor::{ProblemDetails, bounded_context::Query};
 /// Lists projected tracking summaries across all booked cargo shipments.
 #[chromatofoor::query(scope = Booking, actors = [Shipper])]
 #[derive(Default)]
 pub struct ListCargoTrackings {}
 impl Query<CargoTracking> for ListCargoTrackings {
     type Output = Vec<CargoTrackingRecord>;
-    type Error = String;
+    type Error = Box<ProblemDetails>;
     async fn execute(self, read_model: &CargoTracking) -> Result<Self::Output, Self::Error> {
         Ok(read_model.records.all().await)
     }

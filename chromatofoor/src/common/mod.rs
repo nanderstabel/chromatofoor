@@ -1,5 +1,6 @@
 pub mod identified;
 pub mod kind;
+pub mod problem;
 pub mod scope;
 pub mod topic;
 
@@ -9,5 +10,6 @@ pub use identified::{
     validate_command_id_fields,
 };
 pub use kind::Kind;
+pub use problem::{Problem, ProblemDetails};
 pub use scope::Scope;
 pub use topic::{Topic, topic_in_domain};

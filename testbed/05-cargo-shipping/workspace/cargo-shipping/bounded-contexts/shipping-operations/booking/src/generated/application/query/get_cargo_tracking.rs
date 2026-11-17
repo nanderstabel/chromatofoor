@@ -7,7 +7,7 @@ use crate::generated::application::read_models::cargo_tracking::{
 };
 use crate::generated::domain::Booking;
 use crate::generated::domain::actors::Shipper;
-use chromatofoor::bounded_context::Query;
+use chromatofoor::{ProblemDetails, bounded_context::Query};
 /// Retrieves the current tracking summary for a booked cargo shipment by tracking-id.
 #[chromatofoor::query(scope = Booking, actors = [Shipper])]
 pub struct GetCargoTracking {
@@ -16,13 +16,14 @@ pub struct GetCargoTracking {
 }
 impl Query<CargoTracking> for GetCargoTracking {
     type Output = CargoTrackingRecord;
-    type Error = String;
+    type Error = Box<ProblemDetails>;
     async fn execute(self, read_model: &CargoTracking) -> Result<Self::Output, Self::Error> {
         let key = self.tracking_id.to_string();
-        read_model
-            .records
-            .get(&key)
-            .await
-            .ok_or_else(|| format!("{} '{key}' not found", "cargo-tracking"))
+        read_model.records.get(&key).await.ok_or_else(|| {
+            Box::new(ProblemDetails::not_found(format!(
+                "{} '{key}' not found",
+                "cargo-tracking"
+            )))
+        })
     }
 }

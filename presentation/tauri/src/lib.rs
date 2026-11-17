@@ -52,6 +52,7 @@ pub mod commands {
     };
 
     use chromatofoor::{
+        ProblemDetails,
         architecturekit::{self, Envelope, Projection, ProjectionOptions, Subject, Subjects},
         domain::DomainRuntime,
     };
@@ -134,7 +135,7 @@ pub mod commands {
         payload: Value,
         metadata: HashMap<String, String>,
         state: tauri::State<'_, DomainState>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, ProblemDetails> {
         let explicit_actor = metadata
             .get("actor_type")
             .or_else(|| metadata.get("actor"))
@@ -144,7 +145,7 @@ pub mod commands {
             .dispatcher
             .dispatch_command(&ctx, &agg, &cmd_name, payload, actor)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_problem())?;
         let _ = state.dispatcher.wait_caught_up().await;
         let serialized: Vec<Value> = events.iter().map(serialize_event).collect();
         Ok(json!({
@@ -159,7 +160,7 @@ pub mod commands {
         params: Option<Value>,
         metadata: Option<HashMap<String, String>>,
         state: tauri::State<'_, DomainState>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, ProblemDetails> {
         let explicit_actor = metadata
             .as_ref()
             .and_then(|m| m.get("actor_type").or_else(|| m.get("actor")))
@@ -174,7 +175,7 @@ pub mod commands {
                 actor,
             )
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_problem())
     }
 
     #[tauri::command]
@@ -183,7 +184,7 @@ pub mod commands {
         payload: Value,
         metadata: Option<HashMap<String, String>>,
         state: tauri::State<'_, DomainState>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, ProblemDetails> {
         let parts: Vec<&str> = command_name.split('.').collect();
         let (ctx, agg, cmd_name) = match parts.as_slice() {
             [c, a, m] => (*c, *a, *m),
@@ -197,9 +198,9 @@ pub mod commands {
                 (*c, target, *m)
             }
             _ => {
-                return Err(format!(
+                return Err(ProblemDetails::bad_request(format!(
                     "Invalid command name format: '{command_name}'. Expected 'context.target.command'"
-                ));
+                )));
             }
         };
 
@@ -212,7 +213,7 @@ pub mod commands {
             .dispatcher
             .dispatch_command(ctx, agg, cmd_name, payload, actor)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_problem())?;
         let _ = state.dispatcher.wait_caught_up().await;
         let serialized: Vec<Value> = events.iter().map(serialize_event).collect();
         Ok(json!({
@@ -226,14 +227,14 @@ pub mod commands {
         params: Value,
         metadata: Option<HashMap<String, String>>,
         state: tauri::State<'_, DomainState>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, ProblemDetails> {
         let parts: Vec<&str> = query_name.split('.').collect();
         let (ctx, q_name) = match parts.as_slice() {
             [c, q] => (*c, *q),
             _ => {
-                return Err(format!(
+                return Err(ProblemDetails::bad_request(format!(
                     "Invalid query name format: '{query_name}'. Expected 'context.query'"
-                ));
+                )));
             }
         };
 
@@ -246,7 +247,7 @@ pub mod commands {
             .dispatcher
             .dispatch_query(ctx, q_name, params, actor)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_problem())
     }
 
     #[tauri::command]

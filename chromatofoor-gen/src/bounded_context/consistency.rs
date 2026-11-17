@@ -690,23 +690,48 @@ pub fn generate_consistency_units(
             invariants.extend(invs.clone());
         }
 
-        let error_variants = invariants.iter().map(|inv| {
+        let mut error_variants = Vec::new();
+        let mut problem_arms = Vec::new();
+        for inv in &invariants {
             let variant_ident = format_ident!("{}", inv.name.to_case(Case::Pascal));
             let name_str = &inv.name;
-            let inv_doc = match inv.rule.as_deref().map(str::trim) {
-                Some(rule) if !rule.is_empty() => {
-                    crate::common::make_doc_lines(&[format!("Invariant `{name_str}` — {rule}")])
-                }
-                _ => crate::common::make_doc_lines(&[format!("Invariant `{name_str}`")]),
+            let (inv_doc, error_attr_str, detail_str) = match inv.rule.as_deref().map(str::trim) {
+                Some(rule) if !rule.is_empty() => (
+                    crate::common::make_doc_lines(&[format!("Invariant `{name_str}` — {rule}")]),
+                    format!("{name_str}: {rule}")
+                        .replace('{', "{{")
+                        .replace('}', "}}"),
+                    rule.to_string(),
+                ),
+                _ => (
+                    crate::common::make_doc_lines(&[format!("Invariant `{name_str}`")]),
+                    name_str.replace('{', "{{").replace('}', "}}"),
+                    name_str.clone(),
+                ),
             };
-            quote! {
+            error_variants.push(quote! {
                 #inv_doc
-                #[error(#name_str)]
+                #[error(#error_attr_str)]
                 #variant_ident
-            }
-        });
+            });
+            problem_arms.push(quote! {
+                Self::#variant_ident => ProblemDetails::invariant(
+                    #agg_pascal::TOPIC,
+                    #name_str,
+                    #detail_str,
+                )
+            });
+        }
 
         err_code_chunks.push(quote! {
+            use crate::generated::domain::#agg_snake::aggregate::#agg_pascal;
+            use chromatofoor::{
+                Problem, ProblemDetails,
+                architecturekit::{Categorized, Category},
+                common::Kind,
+                validator::ValidationErrors,
+            };
+
             #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
             pub enum #error_ident {
                 #(#error_variants,)*
@@ -716,14 +741,25 @@ pub fn generate_consistency_units(
         });
 
         err_code_chunks.push(quote! {
-            impl chromatofoor::architecturekit::Categorized for #error_ident {
-                fn category(&self) -> Option<chromatofoor::architecturekit::Category> {
-                    Some(chromatofoor::architecturekit::Category::Domain)
+            impl Categorized for #error_ident {
+                fn category(&self) -> Option<Category> {
+                    Some(Category::Domain)
                 }
             }
 
-            impl From<chromatofoor::validator::ValidationErrors> for #error_ident {
-                fn from(err: chromatofoor::validator::ValidationErrors) -> Self {
+            impl Problem for #error_ident {
+                fn to_problem(&self) -> ProblemDetails {
+                    match self {
+                        #(#problem_arms,)*
+                        Self::Validation(msg) => {
+                            ProblemDetails::validation(msg.clone()).with_instance(#agg_pascal::TOPIC)
+                        }
+                    }
+                }
+            }
+
+            impl From<ValidationErrors> for #error_ident {
+                fn from(err: ValidationErrors) -> Self {
                     Self::Validation(err.to_string())
                 }
             }

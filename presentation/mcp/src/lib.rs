@@ -341,7 +341,7 @@ async fn read_esdm_resource(
     runtime: &DomainRuntime,
     uri: &str,
     actor: Option<&str>,
-) -> Result<String, String> {
+) -> Result<String, chromatofoor::ProblemDetails> {
     if uri == "esdm://catalog" {
         let catalog = runtime.catalog_json();
         return Ok(serde_json::to_string(&catalog).unwrap_or_default());
@@ -371,7 +371,7 @@ async fn read_esdm_resource(
             } else {
                 props
                     .keys()
-                    .find(|k| k.ends_with("_id"))
+                    .find(|k| k.ends_with("_id") || k.ends_with("-id"))
                     .or_else(|| {
                         q_desc
                             .parameters_schema
@@ -394,13 +394,13 @@ async fn read_esdm_resource(
         .dispatch_query(bounded_context, query_name, Value::Object(params), actor)
         .await
         .map(|val| serde_json::to_string(&val).unwrap_or_default())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_problem())
 }
 
 enum ToolExecutionOutcome {
     CommandSuccess(usize),
     QuerySuccess(Value),
-    DomainError(String),
+    DomainError(chromatofoor::ProblemDetails),
     UnknownTool(String),
 }
 
@@ -431,7 +431,7 @@ async fn execute_tool_call(
             .await
         {
             Ok(events) => ToolExecutionOutcome::CommandSuccess(events.len()),
-            Err(e) => ToolExecutionOutcome::DomainError(e.to_string()),
+            Err(e) => ToolExecutionOutcome::DomainError(e.to_problem()),
         }
     } else if let Some(q_desc) = runtime
         .queries()
@@ -449,7 +449,7 @@ async fn execute_tool_call(
             .await
         {
             Ok(val) => ToolExecutionOutcome::QuerySuccess(val),
-            Err(e) => ToolExecutionOutcome::DomainError(e.to_string()),
+            Err(e) => ToolExecutionOutcome::DomainError(e.to_problem()),
         }
     } else {
         ToolExecutionOutcome::UnknownTool(name.to_owned())
@@ -541,7 +541,10 @@ impl ServerHandler for McpDomainServer {
                 ResourceContents::text(text, request.uri).with_mime_type("application/json"),
             ])
             .into()),
-            Err(err) => Err(ErrorData::internal_error(err, None)),
+            Err(problem) => Err(ErrorData::internal_error(
+                problem.to_string(),
+                serde_json::to_value(&problem).ok(),
+            )),
         }
     }
 
@@ -568,8 +571,10 @@ impl ServerHandler for McpDomainServer {
                     .into())
                 }
             }
-            ToolExecutionOutcome::DomainError(err) => {
-                Ok(CallToolResult::error(vec![ContentBlock::text(err)]).into())
+            ToolExecutionOutcome::DomainError(problem) => {
+                let text =
+                    serde_json::to_string_pretty(&problem).unwrap_or_else(|_| problem.to_string());
+                Ok(CallToolResult::error(vec![ContentBlock::text(text)]).into())
             }
             ToolExecutionOutcome::UnknownTool(name) => Err(ErrorData::invalid_params(
                 format!("Unknown tool `{name}`"),
@@ -693,12 +698,13 @@ pub async fn handle_request_with_actor(
                         ]
                     }
                 })),
-                Err(e) => Some(json!({
+                Err(problem) => Some(json!({
                     "jsonrpc": "2.0",
                     "id": id,
                     "error": {
                         "code": -32603,
-                        "message": e
+                        "message": problem.to_string(),
+                        "data": problem
                     }
                 })),
             }
@@ -754,12 +760,13 @@ pub async fn handle_request_with_actor(
                         "result": result_obj
                     }))
                 }
-                ToolExecutionOutcome::DomainError(e) => Some(json!({
+                ToolExecutionOutcome::DomainError(problem) => Some(json!({
                     "jsonrpc": "2.0",
                     "id": id,
                     "error": {
                         "code": -32603,
-                        "message": e
+                        "message": problem.to_string(),
+                        "data": problem
                     }
                 })),
                 ToolExecutionOutcome::UnknownTool(name) => Some(json!({

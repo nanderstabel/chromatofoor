@@ -170,6 +170,7 @@ mod descriptor;
 mod domain;
 mod error;
 
+pub use crate::common::{Problem, ProblemDetails};
 pub use descriptor::{CommandDescriptor, ConsumerDescriptor, QueryDescriptor, ReadModelDescriptor};
 pub use domain::{DomainBuilder, DomainRuntime, Presentation};
 pub use error::DispatchError;

@@ -5,14 +5,14 @@
 use crate::generated::application::read_models::course_roster::{CourseRoster, CourseRosterRecord};
 use crate::generated::domain::Enrollment;
 use crate::generated::domain::actors::{Registrar, Student};
-use chromatofoor::bounded_context::Query;
+use chromatofoor::{ProblemDetails, bounded_context::Query};
 /// Lists projected roster summaries across all published courses.
 #[chromatofoor::query(scope = Enrollment, actors = [Registrar, Student])]
 #[derive(Default)]
 pub struct ListCourseRosters {}
 impl Query<CourseRoster> for ListCourseRosters {
     type Output = Vec<CourseRosterRecord>;
-    type Error = String;
+    type Error = Box<ProblemDetails>;
     async fn execute(self, read_model: &CourseRoster) -> Result<Self::Output, Self::Error> {
         Ok(read_model.records.all().await)
     }

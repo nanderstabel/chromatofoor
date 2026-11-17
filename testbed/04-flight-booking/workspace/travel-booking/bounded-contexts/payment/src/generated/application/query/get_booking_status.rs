@@ -7,7 +7,7 @@ use crate::generated::application::read_models::booking_status::{
 };
 use crate::generated::domain::Payment;
 use crate::generated::domain::actors::{BookingCoordinator, Traveler};
-use chromatofoor::bounded_context::Query;
+use chromatofoor::{ProblemDetails, bounded_context::Query};
 /// Retrieves the payment status of a travel booking by booking-id.
 #[chromatofoor::query(scope = Payment, actors = [Traveler, BookingCoordinator])]
 pub struct GetBookingStatus {
@@ -16,13 +16,14 @@ pub struct GetBookingStatus {
 }
 impl Query<BookingStatus> for GetBookingStatus {
     type Output = BookingStatusRecord;
-    type Error = String;
+    type Error = Box<ProblemDetails>;
     async fn execute(self, read_model: &BookingStatus) -> Result<Self::Output, Self::Error> {
         let key = self.booking_id.to_string();
-        read_model
-            .records
-            .get(&key)
-            .await
-            .ok_or_else(|| format!("{} '{key}' not found", "booking-status"))
+        read_model.records.get(&key).await.ok_or_else(|| {
+            Box::new(ProblemDetails::not_found(format!(
+                "{} '{key}' not found",
+                "booking-status"
+            )))
+        })
     }
 }

@@ -7,14 +7,14 @@ use crate::generated::application::read_models::booking_status::{
 };
 use crate::generated::domain::Payment;
 use crate::generated::domain::actors::{BookingCoordinator, Traveler};
-use chromatofoor::bounded_context::Query;
+use chromatofoor::{ProblemDetails, bounded_context::Query};
 /// Lists projected payment statuses across all travel bookings.
 #[chromatofoor::query(scope = Payment, actors = [Traveler, BookingCoordinator])]
 #[derive(Default)]
 pub struct ListBookingStatuses {}
 impl Query<BookingStatus> for ListBookingStatuses {
     type Output = Vec<BookingStatusRecord>;
-    type Error = String;
+    type Error = Box<ProblemDetails>;
     async fn execute(self, read_model: &BookingStatus) -> Result<Self::Output, Self::Error> {
         Ok(read_model.records.all().await)
     }

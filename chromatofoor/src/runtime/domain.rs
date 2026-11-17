@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 
 use crate::{
     bounded_context::{BoundedContext, Command, Query, ReadModel, command::CommandScope},
-    common::topic_in_domain,
+    common::{Problem, topic_in_domain},
     domain::Domain,
     integration::EventConsumer,
 };
@@ -206,7 +206,7 @@ impl<D: Domain> DomainBuilder<D> {
     where
         S: CommandScope,
         S::Scope: BoundedContext,
-        C: Command<S>,
+        C: Command<S, Error: Problem>,
     {
         const {
             assert!(
@@ -260,7 +260,7 @@ impl<D: Domain> DomainBuilder<D> {
     pub fn register_query<Q, R>(mut self, read_model: Arc<R>) -> Self
     where
         R: ReadModel,
-        Q: Query<R>,
+        Q: Query<R, Error: Problem>,
     {
         const {
             assert!(

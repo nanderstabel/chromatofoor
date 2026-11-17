@@ -37,7 +37,7 @@
   - `$ref` resolution (`#/$defs/*`, `#/definitions/*`), single-element `allOf`, and `anyOf`/`oneOf` unwrapping halt at `depth > 8`, while nested `InputObject`/`Object` synthesis halts at `depth >= 8` (falling back to the `JSON` scalar, which is also used for property-less dynamic map objects); `OutputShape::ObjectList` types items as `NonNull` (`[...ItemOutput!]`) and filters out `null` elements.
 
 ## Side Effects
-- **Store Mutations, Query Reads & Event Streams** (`src/lib.rs:build_schema`, `execute_as`): Mutation resolvers invoke `DomainRuntime::dispatch_command`, Query resolvers invoke `DomainRuntime::dispatch_query`, and `Subscription.events` subscribes to `DomainRuntime::subscribe_events()`.
+- **Store Mutations, Query Reads, RFC 9457 Error Extensions & Event Streams** (`src/lib.rs:build_schema`, `dispatch_error_to_graphql`, `execute_as`): Mutation resolvers invoke `DomainRuntime::dispatch_command`, Query resolvers invoke `DomainRuntime::dispatch_query` (attaching RFC 9457 `type`, `title`, `status`, `code`, and `instance` fields onto `async_graphql::Error` extensions on failure), and `Subscription.events` subscribes to `DomainRuntime::subscribe_events()`.
 - **HTTP, SSE & WebSocket I/O** (`src/lib.rs:routes`, feature `http`): Serves GraphiQL HTML, JSON responses, SSE event streams (`next` + `complete`), and WebSocket GraphQL subscriptions via Axum.
 
 ## Verification

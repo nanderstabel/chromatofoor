@@ -91,6 +91,89 @@ impl<E: architecturekit::Categorized> architecturekit::Categorized for CommandEx
     }
 }
 
+impl crate::common::Problem for PreconditionFailure {
+    fn to_problem(&self) -> crate::common::ProblemDetails {
+        match self {
+            Self::SubjectNotPopulated { subject } => crate::common::ProblemDetails::new(
+                404,
+                "Target Aggregate Not Found",
+                self.to_string(),
+            )
+            .with_type("urn:chromatofoor:error:subject-not-populated")
+            .with_instance(subject.clone())
+            .with_code("subject-not-populated"),
+            Self::SubjectNotPristine { subject } => crate::common::ProblemDetails::new(
+                409,
+                "Target Aggregate Already Exists",
+                self.to_string(),
+            )
+            .with_type("urn:chromatofoor:error:subject-not-pristine")
+            .with_instance(subject.clone())
+            .with_code("subject-not-pristine"),
+            Self::SubjectRevisionMismatch { subject, .. } => {
+                crate::common::ProblemDetails::new(409, "Concurrency Conflict", self.to_string())
+                    .with_type("urn:chromatofoor:error:concurrency-conflict")
+                    .with_instance(subject.clone())
+                    .with_code("concurrency-conflict")
+            }
+            Self::MalformedSubject { subject } => {
+                crate::common::ProblemDetails::new(400, "Malformed Subject", self.to_string())
+                    .with_type("urn:chromatofoor:error:malformed-subject")
+                    .with_instance(subject.clone())
+                    .with_code("malformed-subject")
+            }
+        }
+    }
+}
+
+impl<E: crate::common::Problem> crate::common::Problem for CommandExecutionError<E> {
+    fn to_problem(&self) -> crate::common::ProblemDetails {
+        match self {
+            Self::Precondition(pf) => pf.to_problem(),
+            Self::Store(architecturekit::Error::Decider(domain_err)) => domain_err.to_problem(),
+            Self::Store(architecturekit::Error::Transient(
+                architecturekit::Transient::Conflict(failure),
+            )) => {
+                let msg = failure.message();
+                if msg.contains("isSubjectPopulated") {
+                    crate::common::ProblemDetails::new(404, "Target Aggregate Not Found", msg)
+                        .with_type("urn:chromatofoor:error:subject-not-populated")
+                        .with_code("subject-not-populated")
+                } else if msg.contains("isSubjectPristine") {
+                    crate::common::ProblemDetails::new(409, "Target Aggregate Already Exists", msg)
+                        .with_type("urn:chromatofoor:error:subject-not-pristine")
+                        .with_code("subject-not-pristine")
+                } else {
+                    crate::common::ProblemDetails::new(409, "Concurrency Conflict", msg)
+                        .with_type("urn:chromatofoor:error:concurrency-conflict")
+                        .with_code("concurrency-conflict")
+                }
+            }
+            Self::Store(architecturekit::Error::Transient(other)) => {
+                crate::common::ProblemDetails::new(
+                    503,
+                    "Service Temporarily Unavailable",
+                    other.to_string(),
+                )
+                .with_type("urn:chromatofoor:error:transient")
+                .with_code("transient-failure")
+            }
+            Self::Store(architecturekit::Error::EmptyRange(err)) => {
+                crate::common::ProblemDetails::new(400, "Invalid Read Range", err.to_string())
+                    .with_type("urn:chromatofoor:error:empty-range")
+                    .with_code("empty-range")
+            }
+            Self::Store(other) => crate::common::ProblemDetails::new(
+                500,
+                "Internal Execution Error",
+                other.to_string(),
+            )
+            .with_type("urn:chromatofoor:error:internal")
+            .with_code("internal-error"),
+        }
+    }
+}
+
 pub(crate) async fn verify_zero_event_preconditions<E>(
     store: &architecturekit::Store,
     preconditions: &[architecturekit::Precondition],

@@ -232,6 +232,32 @@ pub async fn execute_as(
     schema.execute(req).await
 }
 
+fn dispatch_error_to_graphql(err: &chromatofoor::runtime::DispatchError) -> async_graphql::Error {
+    use async_graphql::ErrorExtensions as _;
+
+    let problem = err.to_problem();
+    let msg = problem
+        .detail
+        .clone()
+        .unwrap_or_else(|| problem.title.clone());
+    async_graphql::Error::new(msg).extend_with(|_, ext| {
+        ext.set("type", problem.type_uri.clone());
+        ext.set("title", problem.title.clone());
+        ext.set("status", i64::from(problem.status));
+        if let Some(code) = &problem.code {
+            ext.set("code", code.clone());
+        }
+        if let Some(instance) = &problem.instance {
+            ext.set("instance", instance.clone());
+        }
+        for (k, v) in &problem.extensions {
+            if let Ok(gql_val) = async_graphql::Value::from_json(v.clone()) {
+                ext.set(k.clone(), gql_val);
+            }
+        }
+    })
+}
+
 /// Builds an [`async_graphql::dynamic::Schema`] from a [`DomainRuntime`].
 pub fn build_schema(runtime: Arc<DomainRuntime>) -> Result<Schema, SchemaError> {
     let mut schema_builder = Schema::build("Query", Some("Mutation"), Some("Subscription"));
@@ -360,7 +386,7 @@ pub fn build_schema(runtime: Arc<DomainRuntime>) -> Result<Schema, SchemaError> 
                     actor.as_deref(),
                 )
                 .await
-                .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+                .map_err(|e| dispatch_error_to_graphql(&e))?;
 
                 Ok(Some(async_graphql::Value::from("Success")))
             })
@@ -442,7 +468,7 @@ pub fn build_schema(runtime: Arc<DomainRuntime>) -> Result<Schema, SchemaError> 
                         actor.as_deref(),
                     )
                     .await
-                    .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+                    .map_err(|e| dispatch_error_to_graphql(&e))?;
 
                 type_mapper::json_to_field_value(result, output_shape)
             })

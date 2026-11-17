@@ -33,7 +33,7 @@ use std::{
 use chromatofoor::{
     architecturekit::eventsourcingdb::Event as StoredEvent,
     domain::DomainRuntime,
-    runtime::{CommandDescriptor, Presentation, QueryDescriptor},
+    runtime::{CommandDescriptor, DispatchError, Presentation, QueryDescriptor},
 };
 use crossterm::{
     event::{
@@ -352,6 +352,36 @@ fn textarea_from_schema(schema: &Value) -> TextArea<'static> {
         }
     }
     ta
+}
+
+fn format_dispatch_error(err: &DispatchError) -> String {
+    let problem = err.to_problem();
+    let mut lines = vec![
+        format!("Title:    {}", problem.title),
+        format!("Status:   {}", problem.status),
+    ];
+    if let Some(code) = &problem.code {
+        lines.push(format!("Code:     {code}"));
+    }
+    lines.push(format!("Type:     {}", problem.type_uri));
+    if let Some(instance) = &problem.instance {
+        lines.push(format!("Instance: {instance}"));
+    }
+    if let Some(detail) = &problem.detail
+        && !detail.is_empty()
+    {
+        lines.push(String::new());
+        lines.push("Detail:".to_owned());
+        lines.push(detail.clone());
+    }
+    if !problem.extensions.is_empty()
+        && let Ok(ext_pretty) = serde_json::to_string_pretty(&problem.extensions)
+    {
+        lines.push(String::new());
+        lines.push("Extensions:".to_owned());
+        lines.push(ext_pretty);
+    }
+    lines.join("\n")
 }
 
 fn format_command_success(cmd_name: &str, events: &[StoredEvent]) -> String {
@@ -1031,7 +1061,7 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                                             next_state = Some(AppState::ResultView {
                                                 kind: ResultKind::Error,
                                                 title: format!("Command Failed: {}", cmd.name),
-                                                body: format!("{e}"),
+                                                body: format_dispatch_error(&e),
                                                 scroll: 0,
                                             });
                                         }
@@ -1120,7 +1150,7 @@ pub async fn run(runtime: Arc<DomainRuntime>) {
                                             next_state = Some(AppState::ResultView {
                                                 kind: ResultKind::Error,
                                                 title: format!("Query Failed: {}", query.name),
-                                                body: format!("{e}"),
+                                                body: format_dispatch_error(&e),
                                                 scroll: 0,
                                             });
                                         }

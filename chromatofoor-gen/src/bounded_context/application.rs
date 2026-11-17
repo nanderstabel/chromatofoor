@@ -379,7 +379,7 @@ pub fn generate_application(
 
                 let uses = vec![
                     quote! { use crate::generated::application::read_models::#rm_mod::{#rm_ident, #rm_record_ident}; },
-                    quote! { use chromatofoor::bounded_context::Query; },
+                    quote! { use chromatofoor::{ProblemDetails, bounded_context::Query}; },
                 ];
 
                 let mut type_ts = quote! { {} };
@@ -557,7 +557,12 @@ pub fn generate_application(
                                 .records
                                 .get(&key)
                                 .await
-                                .ok_or_else(|| format!("{} '{key}' not found", #rm_name))
+                                .ok_or_else(|| {
+                                    Box::new(ProblemDetails::not_found(format!(
+                                        "{} '{key}' not found",
+                                        #rm_name
+                                    )))
+                                })
                         },
                     )
                 } else if let Some((key_ident, true)) = &lookup_key {
@@ -570,7 +575,12 @@ pub fn generate_application(
                                     .records
                                     .get(&key)
                                     .await
-                                    .ok_or_else(|| format!("{} '{key}' not found", #rm_name))
+                                    .ok_or_else(|| {
+                                        Box::new(ProblemDetails::not_found(format!(
+                                            "{} '{key}' not found",
+                                            #rm_name
+                                        )))
+                                    })
                             } else {
                                 Ok(read_model.records.latest().await)
                             }
@@ -588,7 +598,7 @@ pub fn generate_application(
                 q_chunks.push(quote! {
                     impl Query<#rm_ident> for #query_ident {
                         type Output = #query_rm_type;
-                        type Error = String;
+                        type Error = Box<ProblemDetails>;
 
                         async fn execute(
                             self,
@@ -846,6 +856,7 @@ mod tests {
         assert!(get_rs.contains("self.course_id.to_string()"));
         assert!(get_rs.contains("records"));
         assert!(get_rs.contains(".get(&key)"));
+        assert!(get_rs.contains("ProblemDetails::not_found"));
         assert!(syn::parse_file(&get_rs).is_ok());
 
         assert!(list_rs.contains("#[derive(Default)]"));

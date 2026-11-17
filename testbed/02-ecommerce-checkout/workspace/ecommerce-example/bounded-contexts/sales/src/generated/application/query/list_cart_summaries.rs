@@ -5,14 +5,14 @@
 use crate::generated::application::read_models::cart_summary::{CartSummary, CartSummaryRecord};
 use crate::generated::domain::Sales;
 use crate::generated::domain::actors::Customer;
-use chromatofoor::bounded_context::Query;
+use chromatofoor::{ProblemDetails, bounded_context::Query};
 /// Lists projected summaries across all shopping carts.
 #[chromatofoor::query(scope = Sales, actors = [Customer])]
 #[derive(Default)]
 pub struct ListCartSummaries {}
 impl Query<CartSummary> for ListCartSummaries {
     type Output = Vec<CartSummaryRecord>;
-    type Error = String;
+    type Error = Box<ProblemDetails>;
     async fn execute(self, read_model: &CartSummary) -> Result<Self::Output, Self::Error> {
         Ok(read_model.records.all().await)
     }

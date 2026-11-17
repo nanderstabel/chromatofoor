@@ -1,5 +1,5 @@
 use crate::bounded_context::Authorized;
-use crate::common::Kind;
+use crate::common::{Kind, Problem, ProblemDetails};
 
 /// Error returned when dynamically dispatching a command or query via
 /// [`DomainRuntime`](super::DomainRuntime).
@@ -35,9 +35,57 @@ pub enum DispatchError {
     #[error("invalid payload: {0}")]
     InvalidPayload(#[from] serde_json::Error),
 
-    /// Executing the command or query failed.
+    /// Executing the command or query failed with structured RFC 9457 [`ProblemDetails`].
     #[error("{0}")]
-    Execution(String),
+    Execution(Box<ProblemDetails>),
+}
+
+impl DispatchError {
+    /// Projects this dispatch error into an RFC 9457 [`ProblemDetails`] document.
+    #[must_use]
+    pub fn to_problem(&self) -> ProblemDetails {
+        match self {
+            Self::BoundedContextNotFound(bc) => {
+                ProblemDetails::new(404, "Bounded Context Not Found", self.to_string())
+                    .with_type("urn:chromatofoor:error:bounded-context-not-found")
+                    .with_instance(format!("/{bc}"))
+                    .with_code("bounded-context-not-found")
+            }
+            Self::CommandNotFound {
+                bounded_context,
+                target,
+                command,
+            } => ProblemDetails::new(404, "Command Not Found", self.to_string())
+                .with_type("urn:chromatofoor:error:command-not-found")
+                .with_instance(format!("/{bounded_context}/{target}/{command}"))
+                .with_code("command-not-found"),
+            Self::QueryNotFound {
+                bounded_context,
+                query,
+            } => ProblemDetails::new(404, "Query Not Found", self.to_string())
+                .with_type("urn:chromatofoor:error:query-not-found")
+                .with_instance(format!("/{bounded_context}/{query}"))
+                .with_code("query-not-found"),
+            Self::Unauthorized { target, .. } => {
+                ProblemDetails::new(403, "Forbidden", self.to_string())
+                    .with_type("urn:chromatofoor:error:forbidden")
+                    .with_instance((*target).to_owned())
+                    .with_code("unauthorized")
+            }
+            Self::InvalidPayload(err) => {
+                ProblemDetails::new(400, "Invalid Request Payload", err.to_string())
+                    .with_type("urn:chromatofoor:error:invalid-payload")
+                    .with_code("invalid-payload")
+            }
+            Self::Execution(problem) => (**problem).clone(),
+        }
+    }
+}
+
+impl Problem for DispatchError {
+    fn to_problem(&self) -> ProblemDetails {
+        Self::to_problem(self)
+    }
 }
 
 /// Pre-screens that `actor` is present and listed in `T`'s type-level allowed actors before

@@ -6,7 +6,7 @@ use crate::{
     bounded_context::{
         ActorType, BoundedContext, Command, Query, ReadModel, command::CommandScope,
     },
-    common::{IdSource, Identified, Kind},
+    common::{IdSource, Identified, Kind, Problem},
     domain::Domain,
     integration::{DeliveryGuarantee, EventConsumer, Idempotency},
 };
@@ -33,7 +33,7 @@ type QueryFn = Arc<
         + Sync,
 >;
 
-async fn execute_command<S: CommandScope, C: Command<S>>(
+async fn execute_command<S: CommandScope, C: Command<S, Error: Problem>>(
     store: &Arc<architecturekit::Store>,
     payload: Value,
     actor: Option<&str>,
@@ -41,12 +41,12 @@ async fn execute_command<S: CommandScope, C: Command<S>>(
     let actor_name = ensure_authorized_type::<C>(actor)?;
     let cmd: C = serde_json::from_value(payload)?;
     ensure_authorized_instance(&cmd, actor_name)?;
-    S::execute(store, cmd)
-        .await
-        .map_err(|e| DispatchError::Execution(e.to_string()))
+    S::execute(store, cmd).await.map_err(|e| {
+        DispatchError::Execution(Box::new(e.to_problem().with_default_instance(C::TOPIC)))
+    })
 }
 
-async fn execute_query<R: ReadModel, Q: Query<R>>(
+async fn execute_query<R: ReadModel, Q: Query<R, Error: Problem>>(
     read_model: Arc<R>,
     params: Value,
     actor: Option<&str>,
@@ -54,10 +54,9 @@ async fn execute_query<R: ReadModel, Q: Query<R>>(
     let actor_name = ensure_authorized_type::<Q>(actor)?;
     let query: Q = serde_json::from_value(params)?;
     ensure_authorized_instance(&query, actor_name)?;
-    let output = query
-        .execute(&read_model)
-        .await
-        .map_err(|e| DispatchError::Execution(e.to_string()))?;
+    let output = query.execute(&read_model).await.map_err(|e| {
+        DispatchError::Execution(Box::new(e.to_problem().with_default_instance(Q::TOPIC)))
+    })?;
     Ok(serde_json::to_value(output)?)
 }
 
@@ -110,7 +109,7 @@ impl CommandDescriptor {
     where
         S: CommandScope,
         S::Scope: BoundedContext,
-        C: Command<S>,
+        C: Command<S, Error: Problem>,
     {
         Self {
             bounded_context: <S::Scope as Kind>::NAME,
@@ -183,7 +182,7 @@ impl QueryDescriptor {
     pub fn of<R, Q>(read_model: Arc<R>) -> Self
     where
         R: ReadModel,
-        Q: Query<R>,
+        Q: Query<R, Error: Problem>,
     {
         Self {
             bounded_context: <R::Scope as Kind>::NAME,

@@ -6,13 +6,14 @@
 ## Interface
 - **Crate Root Re-Exports & Helpers** (`src/lib.rs`):
   - Re-exports all 18 `chromatofoor-derive` attribute macros (`actor`, `aggregate`, `bounded_context`, `command`, `context_mapping`, `domain`, `domain_service`, `dynamic_consistency_boundary`, `entity`, `event`, `event_handler`, `external_system`, `policy`, `process_manager`, `query`, `read_model`, `subdomain`, `value_object`).
-  - Re-exports `common::{Identifier, SubjectSegment, SubjectSegmentError}`, `subject_for<A: Kind>(id) -> architecturekit::Subject`, and foundational crates (`architecturekit`, `chrono`, `constcat`, `serde`, `serde_json`, `tracing`, `uuid`, `validator`).
-- **Common Identity, Scope & Topic Primitives** (`src/common/`):
+  - Re-exports `common::{Identifier, Problem, ProblemDetails, SubjectSegment, SubjectSegmentError}`, `subject_for<A: Kind>(id) -> architecturekit::Subject`, and foundational crates (`architecturekit`, `chrono`, `constcat`, `serde`, `serde_json`, `tracing`, `uuid`, `validator`).
+- **Common Identity, Problem Details, Scope & Topic Primitives** (`src/common/`):
   - `Kind` (`src/common/kind.rs`) — Core static metadata trait (`Scope`, `KIND`, `NAME`, `TOPIC`, `DESCRIPTION`, `topic(&self)`).
+  - `ProblemDetails`, `Problem` (`src/common/problem.rs`) — Zero-HTTP-dependency RFC 9457 Problem Details envelope (`type`, `title`, `status`, `detail`, `instance`, `code`, and flattened `extensions`) and `Problem` conversion trait.
   - `Scope<P>`, `Topic`, `topic_in_domain` (`src/common/scope.rs`, `src/common/topic.rs`) — Hierarchical scope phantom markers and `const fn` prefix verification.
   - `SubjectSegment`, `SubjectSegmentError`, `Identifier`, `IdSource`, `Identified`, `FieldAsIdStr`, `NonIdField`, `ValidIdField`, `NonValidIdField`, `IdFieldProbe`, `const_str_eq`, `validate_command_id_fields`, `resolve_subject` (`src/common/identified.rs`) — Validated subject segments (`^[A-Za-z0-9_-]+$`), compile-time ID field probing/specialization helpers, and runtime subject resolution.
 - **Strategic Domain Traits** (`src/domain.rs`):
-  - `Domain`, `Subdomain`, `SubdomainType` (`Core`, `Supporting`, `Generic`), `BoundedContextInDomain`, `assert_bounded_context_in_domain`, plus re-exports of `ConsumerDescriptor`, `DispatchError`, `DomainBuilder`, `DomainRuntime`, and `Presentation`.
+  - `Domain`, `Subdomain`, `SubdomainType` (`Core`, `Supporting`, `Generic`), `BoundedContextInDomain`, `assert_bounded_context_in_domain`, plus re-exports of `ConsumerDescriptor`, `DispatchError`, `DomainBuilder`, `DomainRuntime`, `Presentation`, `Problem`, and `ProblemDetails`.
 - **Tactical Bounded-Context Traits & Views** (`src/bounded_context/`):
   - `BoundedContext`, plus re-exports of `CommandDescriptor`, `QueryDescriptor`, and `ReadModelDescriptor` (`mod.rs`).
   - `Actor`, `ActorType` (`Human`, `System`), `Authorized` (`actor.rs`).
@@ -30,7 +31,7 @@
   - `DomainRuntime` (`domain_name`, `domain_topic`, `domain_description`, `store`, `commands`, `queries`, `read_models`, `consumers`, `actors`, `commands_for_actor`, `queries_for_actor`, `catalog_json`, `attach`, `attached_presentations`, `serve`, `wait_caught_up`, `dispatch_command`, `dispatch_query`, `subscribe_events` in `domain.rs`).
   - `Presentation` (`name`, `serve` in `domain.rs`).
   - `CommandDescriptor`, `QueryDescriptor`, `ReadModelDescriptor`, `ConsumerDescriptor` (`descriptor.rs`).
-  - `DispatchError` (`BoundedContextNotFound`, `CommandNotFound`, `QueryNotFound`, `Unauthorized`, `InvalidPayload`, `Execution` in `error.rs`).
+  - `DispatchError` (`BoundedContextNotFound`, `CommandNotFound`, `QueryNotFound`, `Unauthorized`, `InvalidPayload`, `Execution(Box<ProblemDetails>)`, `to_problem` in `error.rs`).
 - **Given-When-Then Specification Harness** (`src/testing.rs`):
   - `given<S>`, `UnitFixture`, `UnitDecision` — Consistency-unit tests (`when`, `when_as`, `when_by`, `then_events`, `then_nothing`, `then_rejected`, `then_rejected_reason`, `then_state`, `then_preconditions`).
   - `given_process_manager<P>`, `ProcessFixture`, `ProcessDecision` — Stateful saga and timer tests (`when_event`, `when_timer`, `when_timer_named`, `then_emits`, `then_emits_command`, `then_set_timer`, `then_set_timers`, `then_cancel_timer`, `then_cancel_timers`, `then_state`, `then_state_json`, `then_ended`).

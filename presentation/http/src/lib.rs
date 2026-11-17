@@ -167,6 +167,8 @@ use axum::{
     routing::{get, post},
 };
 use chromatofoor::{
+    ProblemDetails,
+    architecturekit::Schema as _,
     common::IdSource,
     domain::DomainRuntime,
     runtime::{CommandDescriptor, DispatchError, Presentation},
@@ -174,7 +176,8 @@ use chromatofoor::{
 use serde_json::Value;
 use tokio_stream::StreamExt as _;
 use utoipa::openapi::{
-    ContentBuilder, HttpMethod, InfoBuilder, OpenApi, OpenApiBuilder, PathItem, PathsBuilder,
+    ComponentsBuilder, ContentBuilder, HttpMethod, InfoBuilder, OpenApi, OpenApiBuilder, PathItem,
+    PathsBuilder, Ref, RefOr, ResponseBuilder, ResponsesBuilder,
     path::OperationBuilder,
     request_body::RequestBodyBuilder,
     schema::{ArrayBuilder, ObjectBuilder, Schema, SchemaType, Type},
@@ -590,16 +593,29 @@ fn coerce_query_params(raw: HashMap<String, String>, query_schema: &Value) -> Va
     Value::Object(map)
 }
 
+const PROBLEM_JSON_CONTENT_TYPE: &str = "application/problem+json";
+
 fn map_dispatch_error(err: DispatchError) -> axum::response::Response {
-    let status = match &err {
-        DispatchError::BoundedContextNotFound(_)
-        | DispatchError::CommandNotFound { .. }
-        | DispatchError::QueryNotFound { .. } => StatusCode::NOT_FOUND,
-        DispatchError::Unauthorized { .. } => StatusCode::FORBIDDEN,
-        DispatchError::InvalidPayload(_) => StatusCode::BAD_REQUEST,
-        DispatchError::Execution(_) => StatusCode::UNPROCESSABLE_ENTITY,
-    };
-    (status, err.to_string()).into_response()
+    let problem = err.to_problem();
+    let status = StatusCode::from_u16(problem.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    (
+        status,
+        [(axum::http::header::CONTENT_TYPE, PROBLEM_JSON_CONTENT_TYPE)],
+        Json(problem),
+    )
+        .into_response()
+}
+
+fn problem_response(description: &str) -> utoipa::openapi::Response {
+    ResponseBuilder::new()
+        .description(description)
+        .content(
+            PROBLEM_JSON_CONTENT_TYPE,
+            ContentBuilder::new()
+                .schema(Some(RefOr::Ref(Ref::from_schema_name("ProblemDetails"))))
+                .build(),
+        )
+        .build()
 }
 
 /// Generates an OpenAPI 3.0 specification for all commands and queries registered in `runtime`.
@@ -610,6 +626,32 @@ pub fn generate_openapi(runtime: &DomainRuntime) -> OpenApi {
     for cmd in runtime.commands() {
         let base_path = format!("/v0/{}/{}/{}", cmd.bounded_context, cmd.target, cmd.name);
         let id_path = format!("{base_path}/{{id}}");
+
+        let responses = ResponsesBuilder::new()
+            .response(
+                "200",
+                ResponseBuilder::new()
+                    .description("Command succeeded; returns emitted event count.")
+                    .build(),
+            )
+            .response(
+                "400",
+                problem_response("Malformed or invalid command payload."),
+            )
+            .response("403", problem_response("Actor is not authorized."))
+            .response(
+                "404",
+                problem_response("Target aggregate or route not found."),
+            )
+            .response(
+                "409",
+                problem_response("Stream lifecycle or concurrency conflict."),
+            )
+            .response(
+                "422",
+                problem_response("Domain invariant or validation violation."),
+            )
+            .build();
 
         let operation = OperationBuilder::new()
             .description(Some(cmd.description.to_owned()))
@@ -624,6 +666,7 @@ pub fn generate_openapi(runtime: &DomainRuntime) -> OpenApi {
                     )
                     .build(),
             ))
+            .responses(responses)
             .build();
 
         paths = paths
@@ -643,9 +686,32 @@ pub fn generate_openapi(runtime: &DomainRuntime) -> OpenApi {
         );
         let view_id_path = format!("{view_base_path}/{{id}}");
 
+        let responses = ResponsesBuilder::new()
+            .response(
+                "200",
+                ResponseBuilder::new()
+                    .description("Query result.")
+                    .content(
+                        "application/json",
+                        ContentBuilder::new()
+                            .schema(Some(json_schema_to_openapi(&q.output_schema)))
+                            .build(),
+                    )
+                    .build(),
+            )
+            .response("400", problem_response("Invalid query parameters."))
+            .response("403", problem_response("Actor is not authorized."))
+            .response(
+                "404",
+                problem_response("Read-model record or query not found."),
+            )
+            .response("422", problem_response("Query validation or domain error."))
+            .build();
+
         let operation = OperationBuilder::new()
             .description(Some(q.description.to_owned()))
             .tag(q.bounded_context.to_owned())
+            .responses(responses)
             .build();
 
         paths = paths
@@ -658,6 +724,13 @@ pub fn generate_openapi(runtime: &DomainRuntime) -> OpenApi {
             .path(view_id_path, PathItem::new(HttpMethod::Get, operation));
     }
 
+    let components = ComponentsBuilder::new()
+        .schema(
+            "ProblemDetails",
+            json_schema_to_openapi(&ProblemDetails::schema()),
+        )
+        .build();
+
     OpenApiBuilder::new()
         .info(
             InfoBuilder::new()
@@ -666,6 +739,7 @@ pub fn generate_openapi(runtime: &DomainRuntime) -> OpenApi {
                 .version("1.0")
                 .build(),
         )
+        .components(Some(components))
         .paths(paths.build())
         .build()
 }
@@ -1038,6 +1112,35 @@ mod tests {
             ["content"]["application/json"]["schema"]["properties"]["item"];
         assert_eq!(item_schema["type"], "object");
         assert_eq!(item_schema["properties"]["amount_cents"]["type"], "integer");
+        assert_eq!(
+            openapi_json["components"]["schemas"]["ProblemDetails"]["type"],
+            "object"
+        );
+
+        // 3b. Unauthorized & duplicate-create errors return RFC 9457 `application/problem+json`
+        let unauth_req = Request::builder()
+            .method("POST")
+            .uri("/v0/billing/invoice/create-invoice/inv-100")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                json!({ "item": { "label": "Consulting", "amount_cents": 5000 } }).to_string(),
+            ))
+            .unwrap();
+        let unauth_resp = app.clone().oneshot(unauth_req).await.unwrap();
+        assert_eq!(unauth_resp.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            unauth_resp
+                .headers()
+                .get("content-type")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "application/problem+json"
+        );
+        let unauth_bytes = unauth_resp.into_body().collect().await.unwrap().to_bytes();
+        let unauth_problem: Value = serde_json::from_slice(&unauth_bytes).unwrap();
+        assert_eq!(unauth_problem["status"], 403);
+        assert_eq!(unauth_problem["code"], "unauthorized");
 
         // 4. Dispatch command with `x-metadata-actor-type` header and query via `/v0/{bc}/views/{rm}/{query}/{id}` with nullable integer param
         let post_req = Request::builder()

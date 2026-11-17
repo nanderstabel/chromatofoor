@@ -10,8 +10,17 @@ use chromatofoor::bounded_context::Command;
 ///   - `insufficient-funds` — Account balance must cover the requested withdrawal amount.
 impl Command<Account> for WithdrawFunds {
     type Error = AccountError;
-    #[tracing::instrument(skip(self, _state))]
-    async fn decide(self, _state: &Account) -> Result<Vec<AccountEvent>, Self::Error> {
-        todo!("implement Command::Account::decide for WithdrawFunds")
+    #[tracing::instrument(skip(self, state))]
+    async fn decide(self, state: &Account) -> Result<Vec<AccountEvent>, Self::Error> {
+        let Account::Created(inner) = state else {
+            return Ok(vec![]);
+        };
+        if self.amount > inner.balance {
+            return Err(AccountError::InsufficientFunds);
+        }
+        Ok(vec![AccountEvent::FundsWithdrawn(FundsWithdrawn {
+            amount: self.amount,
+            new_balance: inner.balance - self.amount,
+        })])
     }
 }

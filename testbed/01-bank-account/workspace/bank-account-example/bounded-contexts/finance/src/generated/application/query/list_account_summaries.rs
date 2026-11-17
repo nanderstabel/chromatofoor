@@ -7,14 +7,14 @@ use crate::generated::application::read_models::account_summary::{
 };
 use crate::generated::domain::Finance;
 use crate::generated::domain::actors::{BankTeller, Customer};
-use chromatofoor::bounded_context::Query;
+use chromatofoor::{ProblemDetails, bounded_context::Query};
 /// Lists projected balance summaries across all accounts.
 #[chromatofoor::query(scope = Finance, actors = [Customer, BankTeller])]
 #[derive(Default)]
 pub struct ListAccountSummaries {}
 impl Query<AccountSummary> for ListAccountSummaries {
     type Output = Vec<AccountSummaryRecord>;
-    type Error = String;
+    type Error = Box<ProblemDetails>;
     async fn execute(self, read_model: &AccountSummary) -> Result<Self::Output, Self::Error> {
         Ok(read_model.records.all().await)
     }

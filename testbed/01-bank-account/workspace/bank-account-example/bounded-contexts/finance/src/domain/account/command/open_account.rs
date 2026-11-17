@@ -12,6 +12,9 @@ impl Command<Account> for OpenAccount {
     type Error = AccountError;
     #[tracing::instrument(skip(self, _state))]
     async fn decide(self, _state: &Account) -> Result<Vec<AccountEvent>, Self::Error> {
-        todo!("implement Command::Account::decide for OpenAccount")
+        Ok(vec![AccountEvent::AccountOpened(AccountOpened {
+            balance: self.initial_balance,
+            owner_name: self.owner_name,
+        })])
     }
 }

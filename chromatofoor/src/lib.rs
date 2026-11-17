@@ -12,7 +12,7 @@ pub use chromatofoor_derive::{
     process_manager, query, read_model, subdomain, value_object,
 };
 pub use chrono;
-pub use common::{Identifier, SubjectSegment, SubjectSegmentError};
+pub use common::{Identifier, Problem, ProblemDetails, SubjectSegment, SubjectSegmentError};
 pub use constcat;
 pub use serde;
 pub use serde_json;
