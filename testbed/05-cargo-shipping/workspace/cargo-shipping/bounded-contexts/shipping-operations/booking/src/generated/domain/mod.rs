@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::CargoShipping;
+/// Manages shipper cargo bookings, route assignments, and shipment tracking projections.
 #[chromatofoor::bounded_context(scope = CargoShipping)]
 pub struct Booking;
 pub mod actors;

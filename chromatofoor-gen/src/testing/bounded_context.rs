@@ -1,5 +1,7 @@
 use crate::common::{BoundedContextGenerator, GeneratorContext, RoutingContext, resolve_bc_dir};
-use crate::testing::{sanitize_test_ident_segment, sync_generated_test_dir};
+use crate::testing::{
+    sanitize_test_ident_segment, scenario_doc_comment, sync_generated_test_dir,
+};
 use anyhow::Result;
 use convert_case::{Case, Casing};
 use esdm::EsdmDoc;
@@ -251,7 +253,9 @@ pub fn generate_tests(
                             quote! {}
                         };
 
+                        let scenario_doc = scenario_doc_comment(feature, scenario);
                         scenario_fns.push(quote! {
+                            #scenario_doc
                             #[tokio::test]
                             async fn #test_name() {
                                 chromatofoor::testing::given::<#agg_pascal>(vec![
@@ -463,7 +467,9 @@ pub fn generate_tests(
                                 });
                             }
 
+                            let scenario_doc = scenario_doc_comment(feature, scenario);
                             scenario_fns.push(quote! {
+                                #scenario_doc
                                 #[tokio::test]
                                 async fn #test_name() {
                                     chromatofoor::testing::given_read_model(
@@ -521,7 +527,7 @@ mod tests {
             scenarios: Some(vec![
                 Scenario {
                     name: "returns projected balance".to_string(),
-                    description: None,
+                    description: Some("Projects balance updates after deposit.".to_string()),
                     given: vec![],
                     when: WhenAction {
                         event: None,
@@ -614,6 +620,10 @@ mod tests {
         .unwrap();
 
         assert!(main_rs.contains("mod read_model_account_summary;"));
+        assert!(main_rs.contains("clippy::doc_markdown"));
+        assert!(rm_test_rs.contains("/// Feature: `query-account-summary`"));
+        assert!(rm_test_rs.contains("/// Scenario: `returns projected balance`"));
+        assert!(rm_test_rs.contains("/// Projects balance updates after deposit."));
         assert!(rm_test_rs.contains("then_result_json"));
         assert!(rm_test_rs.contains("then_rejected_reason(\"not authorized\")"));
         assert!(

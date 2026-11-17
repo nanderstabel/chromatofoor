@@ -33,6 +33,7 @@ pub enum VerifyPrerequisitesError {
 }
 #[async_trait]
 pub trait PrerequisiteCheckerService: Send + Sync {
+    /// Function: `verify-prerequisites` — Checks whether a student satisfies prerequisites for a target course.
     async fn verify_prerequisites(
         &self,
         req: VerifyPrerequisitesRequest,

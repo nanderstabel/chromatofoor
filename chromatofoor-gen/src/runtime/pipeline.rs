@@ -335,6 +335,11 @@ pub fn run_codegen(opts: CodegenOptions) -> Result<()> {
             } else if is_agg_feature {
                 ctx.features.push(esdm_doc.clone());
             }
+        } else if esdm_doc.kind == "bounded-context" {
+            let bc_ctx = bc_contexts.entry(esdm_doc.name.clone()).or_default();
+            if esdm_doc.description.is_some() {
+                bc_ctx.description.clone_from(&esdm_doc.description);
+            }
         } else if esdm_doc.kind == "read-model"
             || esdm_doc.kind == "query"
             || esdm_doc.kind == "domain-service"

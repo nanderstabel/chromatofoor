@@ -1,7 +1,7 @@
 use crate::common::{
     MEMBER_LINTS_TOML, RoutingContext, ensure_manual_mod_file,
     format_delivery_and_idempotency_tokens, format_scope_path, get_relative_cargo_path,
-    make_doc_comment, resolve_bc_dir, write_manual_rust_file, write_rust_file,
+    make_doc_comment, make_doc_lines, resolve_bc_dir, write_manual_rust_file, write_rust_file,
 };
 use anyhow::Result;
 use convert_case::{Case, Casing};
@@ -121,7 +121,13 @@ tokio = {{ workspace = true }}
         gen_mod_chunks.push(quote! { pub mod #handler_snake; });
         manual_mod_names.push(handler_snake_str);
 
-        let mut handle_event_entries: Vec<(String, proc_macro2::TokenStream)> = Vec::new();
+        let mut handle_event_entries: Vec<(
+            String,
+            String,
+            String,
+            String,
+            proc_macro2::TokenStream,
+        )> = Vec::new();
         let mut seen_events = std::collections::HashSet::new();
 
         if let Some(handles) = &doc.handles {
@@ -141,6 +147,9 @@ tokio = {{ workspace = true }}
                     let ev_pascal_str = ev.to_case(Case::Pascal);
                     let ev_pascal = format_ident!("{}", ev_pascal_str);
                     handle_event_entries.push((
+                        bc.to_string(),
+                        agg.to_string(),
+                        ev_kebab,
                         ev_pascal_str,
                         quote! {
                             #bc_ident::generated::domain::#agg_snake::event::#ev_mod::#ev_pascal
@@ -149,8 +158,10 @@ tokio = {{ workspace = true }}
                 }
             }
         }
-        let handle_event_paths: Vec<_> =
-            handle_event_entries.iter().map(|(_, p)| p).collect();
+        let handle_event_paths: Vec<_> = handle_event_entries
+            .iter()
+            .map(|(_, _, _, _, p)| p)
+            .collect();
 
         let mut emit_command_paths = Vec::new();
         let mut seen_commands = std::collections::HashSet::new();
@@ -236,12 +247,65 @@ tokio = {{ workspace = true }}
             let manual_content = match kind {
                 IntegrationHandlerKind::EventHandler => {
                     let deps_ident = format_ident!("{}Deps", handler_pascal);
-                    let handle_impls =
-                        handle_event_entries.iter().map(|(ev_pascal_str, ev_path)| {
+                    let eh_header = match doc.description.as_deref().map(str::trim) {
+                        Some(d) if !d.is_empty() => {
+                            format!("Event Handler: `{}` — {d}", doc.name)
+                        }
+                        _ => format!("Event Handler: `{}`", doc.name),
+                    };
+                    let handle_impls = handle_event_entries.iter().map(
+                        |(ev_bc, ev_agg, ev_kebab, ev_pascal_str, ev_path)| {
+                            let mut doc_lines = vec![
+                                eh_header.clone(),
+                                format!("Trigger: `{ev_bc}` / `{ev_agg}` / `{ev_kebab}`"),
+                            ];
+                            let mut bullets = Vec::new();
+                            if let Some(constraints) = &doc.constraints
+                                && !constraints.is_empty()
+                            {
+                                bullets.push("- Constraints:".to_string());
+                                for c in constraints {
+                                    match c.rule.as_deref().map(str::trim) {
+                                        Some(r) if !r.is_empty() => {
+                                            bullets.push(format!("  - `{}` — {r}", c.name));
+                                        }
+                                        _ => bullets.push(format!("  - `{}`", c.name)),
+                                    }
+                                }
+                            }
+                            if let Some(effects) = &doc.side_effects
+                                && !effects.is_empty()
+                            {
+                                bullets.push("- Side Effects:".to_string());
+                                for eff in effects {
+                                    let kind_label = match (
+                                        eff.effect_type.as_deref(),
+                                        eff.external_system.as_deref(),
+                                    ) {
+                                        (Some("external-call"), Some(sys)) => {
+                                            format!("`external-call` (`{sys}`)")
+                                        }
+                                        (Some(t), _) => format!("`{t}`"),
+                                        _ => "`side-effect`".to_string(),
+                                    };
+                                    match eff.rule.as_deref().map(str::trim) {
+                                        Some(r) if !r.is_empty() => {
+                                            bullets.push(format!("  - {kind_label} — {r}"));
+                                        }
+                                        _ => bullets.push(format!("  - {kind_label}")),
+                                    }
+                                }
+                            }
+                            if !bullets.is_empty() {
+                                doc_lines.push(String::new());
+                                doc_lines.extend(bullets);
+                            }
+                            let impl_doc = make_doc_lines(&doc_lines);
                             let todo_msg = format!(
                                 "implement Handle::{ev_pascal_str}::handle for {handler_pascal}"
                             );
                             quote! {
+                                #impl_doc
                                 impl Handle<#ev_path> for #handler_pascal {
                                     async fn handle(
                                         &self,
@@ -251,7 +315,8 @@ tokio = {{ workspace = true }}
                                     }
                                 }
                             }
-                        });
+                        },
+                    );
                     quote! {
                         use crate::generated::handlers::#handler_snake::#handler_pascal;
                         use chromatofoor::{
@@ -267,12 +332,59 @@ tokio = {{ workspace = true }}
                 }
                 IntegrationHandlerKind::Policy => {
                     let commands_enum_ident = format_ident!("{}Commands", handler_pascal);
-                    let react_impls =
-                        handle_event_entries.iter().map(|(ev_pascal_str, ev_path)| {
+                    let policy_header = match doc.description.as_deref().map(str::trim) {
+                        Some(d) if !d.is_empty() => format!("Policy: `{}` — {d}", doc.name),
+                        _ => format!("Policy: `{}`", doc.name),
+                    };
+                    let react_impls = handle_event_entries.iter().map(
+                        |(ev_bc, ev_agg, ev_kebab, ev_pascal_str, ev_path)| {
+                            let mut doc_lines = vec![
+                                policy_header.clone(),
+                                format!("Trigger: `{ev_bc}` / `{ev_agg}` / `{ev_kebab}`"),
+                            ];
+                            let mut bullets = Vec::new();
+                            if let Some(emits) = &doc.emits
+                                && !emits.is_empty()
+                            {
+                                let list = emits
+                                    .iter()
+                                    .filter_map(|e| {
+                                        let c = e.command.as_deref()?;
+                                        match (e.bounded_context.as_deref(), e.aggregate.as_deref())
+                                        {
+                                            (Some(b), Some(a)) => Some(format!("`{b}/{a}/{c}`")),
+                                            _ => Some(format!("`{c}`")),
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(", ");
+                                if !list.is_empty() {
+                                    bullets.push(format!("- Emits: {list}"));
+                                }
+                            }
+                            if let Some(constraints) = &doc.constraints
+                                && !constraints.is_empty()
+                            {
+                                bullets.push("- Constraints:".to_string());
+                                for c in constraints {
+                                    match c.rule.as_deref().map(str::trim) {
+                                        Some(r) if !r.is_empty() => {
+                                            bullets.push(format!("  - `{}` — {r}", c.name));
+                                        }
+                                        _ => bullets.push(format!("  - `{}`", c.name)),
+                                    }
+                                }
+                            }
+                            if !bullets.is_empty() {
+                                doc_lines.push(String::new());
+                                doc_lines.extend(bullets);
+                            }
+                            let impl_doc = make_doc_lines(&doc_lines);
                             let todo_msg = format!(
                                 "implement React::{ev_pascal_str}::react for {handler_pascal}"
                             );
                             quote! {
+                                #impl_doc
                                 impl React<#ev_path> for #handler_pascal {
                                     fn react(
                                         &self,
@@ -282,7 +394,8 @@ tokio = {{ workspace = true }}
                                     }
                                 }
                             }
-                        });
+                        },
+                    );
                     quote! {
                         use crate::generated::handlers::#handler_snake::{
                             #commands_enum_ident, #handler_pascal,

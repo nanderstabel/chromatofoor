@@ -3,6 +3,10 @@ use crate::generated::domain::hotel_reservation::command::CancelHotel;
 use crate::generated::domain::hotel_reservation::error::HotelReservationError;
 use crate::generated::domain::hotel_reservation::event::*;
 use chromatofoor::bounded_context::Command;
+/// Command: `cancel-hotel` — Cancels a hotel reservation during saga compensation.
+///
+/// - Actors: `booking-coordinator`
+/// - Publishes: `hotel-cancelled`
 impl Command<HotelReservation> for CancelHotel {
     type Error = HotelReservationError;
     #[tracing::instrument(skip(self, _state))]

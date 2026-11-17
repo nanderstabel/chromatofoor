@@ -18,6 +18,7 @@ pub struct GeneratorContext {
 
 #[derive(Default)]
 pub struct BoundedContextGenerator {
+    pub description: Option<String>,
     pub read_models: Vec<EsdmDoc>,
     pub queries: Vec<EsdmDoc>,
     pub features: Vec<EsdmDoc>,
@@ -30,13 +31,49 @@ pub struct BoundedContextGenerator {
 }
 
 pub fn make_doc_comment(desc: Option<&str>) -> TokenStream {
-    match desc {
-        Some(d) if !d.trim().is_empty() => {
-            let d_clean = format!(" {}", d.trim());
-            quote::quote! { #[doc = #d_clean] }
+    match desc.map(str::trim) {
+        Some(d) if !d.is_empty() => {
+            let lines: Vec<String> = d
+                .lines()
+                .map(|line| {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" {trimmed}")
+                    }
+                })
+                .collect();
+            quote::quote! { #(#[doc = #lines])* }
         }
         _ => quote::quote! {},
     }
+}
+
+pub fn make_doc_lines(lines: &[String]) -> TokenStream {
+    if lines.is_empty() {
+        return quote::quote! {};
+    }
+    let formatted: Vec<String> = lines
+        .iter()
+        .flat_map(|line| {
+            if line.is_empty() {
+                vec![String::new()]
+            } else {
+                line.lines()
+                    .map(|l| {
+                        let trimmed = l.trim_end();
+                        if trimmed.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" {trimmed}")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            }
+        })
+        .collect();
+    quote::quote! { #(#[doc = #formatted])* }
 }
 
 #[derive(Default, Clone)]

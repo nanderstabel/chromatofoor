@@ -17,8 +17,11 @@ pub(crate) struct ResolvedPmSpec {
     pub emit_cmd_idents: Vec<syn::Ident>,
     pub timer_specs: Vec<(syn::Ident, proc_macro2::TokenStream)>,
     pub has_ends_when: bool,
+    pub ends_when_doc_lines: Vec<String>,
     pub event_ident_by_key: HashMap<ScopedRef, syn::Ident>,
     pub event_ident_by_event_name: HashMap<String, syn::Ident>,
+    pub event_doc_by_ident: HashMap<syn::Ident, Vec<String>>,
+    pub timer_doc_by_ident: HashMap<syn::Ident, Vec<String>>,
     pub merged_timer_effects_by_event: HashMap<syn::Ident, (Vec<syn::Ident>, Vec<syn::Ident>)>,
     pub merged_timer_effects_by_timer: HashMap<syn::Ident, (Vec<syn::Ident>, Vec<syn::Ident>)>,
 }
@@ -75,11 +78,34 @@ pub(crate) fn resolve_pm_spec(pm: &EsdmDoc) -> ResolvedPmSpec {
 
     let mut raw_timer_effects_by_event: HashMap<ScopedRef, TimerEffects> = HashMap::new();
     let mut raw_timer_effects_by_timer: HashMap<String, TimerEffects> = HashMap::new();
+    let mut raw_reaction_notes_by_event: HashMap<ScopedRef, Vec<String>> = HashMap::new();
+    let mut raw_reaction_notes_by_timer: HashMap<String, Vec<String>> = HashMap::new();
     let mut referenced_timer_kebabs: BTreeSet<String> = BTreeSet::new();
 
     if let Some(reactions) = &pm.reactions {
         for reaction in reactions {
             if let Some(when) = &reaction.when {
+                let mut reaction_summary_parts = Vec::new();
+                if let Some(rule) = reaction.rule.as_deref().map(str::trim).filter(|r| !r.is_empty())
+                {
+                    reaction_summary_parts.push(format!("Rule: {rule}"));
+                }
+                if let Some(emits) = &reaction.emits {
+                    let emit_labels: Vec<String> = emits
+                        .iter()
+                        .filter_map(|e| {
+                            let c = e.command.as_deref()?;
+                            match (e.bounded_context.as_deref(), e.aggregate.as_deref()) {
+                                (Some(b), Some(a)) => Some(format!("`{b}/{a}/{c}`")),
+                                _ => Some(format!("`{c}`")),
+                            }
+                        })
+                        .collect();
+                    if !emit_labels.is_empty() {
+                        reaction_summary_parts
+                            .push(format!("- Emits: {}", emit_labels.join(", ")));
+                    }
+                }
                 if let Some(emits) = &reaction.emits {
                     for e in emits {
                         let target_bc = e.bounded_context.as_deref().unwrap_or("global");
@@ -107,6 +133,12 @@ pub(crate) fn resolve_pm_spec(pm: &EsdmDoc) -> ResolvedPmSpec {
                 if let Some(timer_name) = &when.timer {
                     let timer_kebab = timer_name.to_case(Case::Kebab);
                     referenced_timer_kebabs.insert(timer_kebab.clone());
+                    if !reaction_summary_parts.is_empty() {
+                        raw_reaction_notes_by_timer
+                            .entry(timer_kebab.clone())
+                            .or_default()
+                            .extend(reaction_summary_parts);
+                    }
                     let entry = raw_timer_effects_by_timer.entry(timer_kebab).or_default();
                     if let Some(set_timers) = &reaction.set_timers {
                         for t_name in set_timers {
@@ -138,6 +170,12 @@ pub(crate) fn resolve_pm_spec(pm: &EsdmDoc) -> ResolvedPmSpec {
                             .insert(key.clone());
                         if !raw_reaction_events.contains(&key) {
                             raw_reaction_events.push(key.clone());
+                        }
+                        if !reaction_summary_parts.is_empty() {
+                            raw_reaction_notes_by_event
+                                .entry(key.clone())
+                                .or_default()
+                                .extend(reaction_summary_parts);
                         }
                         let entry = raw_timer_effects_by_event.entry(key).or_default();
                         if let Some(set_timers) = &reaction.set_timers {
@@ -344,6 +382,73 @@ pub(crate) fn resolve_pm_spec(pm: &EsdmDoc) -> ResolvedPmSpec {
 
     let has_ends_when = pm.ends_when.as_ref().is_some_and(|v| !v.is_empty());
 
+    let pm_header_line = match pm.description.as_deref().map(str::trim) {
+        Some(d) if !d.is_empty() => format!("Process Manager: `{}` — {d}", pm.name),
+        _ => format!("Process Manager: `{}`", pm.name),
+    };
+
+    let mut ends_when_doc_lines = vec![pm_header_line.clone()];
+    if let Some(conds) = &pm.ends_when
+        && !conds.is_empty()
+    {
+        ends_when_doc_lines.push(String::new());
+        ends_when_doc_lines.push("- Ends When:".to_string());
+        for cond in conds {
+            match cond.condition.as_deref().map(str::trim) {
+                Some(text) if !text.is_empty() => {
+                    ends_when_doc_lines.push(format!("  - `{}` — {text}", cond.name));
+                }
+                _ => ends_when_doc_lines.push(format!("  - `{}`", cond.name)),
+            }
+        }
+    }
+
+    let mut event_doc_by_ident = HashMap::new();
+    for (bc, agg, ev) in &all_events {
+        let key = (bc.clone(), agg.clone(), ev.clone());
+        if let Some(ev_ident) = event_ident_by_key.get(&key) {
+            let mut lines = vec![
+                pm_header_line.clone(),
+                format!("Trigger Event: `{bc}` / `{agg}` / `{ev}`"),
+            ];
+            if let Some(notes) = raw_reaction_notes_by_event.get(&key)
+                && !notes.is_empty()
+            {
+                lines.push(String::new());
+                lines.extend(notes.iter().cloned());
+            }
+            event_doc_by_ident.insert(ev_ident.clone(), lines);
+        }
+    }
+
+    let mut timer_desc_by_kebab: HashMap<String, Option<String>> = HashMap::new();
+    if let Some(timers) = &pm.timers {
+        for t in timers {
+            timer_desc_by_kebab.insert(t.name.to_case(Case::Kebab), t.description.clone());
+        }
+    }
+
+    let mut timer_doc_by_ident = HashMap::new();
+    for (t_kebab, (t_ident, _)) in &declared_timers {
+        let trigger_line = match timer_desc_by_kebab
+            .get(t_kebab)
+            .and_then(|d| d.as_deref())
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+        {
+            Some(d) => format!("Trigger Timer: `{t_kebab}` — {d}"),
+            None => format!("Trigger Timer: `{t_kebab}`"),
+        };
+        let mut lines = vec![pm_header_line.clone(), trigger_line];
+        if let Some(notes) = raw_reaction_notes_by_timer.get(t_kebab)
+            && !notes.is_empty()
+        {
+            lines.push(String::new());
+            lines.extend(notes.iter().cloned());
+        }
+        timer_doc_by_ident.insert(t_ident.clone(), lines);
+    }
+
     ResolvedPmSpec {
         event_imports,
         command_imports,
@@ -352,8 +457,11 @@ pub(crate) fn resolve_pm_spec(pm: &EsdmDoc) -> ResolvedPmSpec {
         emit_cmd_idents,
         timer_specs,
         has_ends_when,
+        ends_when_doc_lines,
         event_ident_by_key,
         event_ident_by_event_name,
+        event_doc_by_ident,
+        timer_doc_by_ident,
         merged_timer_effects_by_event,
         merged_timer_effects_by_timer,
     }
@@ -579,11 +687,16 @@ tracing-test = { workspace = true }
             let event_impls: Vec<_> = all_handled_events
                 .iter()
                 .map(|ev_ident| {
+                    let ev_doc = spec
+                        .event_doc_by_ident
+                        .get(ev_ident)
+                        .map_or_else(|| quote! {}, |lines| crate::common::make_doc_lines(lines));
                     let body = build_pm_todo_expr(
                         &format!("implement OnEvent::{ev_ident}::on_event for {pm_ident}"),
                         spec.merged_timer_effects_by_event.get(ev_ident),
                     );
                     quote! {
+                        #ev_doc
                         impl OnEvent<#ev_ident> for #pm_ident {
                             fn on_event(
                                 &mut self,
@@ -600,11 +713,16 @@ tracing-test = { workspace = true }
                 .timer_specs
                 .iter()
                 .map(|(timer_ident, _)| {
+                    let timer_doc = spec
+                        .timer_doc_by_ident
+                        .get(timer_ident)
+                        .map_or_else(|| quote! {}, |lines| crate::common::make_doc_lines(lines));
                     let body = build_pm_todo_expr(
                         &format!("implement OnTimer::{timer_ident}::on_timer for {pm_ident}"),
                         spec.merged_timer_effects_by_timer.get(timer_ident),
                     );
                     quote! {
+                        #timer_doc
                         impl OnTimer<#timer_ident> for #pm_ident {
                             fn on_timer(&mut self) -> Vec<#pm_commands_ident> {
                                 #body
@@ -627,6 +745,7 @@ tracing-test = { workspace = true }
                 }
             };
 
+            let has_ended_doc = crate::common::make_doc_lines(&spec.ends_when_doc_lines);
             let has_ended_body = build_pm_has_ended_expr(&pm_ident, spec.has_ends_when);
 
             let manual_tokens = quote! {
@@ -634,6 +753,7 @@ tracing-test = { workspace = true }
                 #integration_imports
 
                 impl #pm_ident {
+                    #has_ended_doc
                     #[must_use]
                     pub fn has_ended(&self) -> bool {
                         #has_ended_body
@@ -737,9 +857,11 @@ fn sync_manual_pm_impls(
 
     let mut missing_items = Vec::new();
     if !has_has_ended {
+        let has_ended_doc = crate::common::make_doc_lines(&spec.ends_when_doc_lines);
         let has_ended_body = build_pm_has_ended_expr(pm_ident, spec.has_ends_when);
         missing_items.push(quote! {
             impl #pm_ident {
+                #has_ended_doc
                 #[must_use]
                 pub fn has_ended(&self) -> bool {
                     #has_ended_body
@@ -751,11 +873,16 @@ fn sync_manual_pm_impls(
     for ev_ident in all_handled_events {
         let ev_name = syn::ext::IdentExt::unraw(ev_ident).to_string();
         if !existing_on_events.contains(&ev_name) {
+            let ev_doc = spec
+                .event_doc_by_ident
+                .get(ev_ident)
+                .map_or_else(|| quote! {}, |lines| crate::common::make_doc_lines(lines));
             let body = build_pm_todo_expr(
                 &format!("implement OnEvent::{ev_ident}::on_event for {pm_ident}"),
                 spec.merged_timer_effects_by_event.get(ev_ident),
             );
             missing_items.push(quote! {
+                #ev_doc
                 impl chromatofoor::integration::OnEvent<#ev_ident> for #pm_ident {
                     fn on_event(
                         &mut self,
@@ -771,11 +898,16 @@ fn sync_manual_pm_impls(
     for (timer_ident, _) in &spec.timer_specs {
         let timer_name = syn::ext::IdentExt::unraw(timer_ident).to_string();
         if !existing_on_timers.contains(&timer_name) {
+            let timer_doc = spec
+                .timer_doc_by_ident
+                .get(timer_ident)
+                .map_or_else(|| quote! {}, |lines| crate::common::make_doc_lines(lines));
             let body = build_pm_todo_expr(
                 &format!("implement OnTimer::{timer_ident}::on_timer for {pm_ident}"),
                 spec.merged_timer_effects_by_timer.get(timer_ident),
             );
             missing_items.push(quote! {
+                #timer_doc
                 impl chromatofoor::integration::OnTimer<#timer_ident> for #pm_ident {
                     fn on_timer(&mut self) -> Vec<#pm_commands_ident> {
                         #body

@@ -3,6 +3,10 @@ use crate::generated::domain::booking_payment::command::CompletePayment;
 use crate::generated::domain::booking_payment::error::BookingPaymentError;
 use crate::generated::domain::booking_payment::event::*;
 use chromatofoor::bounded_context::Command;
+/// Command: `complete-payment` — Records successful payment capture by the traveler.
+///
+/// - Actors: `traveler`
+/// - Publishes: `payment-completed`
 impl Command<BookingPayment> for CompletePayment {
     type Error = BookingPaymentError;
     #[tracing::instrument(skip(self, _state))]

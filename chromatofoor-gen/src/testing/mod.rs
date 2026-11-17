@@ -13,6 +13,32 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
+pub(crate) fn scenario_doc_comment(feature: &esdm::EsdmDoc, scenario: &esdm::Scenario) -> TokenStream {
+    let mut lines = Vec::new();
+    let feature_line = match feature.description.as_deref().map(str::trim) {
+        Some(desc) if !desc.is_empty() => format!(" Feature: `{}` — {desc}", feature.name),
+        _ => format!(" Feature: `{}`", feature.name),
+    };
+    lines.push(feature_line);
+    lines.push(format!(" Scenario: `{}`", scenario.name));
+    if let Some(desc) = scenario.description.as_deref().map(str::trim)
+        && !desc.is_empty()
+    {
+        lines.push(String::new());
+        for line in desc.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                lines.push(String::new());
+            } else {
+                lines.push(format!(" {trimmed}"));
+            }
+        }
+    }
+    quote! {
+        #(#[doc = #lines])*
+    }
+}
+
 pub(crate) fn sanitize_test_ident_segment(raw: &str) -> String {
     let snake = raw.to_case(Case::Snake);
     let mut out = String::with_capacity(snake.len());
@@ -79,6 +105,7 @@ pub fn sync_generated_test_dir(crate_dir: &Path, modules: &[(String, TokenStream
     let main_tokens = quote! {
         #![allow(
             unused_imports,
+            clippy::doc_markdown,
             clippy::unwrap_used,
             clippy::expect_used,
             clippy::panic

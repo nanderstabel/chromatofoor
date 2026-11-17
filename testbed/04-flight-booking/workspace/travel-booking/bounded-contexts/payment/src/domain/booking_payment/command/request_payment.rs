@@ -3,6 +3,10 @@ use crate::generated::domain::booking_payment::command::RequestPayment;
 use crate::generated::domain::booking_payment::error::BookingPaymentError;
 use crate::generated::domain::booking_payment::event::*;
 use chromatofoor::bounded_context::Command;
+/// Command: `request-payment` — Initiates a payment request once flight and hotel holds are in place.
+///
+/// - Actors: `booking-coordinator`
+/// - Publishes: `payment-requested`
 impl Command<BookingPayment> for RequestPayment {
     type Error = BookingPaymentError;
     #[tracing::instrument(skip(self, _state))]

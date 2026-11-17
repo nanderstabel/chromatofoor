@@ -384,6 +384,7 @@ mod tests {
         bc_contexts.insert(
             "TestContext".to_string(),
             BoundedContextGenerator {
+                description: None,
                 features: vec![],
                 entities: vec![],
                 value_objects: vec![],

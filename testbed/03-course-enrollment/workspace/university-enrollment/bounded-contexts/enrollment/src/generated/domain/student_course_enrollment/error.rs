@@ -4,8 +4,10 @@
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum StudentCourseEnrollmentError {
+    /// Invariant `course-capacity-exceeded` — Active enrolled students for the target course cannot exceed its current capacity.
     #[error("course-capacity-exceeded")]
     CourseCapacityExceeded,
+    /// Invariant `student-load-exceeded` — A student cannot hold more than 5 active course enrollments simultaneously.
     #[error("student-load-exceeded")]
     StudentLoadExceeded,
     #[error("{0}")]

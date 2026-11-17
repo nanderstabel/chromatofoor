@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::UniversityEnrollment;
+/// Manages course offerings, student registrations, prerequisite checks, and cross-stream enrollment invariants.
 #[chromatofoor::bounded_context(scope = UniversityEnrollment)]
 pub struct Enrollment;
 pub mod actors;

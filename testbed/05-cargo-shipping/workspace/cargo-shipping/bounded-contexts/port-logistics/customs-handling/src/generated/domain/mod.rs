@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::CargoShipping;
+/// Manages port customs declarations and anti-corruption translation to external government gateways.
 #[chromatofoor::bounded_context(scope = CargoShipping)]
 pub struct CustomsHandling;
 pub mod actors;

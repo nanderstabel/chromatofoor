@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::BankAccountExample;
+/// Bounded context managing bank accounts, deposits, withdrawals, and balance summaries.
 #[chromatofoor::bounded_context(scope = BankAccountExample)]
 pub struct Finance;
 pub mod account;

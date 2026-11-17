@@ -6,6 +6,10 @@ use booking::generated::domain::cargo_booking::aggregate::CargoBooking;
 use booking::generated::domain::cargo_booking::command::*;
 use booking::generated::domain::cargo_booking::error::CargoBookingError;
 use booking::generated::domain::cargo_booking::event::*;
+/// Feature: `cargo-booking-commands` — Behavioral scenarios for booking cargo and assigning voyages.
+/// Scenario: `book-cargo-between-distinct-ports`
+///
+/// Booking cargo between Rotterdam (NLRTM) and New York (USNYC) emits cargo-booked.
 #[tokio::test]
 async fn test_cargo_booking_commands_book_cargo_between_distinct_ports() {
     chromatofoor::testing::given::<CargoBooking>(vec![])
@@ -28,6 +32,10 @@ async fn test_cargo_booking_commands_book_cargo_between_distinct_ports() {
             ],
         );
 }
+/// Feature: `cargo-booking-commands` — Behavioral scenarios for booking cargo and assigning voyages.
+/// Scenario: `reject-identical-origin-and-destination`
+///
+/// Booking cargo where origin and destination UN/LOCODEs are equal fails with same-origin-and-destination.
 #[tokio::test]
 async fn test_cargo_booking_commands_reject_identical_origin_and_destination() {
     chromatofoor::testing::given::<CargoBooking>(vec![])
@@ -45,6 +53,10 @@ async fn test_cargo_booking_commands_reject_identical_origin_and_destination() {
         .await
         .then_rejected(CargoBookingError::SameOriginAndDestination);
 }
+/// Feature: `cargo-booking-commands` — Behavioral scenarios for booking cargo and assigning voyages.
+/// Scenario: `assign-booked-cargo-to-voyage`
+///
+/// Assigning booked cargo to voyage v-204 emits cargo-assigned-to-route.
 #[tokio::test]
 async fn test_cargo_booking_commands_assign_booked_cargo_to_voyage() {
     chromatofoor::testing::given::<

@@ -3,6 +3,13 @@ use crate::generated::domain::student_course_enrollment::command::EnrollStudent;
 use crate::generated::domain::student_course_enrollment::error::StudentCourseEnrollmentError;
 use crate::generated::domain::student_course_enrollment::event::*;
 use chromatofoor::bounded_context::Command;
+/// Command: `enroll-student` — Enrolls a registered student in a published course when seat capacity and course-load limits allow.
+///
+/// - Actors: `student`, `registrar`
+/// - Publishes: `student-enrolled`
+/// - Invariants (`StudentCourseEnrollmentError`):
+///   - `course-capacity-exceeded` — Active enrolled students for the target course cannot exceed its current capacity.
+///   - `student-load-exceeded` — A student cannot hold more than 5 active course enrollments simultaneously.
 impl Command<StudentCourseEnrollment> for EnrollStudent {
     type Error = StudentCourseEnrollmentError;
     #[tracing::instrument(skip(self, _state))]

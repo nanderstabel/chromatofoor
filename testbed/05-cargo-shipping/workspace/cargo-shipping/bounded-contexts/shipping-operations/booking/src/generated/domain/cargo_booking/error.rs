@@ -4,6 +4,7 @@
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CargoBookingError {
+    /// Invariant `same-origin-and-destination` — Origin UN/LOCODE and destination UN/LOCODE cannot be identical.
     #[error("same-origin-and-destination")]
     SameOriginAndDestination,
     #[error("{0}")]

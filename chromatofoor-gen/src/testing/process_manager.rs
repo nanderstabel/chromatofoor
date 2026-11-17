@@ -1,5 +1,7 @@
 use crate::integration::{resolve_pm_event_bc, resolve_pm_spec};
-use crate::testing::{sanitize_test_ident_segment, sync_generated_test_dir};
+use crate::testing::{
+    sanitize_test_ident_segment, scenario_doc_comment, sync_generated_test_dir,
+};
 use anyhow::Result;
 use convert_case::{Case, Casing};
 use esdm::EsdmDoc;
@@ -169,7 +171,9 @@ pub fn generate_process_manager_tests(
                         });
                     }
 
+                    let scenario_doc = scenario_doc_comment(feature, scenario);
                     scenario_tests.push(quote! {
+                        #scenario_doc
                         #[tokio::test]
                         async fn #test_name() {
                             chromatofoor::testing::given_process_manager::<#pm_pascal>(vec![

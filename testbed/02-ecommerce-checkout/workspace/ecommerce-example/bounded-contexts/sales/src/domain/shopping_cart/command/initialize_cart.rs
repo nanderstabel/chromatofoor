@@ -3,6 +3,13 @@ use crate::generated::domain::shopping_cart::command::InitializeCart;
 use crate::generated::domain::shopping_cart::error::ShoppingCartError;
 use crate::generated::domain::shopping_cart::event::*;
 use chromatofoor::bounded_context::Command;
+/// Command: `initialize-cart` — Initializes a new empty shopping cart for a customer.
+///
+/// - Actors: `customer`
+/// - Publishes: `cart-initialized`
+/// - Invariants (`ShoppingCartError`):
+///   - `empty-cart` — Cannot check out an empty shopping cart.
+///   - `cart-already-checked-out` — Cannot modify or re-submit a shopping cart that has already been checked out.
 impl Command<ShoppingCart> for InitializeCart {
     type Error = ShoppingCartError;
     #[tracing::instrument(skip(self, _state))]

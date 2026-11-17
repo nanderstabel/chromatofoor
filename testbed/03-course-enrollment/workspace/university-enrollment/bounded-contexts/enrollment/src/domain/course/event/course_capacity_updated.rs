@@ -1,6 +1,7 @@
 use crate::generated::domain::course::aggregate::Course;
 use crate::generated::domain::course::event::CourseCapacityUpdated;
 use chromatofoor::bounded_context::Event;
+/// Event: `course-capacity-updated` — Emitted when a course offering's seat capacity is updated.
 impl Event<Course> for CourseCapacityUpdated {
     fn evolve(&self, _state: Course) -> Course {
         todo!(

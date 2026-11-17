@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::CargoShipping;
+/// Manages automated freight invoicing triggered by cargo bookings.
 #[chromatofoor::bounded_context(scope = CargoShipping)]
 pub struct Billing;
 pub mod actors;

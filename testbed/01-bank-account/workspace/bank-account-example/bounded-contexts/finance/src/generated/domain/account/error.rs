@@ -4,6 +4,7 @@
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AccountError {
+    /// Invariant `insufficient-funds` — Account balance must cover the requested withdrawal amount.
     #[error("insufficient-funds")]
     InsufficientFunds,
     #[error("{0}")]

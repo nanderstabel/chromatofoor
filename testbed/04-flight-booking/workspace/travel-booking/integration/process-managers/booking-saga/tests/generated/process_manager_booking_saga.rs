@@ -3,6 +3,10 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 use booking_saga::{BookingSaga, BookingSagaEvents};
+/// Feature: `booking-saga-coordination` — Process Manager scenarios covering happy-path booking confirmation, payment failure compensation, and payment timeout compensation.
+/// Scenario: `reserve-hotel-when-flight-reserved`
+///
+/// Receiving flight-reserved starts the saga and emits reserve-hotel.
 #[tokio::test]
 async fn test_booking_saga_coordination_reserve_hotel_when_flight_reserved() {
     chromatofoor::testing::given_process_manager::<BookingSaga>(vec![])
@@ -26,6 +30,10 @@ async fn test_booking_saga_coordination_reserve_hotel_when_flight_reserved() {
             ),
         );
 }
+/// Feature: `booking-saga-coordination` — Process Manager scenarios covering happy-path booking confirmation, payment failure compensation, and payment timeout compensation.
+/// Scenario: `request-payment-and-arm-timeout-when-hotel-reserved`
+///
+/// Receiving hotel-reserved requests payment and arms payment-timeout.
 #[tokio::test]
 async fn test_booking_saga_coordination_request_payment_and_arm_timeout_when_hotel_reserved() {
     chromatofoor::testing::given_process_manager::<
@@ -57,6 +65,10 @@ async fn test_booking_saga_coordination_request_payment_and_arm_timeout_when_hot
         )
         .then_set_timers(["payment-timeout"]);
 }
+/// Feature: `booking-saga-coordination` — Process Manager scenarios covering happy-path booking confirmation, payment failure compensation, and payment timeout compensation.
+/// Scenario: `confirm-flight-and-end-saga-on-payment-completed`
+///
+/// Completing payment cancels payment-timeout, confirms the flight, and ends the saga.
 #[tokio::test]
 async fn test_booking_saga_coordination_confirm_flight_and_end_saga_on_payment_completed() {
     chromatofoor::testing::given_process_manager::<
@@ -93,6 +105,10 @@ async fn test_booking_saga_coordination_confirm_flight_and_end_saga_on_payment_c
         .then_cancel_timers(["payment-timeout"])
         .then_ended();
 }
+/// Feature: `booking-saga-coordination` — Process Manager scenarios covering happy-path booking confirmation, payment failure compensation, and payment timeout compensation.
+/// Scenario: `compensate-flight-and-hotel-on-payment-timeout`
+///
+/// Firing payment-timeout cancels both held flight and hotel reservations and ends the saga.
 #[tokio::test]
 async fn test_booking_saga_coordination_compensate_flight_and_hotel_on_payment_timeout() {
     chromatofoor::testing::given_process_manager::<

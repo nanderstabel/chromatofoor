@@ -5,6 +5,10 @@
 use payment::generated::application::read_models::booking_status::{
     BookingStatus, BookingStatusEvents,
 };
+/// Feature: `booking-status-queries` — Read-model query scenarios for booking payment status.
+/// Scenario: `return-paid-booking-status`
+///
+/// Querying get-booking-status returns Paid after payment-completed.
 #[tokio::test]
 async fn test_booking_status_queries_return_paid_booking_status() {
     chromatofoor::testing::given_read_model(

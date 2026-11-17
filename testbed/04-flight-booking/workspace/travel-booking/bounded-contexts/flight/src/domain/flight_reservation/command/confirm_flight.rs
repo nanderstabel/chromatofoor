@@ -3,6 +3,10 @@ use crate::generated::domain::flight_reservation::command::ConfirmFlight;
 use crate::generated::domain::flight_reservation::error::FlightReservationError;
 use crate::generated::domain::flight_reservation::event::*;
 use chromatofoor::bounded_context::Command;
+/// Command: `confirm-flight` — Confirms a held flight reservation after payment succeeds.
+///
+/// - Actors: `booking-coordinator`
+/// - Publishes: `flight-confirmed`
 impl Command<FlightReservation> for ConfirmFlight {
     type Error = FlightReservationError;
     #[tracing::instrument(skip(self, _state))]

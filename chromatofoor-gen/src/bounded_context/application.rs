@@ -1,7 +1,7 @@
 use crate::common::{
     BoundedContextGenerator, GeneratorContext, RoutingContext, ensure_manual_mod_file,
-    generate_type_for_prop, make_doc_comment, resolve_bc_dir, write_manual_rust_file,
-    write_rust_file,
+    generate_type_for_prop, make_doc_comment, make_doc_lines, resolve_bc_dir,
+    write_manual_rust_file, write_rust_file,
 };
 use anyhow::Result;
 use convert_case::Casing;
@@ -60,7 +60,7 @@ pub fn generate_application(
                 let rm_ident = format_ident!("{}", rm_pascal);
                 let rm_record_ident = format_ident!("{}Record", rm_pascal);
 
-                let mut projected_events: Vec<(String, String)> = Vec::new();
+                let mut projected_events: Vec<(String, String, Option<String>)> = Vec::new();
                 let mut seen_projected = std::collections::HashSet::new();
                 let mut sorted_ctx_keys: Vec<_> = contexts.keys().collect();
                 sorted_ctx_keys.sort();
@@ -89,7 +89,11 @@ pub fn generate_application(
                                 })
                             };
                             if is_known && seen_projected.insert((agg.clone(), ev_name.clone())) {
-                                projected_events.push((agg.clone(), ev_name.clone()));
+                                projected_events.push((
+                                    agg.clone(),
+                                    ev_name.clone(),
+                                    proj.rule.clone(),
+                                ));
                             }
                         } else {
                             for (c_bc, c_unit) in &sorted_ctx_keys {
@@ -100,7 +104,11 @@ pub fn generate_application(
                                     && ctx.events.iter().any(|e| &e.name == ev_name)
                                 {
                                     if seen_projected.insert(((*c_unit).clone(), ev_name.clone())) {
-                                        projected_events.push(((*c_unit).clone(), ev_name.clone()));
+                                        projected_events.push((
+                                            (*c_unit).clone(),
+                                            ev_name.clone(),
+                                            proj.rule.clone(),
+                                        ));
                                     }
                                     break;
                                 }
@@ -150,27 +158,33 @@ pub fn generate_application(
                 let rm_doc = make_doc_comment(rm.description.as_deref());
                 let bc_pascal = format_ident!("{}", bc.to_case(convert_case::Case::Pascal));
 
-                let projected_event_entries: Vec<(String, proc_macro2::TokenStream)> =
-                    projected_events
-                        .iter()
-                        .map(|(owner_unit, ev_name)| {
-                            let owner_snake =
-                                format_ident!("{}", owner_unit.to_case(convert_case::Case::Snake));
-                            let ev_mod =
-                                format_ident!("{}", ev_name.to_case(convert_case::Case::Snake));
-                            let ev_pascal_str = ev_name.to_case(convert_case::Case::Pascal);
-                            let ev_struct = format_ident!("{}", ev_pascal_str);
-                            (
-                                ev_pascal_str,
-                                quote! {
-                                    crate::generated::domain::#owner_snake::event::#ev_mod::#ev_struct
-                                },
-                            )
-                        })
-                        .collect();
+                let projected_event_entries: Vec<(
+                    String,
+                    String,
+                    Option<String>,
+                    proc_macro2::TokenStream,
+                )> = projected_events
+                    .iter()
+                    .map(|(owner_unit, ev_name, proj_rule)| {
+                        let owner_snake =
+                            format_ident!("{}", owner_unit.to_case(convert_case::Case::Snake));
+                        let ev_mod =
+                            format_ident!("{}", ev_name.to_case(convert_case::Case::Snake));
+                        let ev_pascal_str = ev_name.to_case(convert_case::Case::Pascal);
+                        let ev_struct = format_ident!("{}", ev_pascal_str);
+                        (
+                            ev_name.clone(),
+                            ev_pascal_str,
+                            proj_rule.clone(),
+                            quote! {
+                                crate::generated::domain::#owner_snake::event::#ev_mod::#ev_struct
+                            },
+                        )
+                    })
+                    .collect();
                 let projected_event_paths: Vec<_> = projected_event_entries
                     .iter()
-                    .map(|(_, path)| path)
+                    .map(|(_, _, _, path)| path)
                     .collect();
 
                 rm_chunks.push(quote! {
@@ -201,12 +215,29 @@ pub fn generate_application(
                 let manual_rm_file = manual_rm_dir.join(format!("{rm_snake}.rs"));
                 let rm_snake_ident = format_ident!("{}", rm_snake);
                 if !manual_rm_file.exists() {
+                    let rm_header = match rm.description.as_deref().map(str::trim) {
+                        Some(d) if !d.is_empty() => format!("Read Model: `{rm_name}` — {d}"),
+                        _ => format!("Read Model: `{rm_name}`"),
+                    };
                     let manual_rm_impls: Vec<_> = projected_event_entries
                         .iter()
-                        .map(|(ev_pascal_str, ev_path)| {
-                            let todo_msg =
-                                format!("implement Project::{ev_pascal_str}::project for {rm_pascal}");
+                        .map(|(ev_kebab, ev_pascal_str, proj_rule, ev_path)| {
+                            let mut doc_lines = vec![
+                                rm_header.clone(),
+                                format!("Projection: `{ev_kebab}`"),
+                            ];
+                            if let Some(rule) = proj_rule.as_deref().map(str::trim)
+                                && !rule.is_empty()
+                            {
+                                doc_lines.push(String::new());
+                                doc_lines.push(format!("Rule: {rule}"));
+                            }
+                            let proj_doc = make_doc_lines(&doc_lines);
+                            let todo_msg = format!(
+                                "implement Project::{ev_pascal_str}::project for {rm_pascal}"
+                            );
                             quote! {
+                                #proj_doc
                                 impl Project<#ev_path> for #rm_ident {
                                     async fn project(
                                         &self,
@@ -464,6 +495,7 @@ mod tests {
         bc_contexts.insert(
             "TestContext".to_string(),
             BoundedContextGenerator {
+                description: None,
                 features: vec![],
                 entities: vec![],
                 value_objects: vec![],

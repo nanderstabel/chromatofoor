@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::CargoShipping;
+/// Shared kernel publishing standardized five-character UN/LOCODE port value objects across contexts.
 #[chromatofoor::bounded_context(scope = CargoShipping)]
 pub struct LocationCatalog;
 pub mod value_objects;

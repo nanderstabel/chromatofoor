@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::TravelBooking;
+/// Manages airline flight seat reservations, confirmations, and cancellations.
 #[chromatofoor::bounded_context(scope = TravelBooking)]
 pub struct Flight;
 pub mod actors;

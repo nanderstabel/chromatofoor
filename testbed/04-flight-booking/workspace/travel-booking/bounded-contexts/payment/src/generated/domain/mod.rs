@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::TravelBooking;
+/// Manages traveler payment requests, settlements, failures, and booking status views.
 #[chromatofoor::bounded_context(scope = TravelBooking)]
 pub struct Payment;
 pub mod actors;

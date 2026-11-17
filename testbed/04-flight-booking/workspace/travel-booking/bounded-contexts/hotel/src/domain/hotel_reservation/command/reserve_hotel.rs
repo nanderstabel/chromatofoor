@@ -3,6 +3,10 @@ use crate::generated::domain::hotel_reservation::command::ReserveHotel;
 use crate::generated::domain::hotel_reservation::error::HotelReservationError;
 use crate::generated::domain::hotel_reservation::event::*;
 use chromatofoor::bounded_context::Command;
+/// Command: `reserve-hotel` — Reserves a hotel room for a booking.
+///
+/// - Actors: `booking-coordinator`
+/// - Publishes: `hotel-reserved`
 impl Command<HotelReservation> for ReserveHotel {
     type Error = HotelReservationError;
     #[tracing::instrument(skip(self, _state))]

@@ -7,6 +7,7 @@ pub struct PrerequisiteChecker;
 impl crate::generated::domain::services::prerequisite_checker::PrerequisiteCheckerService
     for PrerequisiteChecker
 {
+    /// Function: `verify-prerequisites` — Checks whether a student satisfies prerequisites for a target course.
     async fn verify_prerequisites(
         &self,
         _req: crate::generated::domain::services::prerequisite_checker::VerifyPrerequisitesRequest,

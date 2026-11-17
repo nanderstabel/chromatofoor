@@ -5,6 +5,7 @@ use async_trait::async_trait;
 pub struct RouteFinder;
 #[async_trait]
 impl crate::generated::domain::services::route_finder::RouteFinderService for RouteFinder {
+    /// Function: `find-optimal-route` — Returns the recommended voyage number connecting origin and destination ports.
     async fn find_optimal_route(
         &self,
         _req: crate::generated::domain::services::route_finder::FindOptimalRouteRequest,

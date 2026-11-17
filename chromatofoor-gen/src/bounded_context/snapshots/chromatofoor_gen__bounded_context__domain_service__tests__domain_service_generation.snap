@@ -46,6 +46,7 @@ pub enum ConvertAmountError {
 }
 #[async_trait]
 pub trait CurrencyConversionService: Send + Sync {
+    /// Function: `ConvertAmount`
     async fn convert_amount(
         &self,
         req: ConvertAmountRequest,

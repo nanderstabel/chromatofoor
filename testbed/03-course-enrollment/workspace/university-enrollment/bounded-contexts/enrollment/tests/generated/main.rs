@@ -4,6 +4,7 @@
 
 #![allow(
     unused_imports,
+    clippy::doc_markdown,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic

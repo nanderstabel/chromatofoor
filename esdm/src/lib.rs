@@ -67,6 +67,8 @@ pub struct EsdmDoc {
     pub reactions: Option<Vec<Reaction>>,
     pub scenarios: Option<Vec<Scenario>>,
     pub handles: Option<Vec<EventRef>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub side_effects: Option<Vec<SideEffect>>,
     pub emits: Option<Vec<CommandRef>>,
     pub invariants: Option<Vec<Invariant>>,
     pub constraints: Option<Vec<Invariant>>,
@@ -379,6 +381,15 @@ pub struct Timer {
     pub description: Option<String>,
     pub after: Option<TimerAfter>,
     pub at: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SideEffect {
+    #[serde(rename = "type")]
+    pub effect_type: Option<String>,
+    pub external_system: Option<String>,
+    pub rule: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

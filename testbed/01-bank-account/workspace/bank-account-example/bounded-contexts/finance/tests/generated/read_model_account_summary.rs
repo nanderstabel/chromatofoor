@@ -5,6 +5,10 @@
 use finance::generated::application::read_models::account_summary::{
     AccountSummary, AccountSummaryEvents,
 };
+/// Feature: `account-summary-queries` — Read-model query scenarios for account balance summaries.
+/// Scenario: `return-projected-balance-after-transactions`
+///
+/// Querying get-account-summary returns the projected owner and balance after deposits and withdrawals.
 #[tokio::test]
 async fn test_account_summary_queries_return_projected_balance_after_transactions() {
     chromatofoor::testing::given_read_model(

@@ -36,6 +36,7 @@ pub enum FindOptimalRouteError {
 }
 #[async_trait]
 pub trait RouteFinderService: Send + Sync {
+    /// Function: `find-optimal-route` — Returns the recommended voyage number connecting origin and destination ports.
     async fn find_optimal_route(
         &self,
         req: FindOptimalRouteRequest,

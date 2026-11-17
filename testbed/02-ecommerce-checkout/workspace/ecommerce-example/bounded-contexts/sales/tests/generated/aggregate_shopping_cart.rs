@@ -6,6 +6,10 @@ use sales::generated::domain::shopping_cart::aggregate::ShoppingCart;
 use sales::generated::domain::shopping_cart::command::*;
 use sales::generated::domain::shopping_cart::error::ShoppingCartError;
 use sales::generated::domain::shopping_cart::event::*;
+/// Feature: `shopping-cart-commands` — Behavioral scenarios for initializing, adding items to, and checking out a shopping cart.
+/// Scenario: `initialize-new-cart`
+///
+/// Initializing a cart emits cart-initialized.
 #[tokio::test]
 async fn test_shopping_cart_commands_initialize_new_cart() {
     chromatofoor::testing::given::<ShoppingCart>(vec![])
@@ -26,6 +30,10 @@ async fn test_shopping_cart_commands_initialize_new_cart() {
             ],
         );
 }
+/// Feature: `shopping-cart-commands` — Behavioral scenarios for initializing, adding items to, and checking out a shopping cart.
+/// Scenario: `add-valid-item-to-cart`
+///
+/// Adding a valid cart item emits item-added-to-cart.
 #[tokio::test]
 async fn test_shopping_cart_commands_add_valid_item_to_cart() {
     chromatofoor::testing::given::<
@@ -55,6 +63,10 @@ async fn test_shopping_cart_commands_add_valid_item_to_cart() {
             ],
         );
 }
+/// Feature: `shopping-cart-commands` — Behavioral scenarios for initializing, adding items to, and checking out a shopping cart.
+/// Scenario: `checkout-populated-cart`
+///
+/// Checking out a cart containing items emits cart-checked-out.
 #[tokio::test]
 async fn test_shopping_cart_commands_checkout_populated_cart() {
     chromatofoor::testing::given::<
@@ -86,6 +98,10 @@ async fn test_shopping_cart_commands_checkout_populated_cart() {
             ],
         );
 }
+/// Feature: `shopping-cart-commands` — Behavioral scenarios for initializing, adding items to, and checking out a shopping cart.
+/// Scenario: `reject-empty-cart-checkout`
+///
+/// Checking out a cart with zero items fails with empty-cart.
 #[tokio::test]
 async fn test_shopping_cart_commands_reject_empty_cart_checkout() {
     chromatofoor::testing::given::<
@@ -110,6 +126,10 @@ async fn test_shopping_cart_commands_reject_empty_cart_checkout() {
         .await
         .then_rejected(ShoppingCartError::EmptyCart);
 }
+/// Feature: `shopping-cart-commands` — Behavioral scenarios for initializing, adding items to, and checking out a shopping cart.
+/// Scenario: `reject-item-addition-after-checkout`
+///
+/// Adding an item after checkout fails with cart-already-checked-out.
 #[tokio::test]
 async fn test_shopping_cart_commands_reject_item_addition_after_checkout() {
     chromatofoor::testing::given::<
@@ -138,6 +158,10 @@ async fn test_shopping_cart_commands_reject_item_addition_after_checkout() {
         .await
         .then_rejected(ShoppingCartError::CartAlreadyCheckedOut);
 }
+/// Feature: `shopping-cart-commands` — Behavioral scenarios for initializing, adding items to, and checking out a shopping cart.
+/// Scenario: `reject-invalid-item-quantity`
+///
+/// Nested entity validation rejects item quantity outside 1..=99 before decide runs.
 #[tokio::test]
 async fn test_shopping_cart_commands_reject_invalid_item_quantity() {
     chromatofoor::testing::given::<

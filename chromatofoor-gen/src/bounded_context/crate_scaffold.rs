@@ -192,9 +192,15 @@ pub fn generate_bounded_context_scaffolds(
 
         let mut gen_domain_mod_chunks = Vec::new();
         let bc_pascal = format_ident!("{}", bc.to_case(Case::Pascal));
+        let bc_doc = make_doc_comment(
+            bc_contexts
+                .get(bc)
+                .and_then(|ctx| ctx.description.as_deref()),
+        );
         gen_domain_mod_chunks.push(quote! {
             pub use ::domain::#domain_pascal;
 
+            #bc_doc
             #[chromatofoor::bounded_context(scope = #domain_pascal)]
             pub struct #bc_pascal;
         });

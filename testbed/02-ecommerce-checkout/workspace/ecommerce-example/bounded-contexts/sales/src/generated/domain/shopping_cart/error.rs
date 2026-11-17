@@ -4,8 +4,10 @@
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ShoppingCartError {
+    /// Invariant `empty-cart` — Cannot check out an empty shopping cart.
     #[error("empty-cart")]
     EmptyCart,
+    /// Invariant `cart-already-checked-out` — Cannot modify or re-submit a shopping cart that has already been checked out.
     #[error("cart-already-checked-out")]
     CartAlreadyCheckedOut,
     #[error("{0}")]

@@ -1,6 +1,6 @@
 use crate::common::{
     BoundedContextGenerator, RoutingContext, ensure_manual_mod_file, generate_struct_fields,
-    make_doc_comment, resolve_bc_dir, write_manual_rust_file, write_rust_file,
+    make_doc_comment, make_doc_lines, resolve_bc_dir, write_manual_rust_file, write_rust_file,
 };
 use anyhow::Result;
 use convert_case::{Case, Casing};
@@ -111,13 +111,35 @@ pub fn generate_domain_services(
                         }
                     });
 
+                    let mut func_doc_lines = vec![match func.description.as_deref().map(str::trim) {
+                        Some(d) if !d.is_empty() => format!("Function: `{}` — {d}", func.name),
+                        _ => format!("Function: `{}`", func.name),
+                    }];
+                    if let Some(rules) = &func.rules
+                        && !rules.is_empty()
+                    {
+                        func_doc_lines.push(String::new());
+                        func_doc_lines.push("- Rules:".to_string());
+                        for r in rules {
+                            match r.rule.as_deref().map(str::trim) {
+                                Some(text) if !text.is_empty() => {
+                                    func_doc_lines.push(format!("  - `{}` — {text}", r.name));
+                                }
+                                _ => func_doc_lines.push(format!("  - `{}`", r.name)),
+                            }
+                        }
+                    }
+                    let func_doc = make_doc_lines(&func_doc_lines);
+
                     methods.push(quote! {
+                        #func_doc
                         async fn #func_snake(&self, req: #req_ident) -> Result<#res_ident, #err_ident>;
                     });
 
                     let todo_msg =
                         format!("implement {service_ident}::{func_snake} for {service_pascal}");
                     manual_methods.push(quote! {
+                        #func_doc
                         async fn #func_snake(&self, _req: crate::generated::domain::services::#service_snake_ident::#req_ident) -> Result<crate::generated::domain::services::#service_snake_ident::#res_ident, crate::generated::domain::services::#service_snake_ident::#err_ident> {
                             todo!(#todo_msg)
                         }

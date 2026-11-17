@@ -6,6 +6,10 @@ use chromatofoor::{
     architecturekit::{Envelope, ViewError},
     bounded_context::Project,
 };
+/// Read Model: `account-summary` — Materialized summary view of account owner and current balance.
+/// Projection: `account-opened`
+///
+/// Rule: Insert a summary record with owner-name and current-balance equal to balance.
 impl Project<crate::generated::domain::account::event::account_opened::AccountOpened>
     for AccountSummary
 {
@@ -16,6 +20,10 @@ impl Project<crate::generated::domain::account::event::account_opened::AccountOp
         todo!("implement Project::AccountOpened::project for AccountSummary")
     }
 }
+/// Read Model: `account-summary` — Materialized summary view of account owner and current balance.
+/// Projection: `funds-deposited`
+///
+/// Rule: Update current-balance to new-balance.
 impl Project<crate::generated::domain::account::event::funds_deposited::FundsDeposited>
     for AccountSummary
 {
@@ -26,6 +34,10 @@ impl Project<crate::generated::domain::account::event::funds_deposited::FundsDep
         todo!("implement Project::FundsDeposited::project for AccountSummary")
     }
 }
+/// Read Model: `account-summary` — Materialized summary view of account owner and current balance.
+/// Projection: `funds-withdrawn`
+///
+/// Rule: Update current-balance to new-balance.
 impl Project<crate::generated::domain::account::event::funds_withdrawn::FundsWithdrawn>
     for AccountSummary
 {

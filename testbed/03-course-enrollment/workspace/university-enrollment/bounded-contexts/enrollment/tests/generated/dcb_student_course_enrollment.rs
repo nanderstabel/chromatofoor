@@ -6,6 +6,10 @@ use enrollment::generated::domain::student_course_enrollment::aggregate::Student
 use enrollment::generated::domain::student_course_enrollment::command::*;
 use enrollment::generated::domain::student_course_enrollment::error::StudentCourseEnrollmentError;
 use enrollment::generated::domain::student_course_enrollment::event::*;
+/// Feature: `student-course-enrollment-boundary` — Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
+/// Scenario: `enroll-student-within-capacity-and-load`
+///
+/// Enrolling a registered student in a course with open seats emits student-enrolled.
 #[tokio::test]
 async fn test_student_course_enrollment_boundary_enroll_student_within_capacity_and_load() {
     chromatofoor::testing::given::<
@@ -44,6 +48,10 @@ async fn test_student_course_enrollment_boundary_enroll_student_within_capacity_
             ],
         );
 }
+/// Feature: `student-course-enrollment-boundary` — Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
+/// Scenario: `reject-when-course-capacity-exceeded`
+///
+/// Enrolling a student when all course seats are taken fails with course-capacity-exceeded.
 #[tokio::test]
 async fn test_student_course_enrollment_boundary_reject_when_course_capacity_exceeded() {
     chromatofoor::testing::given::<
@@ -83,6 +91,10 @@ async fn test_student_course_enrollment_boundary_reject_when_course_capacity_exc
         .await
         .then_rejected(StudentCourseEnrollmentError::CourseCapacityExceeded);
 }
+/// Feature: `student-course-enrollment-boundary` — Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
+/// Scenario: `reject-when-student-load-exceeded`
+///
+/// Enrolling a student already holding 5 active courses fails with student-load-exceeded.
 #[tokio::test]
 async fn test_student_course_enrollment_boundary_reject_when_student_load_exceeded() {
     chromatofoor::testing::given::<
@@ -134,6 +146,10 @@ async fn test_student_course_enrollment_boundary_reject_when_student_load_exceed
         .await
         .then_rejected(StudentCourseEnrollmentError::StudentLoadExceeded);
 }
+/// Feature: `student-course-enrollment-boundary` — Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
+/// Scenario: `ignore-duplicate-drop-enrollment`
+///
+/// Dropping an already-dropped enrollment is an idempotent no-op emitting zero events.
 #[tokio::test]
 async fn test_student_course_enrollment_boundary_ignore_duplicate_drop_enrollment() {
     chromatofoor::testing::given::<

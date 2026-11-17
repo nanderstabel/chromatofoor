@@ -5,6 +5,10 @@
 use booking::generated::application::read_models::cargo_tracking::{
     CargoTracking, CargoTrackingEvents,
 };
+/// Feature: `cargo-tracking-queries` — Read-model query scenarios for shipment tracking status.
+/// Scenario: `return-routed-cargo-tracking-summary`
+///
+/// Querying get-cargo-tracking returns Routed status and assigned voyage number.
 #[tokio::test]
 async fn test_cargo_tracking_queries_return_routed_cargo_tracking_summary() {
     chromatofoor::testing::given_read_model(

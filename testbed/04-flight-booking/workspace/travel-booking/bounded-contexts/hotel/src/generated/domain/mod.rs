@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::TravelBooking;
+/// Manages hotel room reservations and cancellations.
 #[chromatofoor::bounded_context(scope = TravelBooking)]
 pub struct Hotel;
 pub mod actors;

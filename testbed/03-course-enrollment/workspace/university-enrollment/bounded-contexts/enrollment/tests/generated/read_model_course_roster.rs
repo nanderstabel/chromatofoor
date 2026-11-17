@@ -5,6 +5,10 @@
 use enrollment::generated::application::read_models::course_roster::{
     CourseRoster, CourseRosterEvents,
 };
+/// Feature: `course-roster-queries` — Read-model query scenarios for projected course enrollment counts.
+/// Scenario: `return-projected-roster-count`
+///
+/// Querying get-course-roster reflects net active enrollments after drops.
 #[tokio::test]
 async fn test_course_roster_queries_return_projected_roster_count() {
     chromatofoor::testing::given_read_model(

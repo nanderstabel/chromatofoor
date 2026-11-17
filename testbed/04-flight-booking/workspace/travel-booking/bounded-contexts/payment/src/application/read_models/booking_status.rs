@@ -6,6 +6,10 @@ use chromatofoor::{
     architecturekit::{Envelope, ViewError},
     bounded_context::Project,
 };
+/// Read Model: `booking-status` — Materialized payment status view for travelers.
+/// Projection: `payment-requested`
+///
+/// Rule: Insert booking-status record with payment-status Pending.
 impl Project<crate::generated::domain::booking_payment::event::payment_requested::PaymentRequested>
     for BookingStatus
 {
@@ -18,6 +22,10 @@ impl Project<crate::generated::domain::booking_payment::event::payment_requested
         todo!("implement Project::PaymentRequested::project for BookingStatus")
     }
 }
+/// Read Model: `booking-status` — Materialized payment status view for travelers.
+/// Projection: `payment-completed`
+///
+/// Rule: Update payment-status to Paid.
 impl Project<crate::generated::domain::booking_payment::event::payment_completed::PaymentCompleted>
     for BookingStatus
 {
@@ -30,6 +38,10 @@ impl Project<crate::generated::domain::booking_payment::event::payment_completed
         todo!("implement Project::PaymentCompleted::project for BookingStatus")
     }
 }
+/// Read Model: `booking-status` — Materialized payment status view for travelers.
+/// Projection: `payment-failed`
+///
+/// Rule: Update payment-status to Failed.
 impl Project<crate::generated::domain::booking_payment::event::payment_failed::PaymentFailed>
     for BookingStatus
 {

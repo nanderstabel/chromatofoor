@@ -3,6 +3,10 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 use sales::generated::application::read_models::cart_summary::{CartSummary, CartSummaryEvents};
+/// Feature: `cart-summary-queries` — Read-model query scenarios for shopping cart totals and checkout status.
+/// Scenario: `return-projected-cart-totals`
+///
+/// Querying get-cart-summary returns total_amount, item_count, and CheckedOut status.
 #[tokio::test]
 async fn test_cart_summary_queries_return_projected_cart_totals() {
     chromatofoor::testing::given_read_model(

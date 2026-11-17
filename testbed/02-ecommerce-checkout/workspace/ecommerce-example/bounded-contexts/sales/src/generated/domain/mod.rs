@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::EcommerceExample;
+/// Manages customer shopping carts, line items, shipping addresses, and checkout.
 #[chromatofoor::bounded_context(scope = EcommerceExample)]
 pub struct Sales;
 pub mod entities;

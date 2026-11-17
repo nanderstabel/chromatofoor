@@ -3,6 +3,7 @@
 // Any manual changes to this file will be overwritten on the next generation run.
 
 pub use ::domain::CargoShipping;
+/// Manages vessel voyage schedules and optimal route computation.
 #[chromatofoor::bounded_context(scope = CargoShipping)]
 pub struct VoyageRouting;
 pub mod actors;

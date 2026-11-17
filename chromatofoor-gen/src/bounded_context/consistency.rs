@@ -523,7 +523,14 @@ pub fn generate_consistency_units(
         let error_variants = invariants.iter().map(|inv| {
             let variant_ident = format_ident!("{}", inv.name.to_case(Case::Pascal));
             let name_str = &inv.name;
+            let inv_doc = match inv.rule.as_deref().map(str::trim) {
+                Some(rule) if !rule.is_empty() => crate::common::make_doc_lines(&[format!(
+                    "Invariant `{name_str}` — {rule}"
+                )]),
+                _ => crate::common::make_doc_lines(&[format!("Invariant `{name_str}`")]),
+            };
             quote! {
+                #inv_doc
                 #[error(#name_str)]
                 #variant_ident
             }
@@ -586,13 +593,37 @@ pub fn generate_consistency_units(
         // 2. Scaffold manual aggregate.rs if missing
         let manual_aggregate_rs = manual_base_path.join("aggregate.rs");
         if !manual_aggregate_rs.exists() {
-            if ctx.boundary.is_some() {
+            if let Some(ref boundary_doc) = ctx.boundary {
+                let mut doc_lines = vec![match boundary_doc.description.as_deref().map(str::trim) {
+                    Some(d) if !d.is_empty() => {
+                        format!("Dynamic Consistency Boundary: `{agg}` — {d}")
+                    }
+                    _ => format!("Dynamic Consistency Boundary: `{agg}`"),
+                }];
+                if let Some(consults) = &boundary_doc.consults
+                    && !consults.is_empty()
+                {
+                    doc_lines.push(String::new());
+                    doc_lines.push("- Consults:".to_string());
+                    for c in consults {
+                        if let Some(ev) = &c.event {
+                            match c.criteria.as_deref().map(str::trim) {
+                                Some(crit) if !crit.is_empty() => {
+                                    doc_lines.push(format!("  - `{ev}` — {crit}"));
+                                }
+                                _ => doc_lines.push(format!("  - `{ev}`")),
+                            }
+                        }
+                    }
+                }
+                let unit_doc = crate::common::make_doc_lines(&doc_lines);
                 crate::common::write_manual_rust_file(
                     &manual_aggregate_rs,
                     quote! {
                         use crate::generated::domain::#agg_snake::aggregate::#agg_pascal;
                         use serde::{Deserialize, Serialize};
 
+                        #unit_doc
                         #[derive(Default, Deserialize, Serialize, Debug, Clone, PartialEq)]
                         pub struct #dcb_state_ident {}
 
@@ -600,11 +631,22 @@ pub fn generate_consistency_units(
                     },
                 )?;
             } else {
+                let agg_desc = ctx
+                    .aggregate
+                    .as_ref()
+                    .and_then(|d| d.description.as_deref())
+                    .map(str::trim)
+                    .filter(|d| !d.is_empty());
+                let unit_doc = crate::common::make_doc_lines(&[match agg_desc {
+                    Some(d) => format!("Aggregate: `{agg}` — {d}"),
+                    None => format!("Aggregate: `{agg}`"),
+                }]);
                 crate::common::write_manual_rust_file(
                     &manual_aggregate_rs,
                     quote! {
                         use crate::generated::domain::#agg_snake::aggregate::#agg_pascal;
 
+                        #unit_doc
                         impl #agg_pascal {}
                     },
                 )?;
@@ -634,6 +676,64 @@ pub fn generate_consistency_units(
                 let manual_cmd_file = manual_command_dir.join(format!("{cmd_file_name}.rs"));
 
                 if !manual_cmd_file.exists() {
+                    let mut cmd_doc_lines = Vec::new();
+                    let cmd_header = match cmd.description.as_deref().map(str::trim) {
+                        Some(d) if !d.is_empty() => format!("Command: `{}` — {d}", cmd.name),
+                        _ => format!("Command: `{}`", cmd.name),
+                    };
+                    cmd_doc_lines.push(cmd_header);
+
+                    let mut bullet_lines = Vec::new();
+                    if let Some(actors) = &cmd.actors
+                        && !actors.is_empty()
+                    {
+                        let list = actors
+                            .iter()
+                            .map(|a| format!("`{a}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        bullet_lines.push(format!("- Actors: {list}"));
+                    }
+                    if let Some(publishes) = &cmd.publishes
+                        && !publishes.is_empty()
+                    {
+                        let list = publishes
+                            .iter()
+                            .map(|ev| format!("`{ev}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        bullet_lines.push(format!("- Publishes: {list}"));
+                    }
+                    if let Some(constraints) = &cmd.constraints
+                        && !constraints.is_empty()
+                    {
+                        bullet_lines.push("- Constraints:".to_string());
+                        for c in constraints {
+                            match c.rule.as_deref().map(str::trim) {
+                                Some(r) if !r.is_empty() => {
+                                    bullet_lines.push(format!("  - `{}` — {r}", c.name));
+                                }
+                                _ => bullet_lines.push(format!("  - `{}`", c.name)),
+                            }
+                        }
+                    }
+                    if !invariants.is_empty() {
+                        bullet_lines.push(format!("- Invariants (`{agg_error_ident}`):"));
+                        for inv in &invariants {
+                            match inv.rule.as_deref().map(str::trim) {
+                                Some(r) if !r.is_empty() => {
+                                    bullet_lines.push(format!("  - `{}` — {r}", inv.name));
+                                }
+                                _ => bullet_lines.push(format!("  - `{}`", inv.name)),
+                            }
+                        }
+                    }
+                    if !bullet_lines.is_empty() {
+                        cmd_doc_lines.push(String::new());
+                        cmd_doc_lines.extend(bullet_lines);
+                    }
+                    let cmd_impl_doc = crate::common::make_doc_lines(&cmd_doc_lines);
+
                     let todo_msg =
                         format!("implement Command::{agg_pascal}::decide for {struct_ident}");
                     crate::common::write_manual_rust_file(
@@ -645,6 +745,7 @@ pub fn generate_consistency_units(
                             use crate::generated::domain::#agg_snake::event::*;
                             use chromatofoor::bounded_context::Command;
 
+                            #cmd_impl_doc
                             impl Command<#agg_pascal> for #struct_ident {
                                 type Error = #agg_error_ident;
 
@@ -694,6 +795,28 @@ pub fn generate_consistency_units(
                     let manual_ev_file = manual_event_dir.join(format!("{file_mod_name}.rs"));
 
                     if !manual_ev_file.exists() {
+                        let mut ev_doc_lines = vec![match ev.description.as_deref().map(str::trim) {
+                            Some(d) if !d.is_empty() => format!("Event: `{}` — {d}", ev.name),
+                            _ => format!("Event: `{}`", ev.name),
+                        }];
+                        if let Some(boundary_doc) = &ctx.boundary
+                            && let Some(consults) = &boundary_doc.consults
+                            && let Some(criteria) = consults
+                                .iter()
+                                .find(|c| {
+                                    c.event.as_deref() == Some(ev.name.as_str())
+                                        && c.aggregate
+                                            .as_deref()
+                                            .is_none_or(|a| a == owner_unit.as_str())
+                                })
+                                .and_then(|c| c.criteria.as_deref())
+                                .map(str::trim)
+                                .filter(|s| !s.is_empty())
+                        {
+                            ev_doc_lines.push(String::new());
+                            ev_doc_lines.push(format!("Consult Criteria: {criteria}"));
+                        }
+                        let ev_impl_doc = crate::common::make_doc_lines(&ev_doc_lines);
                         let todo_msg = format!(
                             "implement Event::{agg_pascal}::evolve for {struct_ident} (return _state if stateless)"
                         );
@@ -704,6 +827,7 @@ pub fn generate_consistency_units(
                                 use crate::generated::domain::#owner_snake::event::#ev_mod::#struct_ident;
                                 use chromatofoor::bounded_context::Event;
 
+                                #ev_impl_doc
                                 impl Event<#agg_pascal> for #struct_ident {
                                     fn evolve(&self, _state: #agg_pascal) -> #agg_pascal {
                                         todo!(#todo_msg)
@@ -737,6 +861,12 @@ pub fn generate_consistency_units(
                 let manual_ev_file = manual_event_dir.join(format!("{ev_file_name}.rs"));
 
                 if !manual_ev_file.exists() {
+                    let ev_impl_doc = crate::common::make_doc_lines(&[
+                        match ev.description.as_deref().map(str::trim) {
+                            Some(d) if !d.is_empty() => format!("Event: `{}` — {d}", ev.name),
+                            _ => format!("Event: `{}`", ev.name),
+                        },
+                    ]);
                     let todo_msg = format!(
                         "implement Event::{agg_pascal}::evolve for {struct_ident} (return _state if stateless)"
                     );
@@ -747,6 +877,7 @@ pub fn generate_consistency_units(
                             use crate::generated::domain::#agg_snake::event::#struct_ident;
                             use chromatofoor::bounded_context::Event;
 
+                            #ev_impl_doc
                             impl Event<#agg_pascal> for #struct_ident {
                                 fn evolve(&self, _state: #agg_pascal) -> #agg_pascal {
                                     todo!(#todo_msg)

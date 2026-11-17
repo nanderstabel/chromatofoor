@@ -6,6 +6,10 @@ use finance::generated::domain::account::aggregate::Account;
 use finance::generated::domain::account::command::*;
 use finance::generated::domain::account::error::AccountError;
 use finance::generated::domain::account::event::*;
+/// Feature: `account-commands` — Behavioral scenarios for opening, depositing into, and withdrawing from a bank account.
+/// Scenario: `open-new-account`
+///
+/// Opening an account emits account-opened with the initial balance.
 #[tokio::test]
 async fn test_account_commands_open_new_account() {
     chromatofoor::testing::given::<Account>(vec![])
@@ -24,6 +28,10 @@ async fn test_account_commands_open_new_account() {
             ),
         )]);
 }
+/// Feature: `account-commands` — Behavioral scenarios for opening, depositing into, and withdrawing from a bank account.
+/// Scenario: `deposit-positive-amount`
+///
+/// Depositing a positive amount emits funds-deposited with the updated balance.
 #[tokio::test]
 async fn test_account_commands_deposit_positive_amount() {
     chromatofoor::testing::given::<Account>(vec![AccountEvent::AccountOpened(
@@ -45,6 +53,10 @@ async fn test_account_commands_deposit_positive_amount() {
             .expect("Failed to deserialize payload for then event 'AccountEvent::FundsDeposited'"),
     )]);
 }
+/// Feature: `account-commands` — Behavioral scenarios for opening, depositing into, and withdrawing from a bank account.
+/// Scenario: `ignore-zero-amount-deposit`
+///
+/// Depositing zero funds is an idempotent no-op that emits zero events.
 #[tokio::test]
 async fn test_account_commands_ignore_zero_amount_deposit() {
     chromatofoor::testing::given::<Account>(vec![AccountEvent::AccountOpened(
@@ -63,6 +75,10 @@ async fn test_account_commands_ignore_zero_amount_deposit() {
     .await
     .then_nothing();
 }
+/// Feature: `account-commands` — Behavioral scenarios for opening, depositing into, and withdrawing from a bank account.
+/// Scenario: `reject-overdraft-withdrawal`
+///
+/// Withdrawing more than the current balance is rejected with insufficient-funds.
 #[tokio::test]
 async fn test_account_commands_reject_overdraft_withdrawal() {
     chromatofoor::testing::given::<Account>(vec![AccountEvent::AccountOpened(
@@ -83,6 +99,10 @@ async fn test_account_commands_reject_overdraft_withdrawal() {
     .await
     .then_rejected(AccountError::InsufficientFunds);
 }
+/// Feature: `account-commands` — Behavioral scenarios for opening, depositing into, and withdrawing from a bank account.
+/// Scenario: `reject-unauthorized-teller-withdrawal`
+///
+/// A bank teller attempting to withdraw customer funds is rejected by actor authorization.
 #[tokio::test]
 async fn test_account_commands_reject_unauthorized_teller_withdrawal() {
     chromatofoor::testing::given::<
