@@ -9,11 +9,10 @@ publish.workspace = true
 
 [features]
 default = ["tui"]
-full = ["tui", "http", "rest", "graphql", "mcp", "tauri", "typescript"]
+full = ["tui", "http", "graphql", "mcp", "tauri", "typescript"]
 tauri = ["typescript"]
 tui = []
 http = []
-rest = ["http"]
 graphql = []
 mcp = []
 typescript = []

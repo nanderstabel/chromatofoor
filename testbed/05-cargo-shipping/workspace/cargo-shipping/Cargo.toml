@@ -10,7 +10,6 @@ members = [
     "integration/event-handlers",
     "integration/policies",
     "presentation/api-server",
-    "presentation/graphql-server",
     "presentation/interactive-tui",
     "presentation/mcp-server",
     "presentation/tauri-app/src-tauri",
@@ -28,7 +27,7 @@ tracing-test = "0.2"
 chromatofoor = { path = "../../../../chromatofoor" }
 chromatofoor-http = { path = "../../../../presentation/http" }
 chromatofoor-graphql = { path = "../../../../presentation/graphql", features = ["axum"] }
-chromatofoor-mcp = { path = "../../../../presentation/mcp" }
+chromatofoor-mcp = { path = "../../../../presentation/mcp", features = ["http"] }
 chromatofoor-tui = { path = "../../../../presentation/tui" }
 chromatofoor-tauri = { path = "../../../../presentation/tauri" }
 

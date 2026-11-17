@@ -172,7 +172,7 @@ pub fn run_codegen(opts: CodegenOptions) -> Result<()> {
 
     let active_transports = if presentation_bindings.is_empty() {
         ActiveTransports {
-            rest: cfg!(feature = "http") || cfg!(feature = "rest"),
+            http: cfg!(feature = "http"),
             cli: cfg!(feature = "tui"),
             graphql: cfg!(feature = "graphql"),
             tauri: cfg!(feature = "tauri"),
@@ -182,7 +182,7 @@ pub fn run_codegen(opts: CodegenOptions) -> Result<()> {
         let mut transports = ActiveTransports::default();
         for doc in presentation_bindings {
             match doc.transport.as_deref() {
-                Some("http" | "http-rest") => transports.rest = true,
+                Some("http" | "http-rest") => transports.http = true,
                 Some("cli") => transports.cli = true,
                 Some("graphql") => transports.graphql = true,
                 Some("tauri-ipc") => transports.tauri = true,

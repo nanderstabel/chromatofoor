@@ -5,6 +5,8 @@
 //! - `GET /openapi.json` — OpenAPI 3.0 specification derived from registered commands and queries.
 //! - `GET /v0/catalog` — JSON domain catalog of actors, commands, queries, read models, and consumers.
 //! - `GET /v0/events` — Server-Sent Events (SSE) stream of all domain events.
+//! - `GET /v0/events/history` — JSON snapshot of all stored domain events.
+//! - `GET /` — Embedded Svelte Workbench UI (when the `ui` feature is enabled).
 //! - `POST /v0/{bounded_context}/{target}/{command}` and
 //!   `POST /v0/{bounded_context}/{target}/{command}/{id}` — Command endpoints.
 //! - `GET /v0/{bounded_context}/{query}` and `GET /v0/{bounded_context}/{query}/{id}` — Query
@@ -746,6 +748,75 @@ pub fn generate_openapi(runtime: &DomainRuntime) -> OpenApi {
 
 /// Builds an [`axum::Router`] serving OpenAPI, domain catalog, SSE events, commands, and queries
 /// for `runtime`.
+#[cfg(feature = "ui")]
+const WORKBENCH_HTML: &str = include_str!("../ui-dist/index.html");
+#[cfg(feature = "ui")]
+const WORKBENCH_JS: &str = include_str!("../ui-dist/assets/workbench.js");
+#[cfg(feature = "ui")]
+const WORKBENCH_CSS: &str = include_str!("../ui-dist/assets/workbench.css");
+#[cfg(feature = "ui")]
+const WORKBENCH_LOGO: &[u8] = include_bytes!("../ui-dist/logo-horizontal.jpg");
+
+struct EventHistoryCollector {
+    events: std::sync::Mutex<Vec<Value>>,
+}
+
+impl chromatofoor::architecturekit::Projection for EventHistoryCollector {
+    type Event = chromatofoor::architecturekit::eventsourcingdb::Event;
+    type Error = std::convert::Infallible;
+
+    async fn apply(
+        &self,
+        event: chromatofoor::architecturekit::Envelope<Self::Event>,
+    ) -> Result<(), Self::Error> {
+        let ev = &event.data;
+        let subject = ev.subject().to_owned();
+        let instance_id = subject.rsplit('/').next().unwrap_or_default().to_owned();
+        let ty = ev.ty().to_owned();
+        let event_name = ty.rsplit('/').next().unwrap_or(&ty).to_owned();
+        let serialized = serde_json::json!({
+            "id": ev.id(),
+            "subject": subject,
+            "instance_id": instance_id,
+            "type": ty,
+            "event_name": event_name,
+            "source": ev.source(),
+            "time": ev.time().to_rfc3339(),
+            "data": ev.data(),
+        });
+        if let Ok(mut guard) = self.events.lock() {
+            guard.push(serialized);
+        }
+        Ok(())
+    }
+}
+
+async fn collect_event_history(runtime: &DomainRuntime) -> Result<Vec<Value>, String> {
+    let collector = Arc::new(EventHistoryCollector {
+        events: std::sync::Mutex::new(Vec::new()),
+    });
+    let token = chromatofoor::architecturekit::CancellationToken::new();
+    let topic = runtime.domain_topic();
+    let run = runtime.store().start_projection(
+        chromatofoor::architecturekit::Subjects::tree(
+            chromatofoor::architecturekit::Subject::new(topic),
+        ),
+        Arc::clone(&collector),
+        token.clone(),
+        chromatofoor::architecturekit::ProjectionOptions::named(format!("{topic}-http-history")),
+    );
+    chromatofoor::architecturekit::wait_caught_up(&[&run])
+        .await
+        .map_err(|e| e.to_string())?;
+    token.cancel();
+    let events = collector
+        .events
+        .lock()
+        .map(|mut guard| std::mem::take(&mut *guard))
+        .unwrap_or_default();
+    Ok(events)
+}
+
 pub fn routes(runtime: Arc<DomainRuntime>) -> Router {
     let openapi_spec = generate_openapi(&runtime);
     let mut router = Router::new()
@@ -758,6 +829,19 @@ pub fn routes(runtime: Arc<DomainRuntime>) -> Router {
             get(
                 |State(state): State<Arc<DomainRuntime>>| async move { Json(state.catalog_json()) },
             ),
+        )
+        .route(
+            "/v0/events/history",
+            get(|State(state): State<Arc<DomainRuntime>>| async move {
+                match collect_event_history(&state).await {
+                    Ok(events) => Json(events).into_response(),
+                    Err(err) => (
+                        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ProblemDetails::new(500, "Internal Server Error", err)),
+                    )
+                        .into_response(),
+                }
+            }),
         )
         .route(
             "/v0/events",
@@ -910,6 +994,42 @@ pub fn routes(runtime: Arc<DomainRuntime>) -> Router {
                 ),
             );
         }
+    }
+
+    #[cfg(feature = "ui")]
+    {
+        router = router
+            .route("/", get(|| async { axum::response::Html(WORKBENCH_HTML) }))
+            .route(
+                "/assets/workbench.js",
+                get(|| async {
+                    (
+                        [(
+                            axum::http::header::CONTENT_TYPE,
+                            "application/javascript; charset=utf-8",
+                        )],
+                        WORKBENCH_JS,
+                    )
+                }),
+            )
+            .route(
+                "/assets/workbench.css",
+                get(|| async {
+                    (
+                        [(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")],
+                        WORKBENCH_CSS,
+                    )
+                }),
+            )
+            .route(
+                "/logo-horizontal.jpg",
+                get(|| async {
+                    (
+                        [(axum::http::header::CONTENT_TYPE, "image/jpeg")],
+                        WORKBENCH_LOGO,
+                    )
+                }),
+            );
     }
 
     router.with_state(runtime)
@@ -1168,7 +1288,44 @@ mod tests {
         let amount: Value = serde_json::from_slice(&query_bytes).unwrap();
         assert_eq!(amount, json!(5250));
 
-        // 5. Stream SSE events from `GET /v0/events` with `subject_prefix` and `event_type` filters
+        // 5. Verify `GET /v0/events/history` returns the serialized event
+        let history_req = Request::builder()
+            .method("GET")
+            .uri("/v0/events/history")
+            .body(Body::empty())
+            .unwrap();
+        let history_resp = app.clone().oneshot(history_req).await.unwrap();
+        assert_eq!(history_resp.status(), StatusCode::OK);
+        let history_bytes = history_resp.into_body().collect().await.unwrap().to_bytes();
+        let history: Vec<Value> = serde_json::from_slice(&history_bytes).unwrap();
+        assert!(!history.is_empty());
+        assert_eq!(history[0]["event_name"], "invoice-created");
+        assert_eq!(history[0]["instance_id"], "inv-100");
+
+        #[cfg(feature = "ui")]
+        {
+            let ui_req = Request::builder()
+                .method("GET")
+                .uri("/")
+                .body(Body::empty())
+                .unwrap();
+            let ui_resp = app.clone().oneshot(ui_req).await.unwrap();
+            assert_eq!(ui_resp.status(), StatusCode::OK);
+            let ui_bytes = ui_resp.into_body().collect().await.unwrap().to_bytes();
+            let ui_html = String::from_utf8_lossy(&ui_bytes);
+            assert!(ui_html.contains("<div id=\"app\""));
+            assert!(ui_html.contains("/assets/workbench.js"));
+
+            let logo_req = Request::builder()
+                .method("GET")
+                .uri("/logo-horizontal.jpg")
+                .body(Body::empty())
+                .unwrap();
+            let logo_resp = app.clone().oneshot(logo_req).await.unwrap();
+            assert_eq!(logo_resp.status(), StatusCode::OK);
+        }
+
+        // 6. Stream SSE events from `GET /v0/events` with `subject_prefix` and `event_type` filters
         let sse_req = Request::builder()
             .method("GET")
             .uri(

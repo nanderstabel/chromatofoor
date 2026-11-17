@@ -79,7 +79,9 @@ version = "0.1.0"
 dependencies = [
  "bootstrap",
  "chromatofoor",
+ "chromatofoor-graphql",
  "chromatofoor-http",
+ "chromatofoor-mcp",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -840,11 +842,14 @@ name = "chromatofoor-mcp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "chromatofoor",
+ "chromatofoor-http",
  "rmcp",
  "serde",
  "serde_json",
  "tokio",
+ "tokio-stream",
  "tracing",
 ]
 
@@ -2255,19 +2260,6 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
-]
-
-[[package]]
-name = "graphql-server"
-version = "0.1.0"
-dependencies = [
- "bootstrap",
- "chromatofoor",
- "chromatofoor-graphql",
- "chromatofoor-http",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

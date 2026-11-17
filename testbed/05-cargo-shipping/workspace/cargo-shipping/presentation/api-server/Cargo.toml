@@ -10,6 +10,8 @@ tracing-subscriber = { workspace = true }
 bootstrap = { path = "../../bootstrap" }
 chromatofoor = { workspace = true }
 chromatofoor-http = { workspace = true }
+chromatofoor-graphql = { workspace = true }
+chromatofoor-mcp = { workspace = true }
 
 [lints]
 workspace = true

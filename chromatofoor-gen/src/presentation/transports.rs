@@ -6,7 +6,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Default)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ActiveTransports {
-    pub rest: bool,
+    pub http: bool,
     pub cli: bool,
     pub graphql: bool,
     pub tauri: bool,
@@ -38,9 +38,17 @@ pub fn generate_transports(
     active_transports: &ActiveTransports,
     chromatofoor_path: &str,
 ) -> Result<()> {
-    if active_transports.rest {
+    if active_transports.http || active_transports.graphql || active_transports.mcp {
         let api_server_dir = out_dir.join("presentation/api-server");
         fs::create_dir_all(&api_server_dir)?;
+
+        let mut extra_deps = String::new();
+        if active_transports.graphql {
+            extra_deps.push_str("chromatofoor-graphql = { workspace = true }\n");
+        }
+        if active_transports.mcp {
+            extra_deps.push_str("chromatofoor-mcp = { workspace = true }\n");
+        }
 
         let api_server_cargo = format!(
             r#"[package]
@@ -55,72 +63,58 @@ tracing-subscriber = {{ workspace = true }}
 bootstrap = {{ path = "../../bootstrap" }}
 chromatofoor = {{ workspace = true }}
 chromatofoor-http = {{ workspace = true }}
-{MEMBER_LINTS_TOML}"#
+{extra_deps}{MEMBER_LINTS_TOML}"#
         );
         fs::write(api_server_dir.join("Cargo.toml"), api_server_cargo)?;
 
         let api_server_src_dir = api_server_dir.join("src");
         fs::create_dir_all(&api_server_src_dir)?;
-        let main_rs_content = r#"#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+
+        let mut server_chain = String::from("chromatofoor_http::HttpServer::bind(\"0.0.0.0:3000\")");
+        if !active_transports.http {
+            server_chain.push_str("\n                .without_default_routes()");
+        }
+        if active_transports.graphql {
+            if active_transports.http {
+                server_chain.push_str("\n                .attach(chromatofoor_graphql::GraphQL::new())");
+            } else {
+                server_chain.push_str("\n                .attach(chromatofoor_graphql::GraphQL::new().with_root())");
+            }
+        }
+        if active_transports.mcp {
+            server_chain.push_str("\n                .attach(chromatofoor_mcp::Mcp::http())");
+        }
+
+        let mut startup_logs = String::from("    tracing::info!(\"Starting HTTP server on 0.0.0.0:3000\");\n");
+        if active_transports.http {
+            startup_logs.push_str("    tracing::info!(\"Workbench UI available at http://localhost:3000/\");\n");
+        }
+        if active_transports.graphql {
+            let graphiql_path = if active_transports.http { "/graphiql" } else { "/" };
+            startup_logs.push_str(&format!(
+                "    tracing::info!(\"GraphiQL UI available at http://localhost:3000{graphiql_path}\");\n"
+            ));
+        }
+        if active_transports.mcp {
+            startup_logs.push_str("    tracing::info!(\"MCP endpoint available at http://localhost:3000/mcp\");\n");
+        }
+
+        let main_rs_content = format!(
+            r"#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {{
     tracing_subscriber::fmt().init();
-    tracing::info!("Starting HTTP server on 0.0.0.0:3000");
-
-    bootstrap::Domain::build()
-        .await?
-        .attach(chromatofoor_http::HttpServer::bind("0.0.0.0:3000"))
-        .serve()
-        .await
-}
-"#;
-        fs::write(api_server_src_dir.join("main.rs"), main_rs_content)?;
-    }
-
-    if active_transports.graphql {
-        let graphql_server_dir = out_dir.join("presentation/graphql-server");
-        fs::create_dir_all(&graphql_server_dir)?;
-
-        let graphql_server_cargo = format!(
-            r#"[package]
-name = "graphql-server"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-tokio = {{ workspace = true }}
-tracing = {{ workspace = true }}
-tracing-subscriber = {{ workspace = true }}
-bootstrap = {{ path = "../../bootstrap" }}
-chromatofoor = {{ workspace = true }}
-chromatofoor-http = {{ workspace = true }}
-chromatofoor-graphql = {{ workspace = true }}
-{MEMBER_LINTS_TOML}"#
-        );
-        fs::write(graphql_server_dir.join("Cargo.toml"), graphql_server_cargo)?;
-
-        let graphql_server_src_dir = graphql_server_dir.join("src");
-        fs::create_dir_all(&graphql_server_src_dir)?;
-        let graphql_main_rs_content = r#"#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    tracing_subscriber::fmt().init();
-    tracing::info!("Starting GraphQL server on 0.0.0.0:8000");
-    tracing::info!("GraphiQL UI available at http://localhost:8000/");
-
+{startup_logs}
     bootstrap::Domain::build()
         .await?
         .attach(
-            chromatofoor_http::HttpServer::bind("0.0.0.0:8000")
-                .without_default_routes()
-                .attach(chromatofoor_graphql::GraphQL::new()),
+            {server_chain},
         )
         .serve()
         .await
-}
-"#;
-        fs::write(
-            graphql_server_src_dir.join("main.rs"),
-            graphql_main_rs_content,
-        )?;
+}}
+"
+        );
+        fs::write(api_server_src_dir.join("main.rs"), main_rs_content)?;
     }
 
     if active_transports.mcp {
@@ -311,7 +305,7 @@ mod tests {
     fn test_transports_emit_workspace_lints_and_tauri_dist() {
         let dir = tempfile::tempdir().unwrap();
         let active = ActiveTransports {
-            rest: true,
+            http: true,
             cli: true,
             graphql: true,
             tauri: true,
@@ -321,7 +315,6 @@ mod tests {
 
         for rel in [
             "presentation/api-server/Cargo.toml",
-            "presentation/graphql-server/Cargo.toml",
             "presentation/mcp-server/Cargo.toml",
             "presentation/interactive-tui/Cargo.toml",
             "presentation/tauri-app/src-tauri/Cargo.toml",
@@ -332,6 +325,11 @@ mod tests {
                 "missing [lints] in {rel}"
             );
         }
+
+        let api_cargo = fs::read_to_string(dir.path().join("presentation/api-server/Cargo.toml")).unwrap();
+        assert!(api_cargo.contains("chromatofoor-graphql"));
+        assert!(api_cargo.contains("chromatofoor-mcp"));
+        assert!(!dir.path().join("presentation/graphql-server").exists());
 
         assert!(
             dir.path()

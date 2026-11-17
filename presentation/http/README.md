@@ -4,7 +4,8 @@
 `chromatofoor-http` provides the composable Axum 0.8 HTTP (`GET`, `POST`, `SSE`) and OpenAPI 3.0 presentation server for `chromatofoor::domain::DomainRuntime`. It exposes `HttpServer` (implementing `chromatofoor::runtime::Presentation`) alongside the `HttpProtocol` sub-router trait so additional HTTP protocols (such as `chromatofoor-graphql` and `chromatofoor-mcp` Streamable HTTP) can share a single TCP listener and `DomainRuntime` without built-in CORS assumptions.
 
 ## Interface
-- **Sub-Protocol Extension Trait** (`src/lib.rs` — no Cargo feature flags):
+- **Sub-Protocol Extension Trait & Features** (`src/lib.rs`, `Cargo.toml`):
+  - Cargo feature `ui` (enabled by default): embeds the pre-built Svelte 5 Workbench UI (`ui-dist/`) at `GET /`, `GET /assets/workbench.js`, and `GET /assets/workbench.css`.
   - `HttpProtocol` — `Send + 'static` trait (`fn name(&self) -> &'static str` defaulted via `type_name::<Self>()`, and required `fn router(self, runtime: Arc<DomainRuntime>) -> axum::Router`), blanket-implemented for `FnOnce(Arc<DomainRuntime>) -> axum::Router + Send + 'static`.
 - **Composable HTTP Server & Bind Targets** (`src/lib.rs`):
   - `BindTarget` — `Socket(SocketAddr)` | `Address(String)` (defaults to `0.0.0.0:3000`; implements `Display` and `From<SocketAddr | ([u8; 4], u16) | u16 | &str | String>`).
@@ -16,8 +17,10 @@
     - `into_router(self, runtime: Arc<DomainRuntime>) -> axum::Router` — Builds and merges the default and attached `HttpProtocol` routers (no built-in CORS middleware).
 - **Standalone Router, OpenAPI & Header Helpers** (`src/lib.rs`):
   - `routes(runtime: Arc<DomainRuntime>) -> axum::Router` — Mounts:
+    - `GET /` (when `ui` feature is enabled) — Embedded Svelte 5 Workbench UI (`index.html` + `/assets/workbench.{js,css}`).
     - `GET /openapi.json` — OpenAPI 3.0 JSON specification (`200 OK`).
     - `GET /v0/catalog` — Runtime domain catalog JSON (`200 OK`).
+    - `GET /v0/events/history` — JSON snapshot of all stored domain events (`200 OK`).
     - `GET /v0/events` — Live/replayed SSE event stream (`text/event-stream`, filtered by optional `?subject_prefix=` prefix and `?event_type=` substring query parameters).
     - `POST /v0/{bc}/{target}/{cmd}` & `POST /v0/{bc}/{target}/{cmd}/{id}` — Command dispatch returning emitted event count (`usize` JSON, `200 OK`).
     - `GET /v0/{bc}/{query}`, `GET /v0/{bc}/{query}/{id}`, `GET /v0/{bc}/views/{read_model}/{query}`, & `GET /v0/{bc}/views/{read_model}/{query}/{id}` — Read-model query dispatch (`200 OK`).

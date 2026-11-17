@@ -496,20 +496,37 @@ pub fn build_schema(runtime: Arc<DomainRuntime>) -> Result<Schema, SchemaError> 
 /// GraphQL HTTP protocol adapter implementing [`chromatofoor_http::HttpProtocol`].
 ///
 /// Mounts:
-/// - `GET /` and `GET /graphiql` — Interactive GraphiQL IDE.
+/// - `GET /graphiql` (and `GET /` when [`GraphQL::with_root`] is called) — Interactive GraphiQL IDE.
 /// - `POST /graphql` and `GET /graphql?query=...` — GraphQL queries, mutations, and SSE streams.
 /// - `GET /graphql/sse` and `POST /graphql/sse` — GraphQL over Server-Sent Events (SSE) subscriptions.
 /// - `/graphql/ws` — GraphQL over WebSocket subscriptions.
 #[cfg(feature = "http")]
-#[derive(Clone, Copy, Debug, Default)]
-pub struct GraphQL;
+#[derive(Clone, Copy, Debug)]
+pub struct GraphQL {
+    mount_root: bool,
+}
+
+#[cfg(feature = "http")]
+impl Default for GraphQL {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[cfg(feature = "http")]
 impl GraphQL {
     /// Creates a new [`GraphQL`] HTTP protocol adapter.
     #[must_use]
     pub const fn new() -> Self {
-        Self
+        Self { mount_root: false }
+    }
+
+    /// Also mounts GraphiQL at `GET /` (in addition to `GET /graphiql`) for standalone GraphQL
+    /// servers that do not serve a workbench UI at `/`.
+    #[must_use]
+    pub const fn with_root(mut self) -> Self {
+        self.mount_root = true;
+        self
     }
 }
 
@@ -520,7 +537,7 @@ impl chromatofoor_http::HttpProtocol for GraphQL {
     }
 
     fn router(self, runtime: Arc<DomainRuntime>) -> axum::Router {
-        routes(runtime)
+        routes_with_root(runtime, self.mount_root)
     }
 }
 
@@ -602,6 +619,12 @@ fn prefers_event_stream(headers: &axum::http::HeaderMap, query: &str) -> bool {
 #[cfg(feature = "http")]
 #[allow(clippy::expect_used)]
 pub fn routes(runtime: Arc<DomainRuntime>) -> axum::Router {
+    routes_with_root(runtime, true)
+}
+
+#[cfg(feature = "http")]
+#[allow(clippy::expect_used)]
+fn routes_with_root(runtime: Arc<DomainRuntime>, mount_root: bool) -> axum::Router {
     use async_graphql_axum::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
     use axum::{
         Extension, Router, extract::Query as AxumQuery, response::IntoResponse, routing::get,
@@ -672,8 +695,7 @@ pub fn routes(runtime: Arc<DomainRuntime>) -> axum::Router {
 
     let schema = build_schema(runtime).expect("Failed to build GraphQL Schema");
 
-    Router::new()
-        .route("/", get(graphiql))
+    let mut router = Router::new()
         .route("/graphiql", get(graphiql))
         .route(
             "/graphql",
@@ -684,7 +706,11 @@ pub fn routes(runtime: Arc<DomainRuntime>) -> axum::Router {
             get(graphql_sse_get_handler).post(graphql_sse_post_handler),
         )
         .route_service("/graphql/ws", GraphQLSubscription::new(schema.clone()))
-        .layer(Extension(schema))
+        .layer(Extension(schema));
+    if mount_root {
+        router = router.route("/", get(graphiql));
+    }
+    router
 }
 
 fn map_json_keys(val: &mut Value, mappings: &HashMap<String, String>) {

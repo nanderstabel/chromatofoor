@@ -1,6 +1,35 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+
+  const isTauri =
+    typeof window !== "undefined" &&
+    ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+
+  async function tauriInvoke<T = any>(
+    cmd: string,
+    args?: Record<string, unknown>,
+  ): Promise<T> {
+    const internals = (window as any).__TAURI_INTERNALS__;
+    if (internals && typeof internals.invoke === "function") {
+      return internals.invoke(cmd, args);
+    }
+    const modName = "@tauri-apps/api/core";
+    const mod = await import(/* @vite-ignore */ modName);
+    return mod.invoke(cmd, args);
+  }
+
+  async function parseHttpError(res: Response): Promise<string> {
+    try {
+      const body = await res.json();
+      if (body && typeof body === "object") {
+        const msg = body.detail || body.title || body.error || res.statusText;
+        return body.code ? `[${body.code}] ${msg}` : String(msg);
+      }
+    } catch {
+      // ignore non-JSON error body
+    }
+    return `${res.status} ${res.statusText}`;
+  }
 
   interface CommandDesc {
     kind: string;
@@ -445,7 +474,12 @@
 
   async function refreshEvents() {
     try {
-      const res: any = await invoke("get_events");
+      const res: any = isTauri
+        ? await tauriInvoke("get_events")
+        : await fetch("/v0/events/history").then(async (r) => {
+            if (!r.ok) throw new Error(await parseHttpError(r));
+            return r.json();
+          });
       if (Array.isArray(res)) {
         events = res;
       }
@@ -458,7 +492,12 @@
     loading = true;
     errorBanner = null;
     try {
-      const res: any = await invoke("get_schema");
+      const res: any = isTauri
+        ? await tauriInvoke("get_schema")
+        : await fetch("/v0/catalog").then(async (r) => {
+            if (!r.ok) throw new Error(await parseHttpError(r));
+            return r.json();
+          });
       if (res && typeof res === "object") {
         catalog = {
           domain: res.domain || "chromatofoor-app",
@@ -503,18 +542,38 @@
         ? JSON.parse(rawCommandJson)
         : buildPayloadFromForm(fields, commandFormValues);
 
-      const res: any = await invoke("dispatch_command", {
-        ctx: selectedCommand.bounded_context,
-        agg: selectedCommand.target,
-        cmdName: selectedCommand.name,
-        payload,
-        metadata: {
-          actor_type: activeActor,
-        },
-      });
-
-      const emitted: StoredEvent[] = Array.isArray(res?.events) ? res.events : [];
-      await refreshEvents();
+      let emitted: StoredEvent[] = [];
+      if (isTauri) {
+        const res: any = await tauriInvoke("dispatch_command", {
+          ctx: selectedCommand.bounded_context,
+          agg: selectedCommand.target,
+          cmdName: selectedCommand.name,
+          payload,
+          metadata: {
+            actor_type: activeActor,
+          },
+        });
+        emitted = Array.isArray(res?.events) ? res.events : [];
+        await refreshEvents();
+      } else {
+        const url = `/v0/${encodeURIComponent(selectedCommand.bounded_context)}/${encodeURIComponent(selectedCommand.target)}/${encodeURIComponent(selectedCommand.name)}`;
+        const httpRes = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Actor": activeActor,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!httpRes.ok) {
+          throw new Error(await parseHttpError(httpRes));
+        }
+        const count = await httpRes.json();
+        await refreshEvents();
+        if (typeof count === "number" && count > 0) {
+          emitted = events.slice(-count);
+        }
+      }
 
       commandResult = {
         ok: true,
@@ -547,14 +606,37 @@
         ? JSON.parse(rawQueryJson)
         : buildPayloadFromForm(fields, queryFormValues);
 
-      const res: any = await invoke("query_read_model", {
-        ctx: selectedQuery.bounded_context,
-        queryName: selectedQuery.name,
-        params,
-        metadata: {
-          actor_type: activeActor,
-        },
-      });
+      let res: any;
+      if (isTauri) {
+        res = await tauriInvoke("query_read_model", {
+          ctx: selectedQuery.bounded_context,
+          queryName: selectedQuery.name,
+          params,
+          metadata: {
+            actor_type: activeActor,
+          },
+        });
+      } else {
+        const qs = new URLSearchParams();
+        if (params && typeof params === "object") {
+          for (const [k, v] of Object.entries(params)) {
+            if (v !== undefined && v !== null) {
+              qs.set(k, typeof v === "string" ? v : JSON.stringify(v));
+            }
+          }
+        }
+        const queryString = qs.toString();
+        const url = `/v0/${encodeURIComponent(selectedQuery.bounded_context)}/${encodeURIComponent(selectedQuery.name)}${queryString ? `?${queryString}` : ""}`;
+        const httpRes = await fetch(url, {
+          headers: {
+            "X-Actor": activeActor,
+          },
+        });
+        if (!httpRes.ok) {
+          throw new Error(await parseHttpError(httpRes));
+        }
+        res = await httpRes.json();
+      }
 
       queryResult = {
         ok: true,
@@ -676,8 +758,9 @@
   let isMaximized = $state(false);
 
   async function handleWindowControl(action: "drag" | "minimize" | "toggle_maximize" | "close") {
+    if (!isTauri) return;
     try {
-      const res: any = await invoke("window_control", { action });
+      const res: any = await tauriInvoke("window_control", { action });
       if (action === "toggle_maximize") {
         isMaximized = Boolean(res);
       }
@@ -687,7 +770,7 @@
   }
 
   function handleHeaderMouseDown(e: MouseEvent) {
-    if (e.button !== 0) return;
+    if (!isTauri || e.button !== 0) return;
     const target = e.target as HTMLElement | null;
     if (target?.closest("button, a, input, select, textarea, nav")) return;
     if (e.detail === 2) {
@@ -796,44 +879,46 @@
           <span>Sync</span>
         </button>
 
-        <div class="h-4 w-px bg-slate-200 mx-0.5"></div>
+        {#if isTauri}
+          <div class="h-4 w-px bg-slate-200 mx-0.5"></div>
 
-        <!-- Integrated Stitch Window Controls -->
-        <div class="flex items-center gap-1">
-          <button
-            type="button"
-            onclick={() => handleWindowControl("minimize")}
-            class="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Minimize window"
-          >
-            <span class="material-symbols-outlined text-[16px]">remove</span>
-          </button>
-          <button
-            type="button"
-            onclick={() => handleWindowControl("toggle_maximize")}
-            class="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            title={isMaximized ? "Restore window" : "Maximize window"}
-          >
-            <span class="material-symbols-outlined text-[15px]">
-              {isMaximized ? "close_fullscreen" : "open_in_full"}
-            </span>
-          </button>
-          <button
-            type="button"
-            onclick={() => handleWindowControl("close")}
-            class="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-[#cb4831] transition-colors cursor-pointer"
-            title="Close Chromatofoor"
-          >
-            <span class="material-symbols-outlined text-[16px]">close</span>
-          </button>
-        </div>
+          <!-- Integrated Stitch Window Controls -->
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              onclick={() => handleWindowControl("minimize")}
+              class="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Minimize window"
+            >
+              <span class="material-symbols-outlined text-[16px]">remove</span>
+            </button>
+            <button
+              type="button"
+              onclick={() => handleWindowControl("toggle_maximize")}
+              class="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              title={isMaximized ? "Restore window" : "Maximize window"}
+            >
+              <span class="material-symbols-outlined text-[15px]">
+                {isMaximized ? "close_fullscreen" : "open_in_full"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onclick={() => handleWindowControl("close")}
+              class="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-[#cb4831] transition-colors cursor-pointer"
+              title="Close Chromatofoor"
+            >
+              <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
+        {/if}
       </div>
     </div>
   </header>
 
   {#if errorBanner}
     <div class="mt-14 bg-rose-50 border-b border-rose-200 px-6 py-2.5 text-rose-800 text-xs font-code-mono flex items-center justify-between">
-      <span>Tauri Backend Error: {errorBanner}</span>
+      <span>{isTauri ? "Tauri Backend Error:" : "HTTP Backend Error:"} {errorBanner}</span>
       <button
         type="button"
         onclick={loadCatalogAndEvents}

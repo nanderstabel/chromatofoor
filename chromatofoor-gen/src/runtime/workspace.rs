@@ -49,11 +49,8 @@ pub fn generate_workspace(
         members.push(format!("    \"integration/process-managers/{}\"", pm.name));
     }
 
-    if active_transports.rest {
+    if active_transports.http || active_transports.graphql || active_transports.mcp {
         members.push("    \"presentation/api-server\"".to_string());
-    }
-    if active_transports.graphql {
-        members.push("    \"presentation/graphql-server\"".to_string());
     }
     if active_transports.mcp {
         members.push("    \"presentation/mcp-server\"".to_string());
@@ -94,7 +91,7 @@ pub fn generate_workspace(
         "chromatofoor-graphql = {{ path = \"{presentation_base}/graphql\", features = [\"axum\"] }}\n"
     ));
     workspace_cargo.push_str(&format!(
-        "chromatofoor-mcp = {{ path = \"{presentation_base}/mcp\" }}\n"
+        "chromatofoor-mcp = {{ path = \"{presentation_base}/mcp\", features = [\"http\"] }}\n"
     ));
     workspace_cargo.push_str(&format!(
         "chromatofoor-tui = {{ path = \"{presentation_base}/tui\" }}\n"

@@ -16,8 +16,8 @@
   - `chromatofoor-gen visualize -i, --input <PathBuf>` — Serves the interactive local HTTP domain-graph visualizer (`src/graph/visualizer.html` + `GET /graph.json`) for a serialized graph JSON file.
 - **Cargo Feature Flags** (`Cargo.toml` — binary-only package, no `[lib]` target):
   - `default = ["tui"]`
-  - `full = ["tui", "http", "rest", "graphql", "mcp", "tauri", "typescript"]`
-  - Individual transport/client flags: `tui`, `http`, `rest` (`["http"]`), `graphql`, `mcp`, `tauri` (`["typescript"]`), `typescript`.
+  - `full = ["tui", "http", "graphql", "mcp", "tauri", "typescript"]`
+  - Individual transport/client flags: `tui`, `http`, `graphql`, `mcp`, `tauri` (`["typescript"]`), `typescript`.
 - **Internal Compiler Modules** (`src/` — aligned with `chromatofoor` and `chromatofoor-derive`):
   - `common` (`src/common/{context.rs, writer.rs, schema.rs}`) — `GeneratorContext`, `BoundedContextGenerator`, `RoutingContext`, `resolve_bc_dir` (routing `tier: "shared-kernel"` to `shared-kernels/<bc>/`, subdomains to `bounded-contexts/<subdomain>/<bc>/`, and default BCs to `bounded-contexts/<bc>/`), `MEMBER_LINTS_TOML`, `write_generated_rust_file` (`write_rust_file`), `write_manual_rust_file`, `ensure_manual_mod_file`, `map_type`, `generate_struct_fields`, and `generate_type_for_prop`.
   - `domain` (`src/domain/mod.rs`) — `generate_domain_crate` emitting the shared `<workspace>/domain` crate (`#[chromatofoor::domain]` and `#[chromatofoor::external_system]`).
@@ -25,7 +25,7 @@
   - `integration` (`src/integration/{handler_common.rs, policy.rs, event_handler.rs, process_manager.rs}`) — `generate_policies`, `generate_event_handlers`, and `generate_process_managers` (`ResolvedPmSpec`, `sync_manual_pm_impls`).
   - `runtime` (`src/runtime/{pipeline.rs, workspace.rs, bootstrap.rs}`) — Multi-file ESDM ingestion & validation (`run_codegen`), root `<workspace>/Cargo.toml` & workspace orchestration (`generate_workspace`), and `bootstrap` crate composition (`generate_bootstrap_crate` with `#[chromatofoor::subdomain]`, `#[chromatofoor::context_mapping]`, and `Domain::{build, build_with_store}`).
   - `testing` (`src/testing/{mod.rs, bounded_context.rs, process_manager.rs}`) — `sync_generated_test_dir`, `generate_tests`, and `generate_process_manager_tests` emitting isolated `<crate>/tests/generated/main.rs` (`aggregate_<name>.rs`, `dcb_<name>.rs`, `read_model_<name>.rs`, `process_manager_<name>.rs`) suites.
-  - `presentation` (`src/presentation/{transports.rs, typescript.rs}`) — `ActiveTransports`, `generate_transports` (`api-server`, `graphql-server`, `mcp-server`, `interactive-tui`, `tauri-app`), and `#[cfg(feature = "typescript")] generate_typescript` (`typescript-client/`).
+  - `presentation` (`src/presentation/{transports.rs, typescript.rs}`) — `ActiveTransports`, `generate_transports` (unified HTTP `api-server` composing `http` + `graphql` + `mcp` HTTP protocols, standalone `mcp-server` over stdio, `interactive-tui`, and `tauri-app`), and `#[cfg(feature = "typescript")] generate_typescript` (`typescript-client/`).
   - `graph` (`src/graph/{mod.rs, visualizer.html}`) — `emit_graph_file` and `run_visualizer_server`.
 
 ## Invariants
