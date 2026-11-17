@@ -14,7 +14,7 @@ pub mod value_object;
 pub use crate::runtime::{CommandDescriptor, QueryDescriptor, ReadModelDescriptor};
 pub use actor::{Actor, ActorType, Authorized};
 pub use aggregate::Aggregate;
-pub use command::Command;
+pub use command::{Command, CommandExecutionError, PreconditionFailure};
 pub use domain_service::DomainService;
 pub use dynamic_consistency_boundary::DynamicConsistencyBoundary;
 pub use entity::Entity;

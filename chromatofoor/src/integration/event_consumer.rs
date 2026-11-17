@@ -386,3 +386,56 @@ pub fn map_error<E: std::fmt::Debug>(
         }
     }
 }
+
+pub(crate) async fn execute_isolated_command<S, C>(
+    store: &architecturekit::Store,
+    command: C,
+    consumer_kind: &'static str,
+) -> Result<
+    Vec<architecturekit::eventsourcingdb::Event>,
+    architecturekit::Error<architecturekit::DomainError>,
+>
+where
+    S: crate::bounded_context::command::CommandScope,
+    C: crate::bounded_context::Command<S>,
+{
+    match S::execute(store, command).await {
+        Ok(events) => Ok(events),
+        Err(crate::bounded_context::CommandExecutionError::Store(
+            architecturekit::Error::Decider(err),
+        )) => {
+            tracing::warn!(
+                command = C::TOPIC,
+                consumer = consumer_kind,
+                error = %err,
+                "command rejected by target decider; isolating stream"
+            );
+            Ok(Vec::new())
+        }
+        Err(crate::bounded_context::CommandExecutionError::Precondition(failure)) => {
+            tracing::warn!(
+                command = C::TOPIC,
+                consumer = consumer_kind,
+                error = %failure,
+                "command precondition failed on zero-event decision; isolating stream"
+            );
+            Ok(Vec::new())
+        }
+        Err(crate::bounded_context::CommandExecutionError::Store(
+            architecturekit::Error::Transient(t),
+        )) => Err(architecturekit::Error::Transient(t)),
+        Err(crate::bounded_context::CommandExecutionError::Store(
+            architecturekit::Error::Permanent(p),
+        )) => Err(architecturekit::Error::Permanent(p)),
+        Err(crate::bounded_context::CommandExecutionError::Store(
+            architecturekit::Error::OutcomeUnknown(f),
+        )) => Err(architecturekit::Error::OutcomeUnknown(f)),
+        Err(crate::bounded_context::CommandExecutionError::Store(
+            architecturekit::Error::EmptyRange(r),
+        )) => Err(architecturekit::Error::EmptyRange(r)),
+        #[allow(unreachable_patterns)]
+        Err(other) => Err(architecturekit::Error::Decider(
+            architecturekit::DomainError::new(format!("{other}")),
+        )),
+    }
+}

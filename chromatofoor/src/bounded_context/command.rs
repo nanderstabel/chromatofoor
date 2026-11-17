@@ -1,6 +1,210 @@
 use crate::common::{Identified, Kind};
 use std::future::Future;
 
+/// Specific subject precondition that did not hold when executing a [`Command`] whose
+/// [`Command::decide`] emitted zero events.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum PreconditionFailure {
+    /// `isSubjectPopulated` failed because no events exist on `subject`.
+    #[error("precondition isSubjectPopulated does not hold for subject {subject:?}")]
+    SubjectNotPopulated {
+        /// Subject path that was expected to be populated.
+        subject: String,
+    },
+    /// `isSubjectPristine` failed because `subject` already has events.
+    #[error("precondition isSubjectPristine does not hold for subject {subject:?}")]
+    SubjectNotPristine {
+        /// Subject path that was expected to be pristine.
+        subject: String,
+    },
+    /// `isSubjectOnEventId` failed because `subject` is not at `expected_event_id`.
+    #[error(
+        "precondition isSubjectOnEventId does not hold for subject {subject:?} (expected {expected_event_id:?})"
+    )]
+    SubjectRevisionMismatch {
+        /// Subject path whose latest revision was checked.
+        subject: String,
+        /// Expected event ID string.
+        expected_event_id: String,
+    },
+    /// A precondition contained a malformed subject string.
+    #[error("malformed precondition subject {subject:?}")]
+    MalformedSubject {
+        /// Invalid subject string.
+        subject: String,
+    },
+}
+
+/// Error returned when executing a [`Command`] against an
+/// [`Aggregate`](crate::bounded_context::Aggregate) or
+/// [`DynamicConsistencyBoundary`](crate::bounded_context::DynamicConsistencyBoundary).
+#[derive(Debug, thiserror::Error)]
+pub enum CommandExecutionError<E> {
+    /// An [`architecturekit::Store`] or [`Command::decide`] failure.
+    #[error("{0}")]
+    Store(architecturekit::Error<E>),
+
+    /// A declared subject precondition did not hold on a zero-event decision.
+    #[error("{0}")]
+    Precondition(#[from] PreconditionFailure),
+}
+
+impl<E> From<architecturekit::Error<E>> for CommandExecutionError<E> {
+    fn from(err: architecturekit::Error<E>) -> Self {
+        Self::Store(err)
+    }
+}
+
+impl<E> From<architecturekit::ExecuteError<E>> for CommandExecutionError<E> {
+    fn from(err: architecturekit::ExecuteError<E>) -> Self {
+        Self::Store(err.into())
+    }
+}
+
+impl<E> From<architecturekit::ReadError> for CommandExecutionError<E> {
+    fn from(err: architecturekit::ReadError) -> Self {
+        Self::Store(err.into())
+    }
+}
+
+impl<E> From<architecturekit::WriteError> for CommandExecutionError<E> {
+    fn from(err: architecturekit::WriteError) -> Self {
+        Self::Store(err.into())
+    }
+}
+
+impl<E> From<architecturekit::PreconditionsError> for CommandExecutionError<E> {
+    fn from(err: architecturekit::PreconditionsError) -> Self {
+        Self::Store(err.into())
+    }
+}
+
+impl<E: architecturekit::Categorized> architecturekit::Categorized for CommandExecutionError<E> {
+    fn category(&self) -> Option<architecturekit::Category> {
+        match self {
+            Self::Store(err) => err.category(),
+            Self::Precondition(PreconditionFailure::MalformedSubject { .. }) => {
+                Some(architecturekit::Category::Permanent)
+            }
+            Self::Precondition(_) => Some(architecturekit::Category::Transient),
+        }
+    }
+}
+
+pub(crate) async fn verify_zero_event_preconditions<E>(
+    store: &architecturekit::Store,
+    preconditions: &[architecturekit::Precondition],
+) -> Result<(), CommandExecutionError<E>> {
+    use architecturekit::{Order, ReadOptions, Subject, Subjects, eventsourcingdb};
+    use futures_util::StreamExt as _;
+
+    let newest_first = ReadOptions {
+        order: Order::NewestFirst,
+        ..ReadOptions::default()
+    };
+
+    for precondition in preconditions {
+        let Some(db_precondition) = precondition.database() else {
+            continue;
+        };
+        match db_precondition {
+            eventsourcingdb::Precondition::IsSubjectPristine {
+                subject, options, ..
+            } => {
+                let parsed = subject.parse::<Subject>().map_err(|_| {
+                    PreconditionFailure::MalformedSubject {
+                        subject: subject.clone(),
+                    }
+                })?;
+                let recursive = options.as_ref().is_some_and(|opts| opts.recursive);
+                let subjects = if recursive {
+                    Subjects::tree(parsed)
+                } else {
+                    Subjects::exact(parsed)
+                };
+                let stream = store.read(&subjects, &newest_first).await?;
+                let mut stream = std::pin::pin!(stream);
+                if let Some(item) = stream.next().await {
+                    let _ = item?;
+                    return Err(PreconditionFailure::SubjectNotPristine {
+                        subject: subject.clone(),
+                    }
+                    .into());
+                }
+            }
+            eventsourcingdb::Precondition::IsSubjectPopulated {
+                subject, options, ..
+            } => {
+                let parsed = subject.parse::<Subject>().map_err(|_| {
+                    PreconditionFailure::MalformedSubject {
+                        subject: subject.clone(),
+                    }
+                })?;
+                let recursive = options.as_ref().is_some_and(|opts| opts.recursive);
+                let subjects = if recursive {
+                    Subjects::tree(parsed)
+                } else {
+                    Subjects::exact(parsed)
+                };
+                let stream = store.read(&subjects, &newest_first).await?;
+                let mut stream = std::pin::pin!(stream);
+                match stream.next().await {
+                    Some(item) => {
+                        let _ = item?;
+                    }
+                    None => {
+                        return Err(PreconditionFailure::SubjectNotPopulated {
+                            subject: subject.clone(),
+                        }
+                        .into());
+                    }
+                }
+            }
+            eventsourcingdb::Precondition::IsSubjectOnEventId {
+                subject,
+                event_id,
+                options,
+                ..
+            } => {
+                let parsed = subject.parse::<Subject>().map_err(|_| {
+                    PreconditionFailure::MalformedSubject {
+                        subject: subject.clone(),
+                    }
+                })?;
+                let recursive = options.as_ref().is_some_and(|opts| opts.recursive);
+                let subjects = if recursive {
+                    Subjects::tree(parsed)
+                } else {
+                    Subjects::exact(parsed)
+                };
+                let stream = store.read(&subjects, &newest_first).await?;
+                let mut stream = std::pin::pin!(stream);
+                match stream.next().await {
+                    Some(item) => {
+                        let latest = item?;
+                        if latest.id() != event_id {
+                            return Err(PreconditionFailure::SubjectRevisionMismatch {
+                                subject: subject.clone(),
+                                expected_event_id: event_id.clone(),
+                            }
+                            .into());
+                        }
+                    }
+                    None => {
+                        return Err(PreconditionFailure::SubjectRevisionMismatch {
+                            subject: subject.clone(),
+                            expected_event_id: event_id.clone(),
+                        }
+                        .into());
+                    }
+                }
+            }
+            eventsourcingdb::Precondition::IsEventQLQueryTrue { .. } => {}
+        }
+    }
+    Ok(())
+}
+
 #[doc(hidden)]
 #[diagnostic::on_unimplemented(
     message = "`{Self}` is not a valid command scope (`Aggregate` or `DynamicConsistencyBoundary`)",
@@ -11,7 +215,7 @@ pub trait CommandScope:
     architecturekit::State<Event: Send + Sync + 'static> + Kind + Identified + Send + Sync
 {
     /// Executes `command` against `store` using this scope's execution strategy
-    /// (`Store::execute` for [`Aggregate`](crate::bounded_context::Aggregate), or
+    /// ([`Aggregate::execute`](crate::bounded_context::Aggregate::execute) or
     /// [`DynamicConsistencyBoundary::execute`](crate::bounded_context::DynamicConsistencyBoundary::execute)).
     fn execute<C: Command<Self>>(
         store: &architecturekit::Store,
@@ -19,7 +223,7 @@ pub trait CommandScope:
     ) -> impl Future<
         Output = Result<
             Vec<architecturekit::eventsourcingdb::Event>,
-            architecturekit::Error<C::Error>,
+            CommandExecutionError<C::Error>,
         >,
     > + Send;
 }

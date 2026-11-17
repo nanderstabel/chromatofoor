@@ -264,27 +264,9 @@ where
     S: crate::bounded_context::command::CommandScope,
     C: crate::bounded_context::Command<S>,
 {
-    match S::execute(store, command).await {
-        Ok(_) => Ok(()),
-        Err(architecturekit::Error::Decider(err)) => {
-            tracing::warn!(
-                command = C::TOPIC,
-                error = %err,
-                "process manager command rejected by target decider; isolating stream"
-            );
-            Ok(())
-        }
-        Err(architecturekit::Error::Transient(t)) => Err(architecturekit::Error::Transient(t)),
-        Err(architecturekit::Error::Permanent(p)) => Err(architecturekit::Error::Permanent(p)),
-        Err(architecturekit::Error::OutcomeUnknown(f)) => {
-            Err(architecturekit::Error::OutcomeUnknown(f))
-        }
-        Err(architecturekit::Error::EmptyRange(r)) => Err(architecturekit::Error::EmptyRange(r)),
-        #[allow(unreachable_patterns)]
-        Err(other) => Err(architecturekit::Error::Decider(
-            architecturekit::DomainError::new(format!("{other}")),
-        )),
-    }
+    crate::integration::event_consumer::execute_isolated_command(store, command, "process manager")
+        .await
+        .map(|_| ())
 }
 
 /// Classifies an action returned from a [`ProcessManager`] reaction into either an

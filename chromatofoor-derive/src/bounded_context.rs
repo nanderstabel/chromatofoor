@@ -80,12 +80,9 @@ pub fn aggregate(attr: TokenStream, item: TokenStream) -> TokenStream {
                 command: C,
             ) -> ::core::result::Result<
                 ::std::vec::Vec<chromatofoor::architecturekit::eventsourcingdb::Event>,
-                chromatofoor::architecturekit::Error<C::Error>,
+                chromatofoor::bounded_context::CommandExecutionError<C::Error>,
             > {
-                store
-                    .execute(&C::decider(), command)
-                    .await
-                    .map_err(::core::convert::Into::into)
+                <Self as chromatofoor::bounded_context::Aggregate>::execute(store, command).await
             }
         }
         impl chromatofoor::bounded_context::Aggregate for #ident {}
@@ -319,7 +316,7 @@ pub fn dynamic_consistency_boundary(attr: TokenStream, item: TokenStream) -> Tok
                 command: C,
             ) -> ::core::result::Result<
                 ::std::vec::Vec<chromatofoor::architecturekit::eventsourcingdb::Event>,
-                chromatofoor::architecturekit::Error<C::Error>,
+                chromatofoor::bounded_context::CommandExecutionError<C::Error>,
             > {
                 <Self as chromatofoor::bounded_context::DynamicConsistencyBoundary>::execute(
                     store, command,

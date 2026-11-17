@@ -287,25 +287,5 @@ where
     S: crate::bounded_context::command::CommandScope,
     C: crate::bounded_context::Command<S>,
 {
-    match S::execute(store, command).await {
-        Ok(events) => Ok(events),
-        Err(architecturekit::Error::Decider(err)) => {
-            tracing::warn!(
-                command = C::TOPIC,
-                error = %err,
-                "policy command rejected by target decider; isolating stream"
-            );
-            Ok(Vec::new())
-        }
-        Err(architecturekit::Error::Transient(t)) => Err(architecturekit::Error::Transient(t)),
-        Err(architecturekit::Error::Permanent(p)) => Err(architecturekit::Error::Permanent(p)),
-        Err(architecturekit::Error::OutcomeUnknown(f)) => {
-            Err(architecturekit::Error::OutcomeUnknown(f))
-        }
-        Err(architecturekit::Error::EmptyRange(r)) => Err(architecturekit::Error::EmptyRange(r)),
-        #[allow(unreachable_patterns)]
-        Err(other) => Err(architecturekit::Error::Decider(
-            architecturekit::DomainError::new(format!("{other}")),
-        )),
-    }
+    crate::integration::event_consumer::execute_isolated_command(store, command, "policy").await
 }

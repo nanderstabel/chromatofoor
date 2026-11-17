@@ -1,7 +1,10 @@
 use std::future::Future;
 
 use crate::{
-    bounded_context::{BoundedContext, Command, command::CommandScope},
+    bounded_context::{
+        BoundedContext, Command,
+        command::{CommandExecutionError, CommandScope, verify_zero_event_preconditions},
+    },
     common::{Identified, Kind},
 };
 
@@ -147,7 +150,7 @@ pub trait DynamicConsistencyBoundary:
     ) -> impl Future<
         Output = Result<
             Vec<architecturekit::eventsourcingdb::Event>,
-            architecturekit::Error<C::Error>,
+            CommandExecutionError<C::Error>,
         >,
     > + Send
     where
@@ -157,10 +160,13 @@ pub trait DynamicConsistencyBoundary:
     {
         async move {
             use architecturekit::{
-                Precondition, Projected, ReadOptions, Subject, Subjects, eventsourcingdb,
-                revision_of,
+                Precondition, Projected, ReadOptions, Subject, Subjects, check_preconditions,
+                eventsourcingdb, revision_of,
             };
             use futures_util::StreamExt as _;
+
+            check_preconditions(&command)?;
+            let declared_preconditions = architecturekit::Command::preconditions(&command);
 
             let bc_subject = Subject::new(<Self::Scope as Kind>::TOPIC);
             let subjects = Subjects::tree(bc_subject.clone());
@@ -193,6 +199,7 @@ pub trait DynamicConsistencyBoundary:
                 .await
                 .map_err(architecturekit::Error::Decider)?;
             if events.is_empty() {
+                verify_zero_event_preconditions(store, &declared_preconditions).await?;
                 return Ok(Vec::new());
             }
 
