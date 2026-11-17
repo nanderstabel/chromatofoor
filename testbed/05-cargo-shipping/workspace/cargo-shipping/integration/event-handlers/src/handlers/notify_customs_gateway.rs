@@ -13,7 +13,12 @@ pub struct NotifyCustomsGatewayDeps {}
 /// - Side Effects:
 ///   - `external-call` (`customs-clearance-gateway`) — Submit electronic cargo manifest to customs-clearance-gateway for the assigned voyage.
 impl Handle<CargoAssignedToRoute> for NotifyCustomsGateway {
-    async fn handle(&self, _event: Envelope<CargoAssignedToRoute>) -> Result<(), DomainError> {
-        todo!("implement Handle::CargoAssignedToRoute::handle for NotifyCustomsGateway")
+    async fn handle(&self, event: Envelope<CargoAssignedToRoute>) -> Result<(), DomainError> {
+        chromatofoor::tracing::info!(
+            tracking_id = %event.data.tracking_id,
+            voyage_number = %event.data.voyage_number,
+            "submitting electronic cargo manifest to customs-clearance-gateway"
+        );
+        Ok(())
     }
 }

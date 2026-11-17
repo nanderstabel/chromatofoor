@@ -14,6 +14,11 @@ impl Command<CustomsDeclaration> for LodgeCustomsDeclaration {
         self,
         _state: &CustomsDeclaration,
     ) -> Result<Vec<CustomsDeclarationEvent>, Self::Error> {
-        todo!("implement Command::CustomsDeclaration::decide for LodgeCustomsDeclaration")
+        Ok(vec![CustomsDeclarationEvent::CustomsDeclarationLodged(
+            CustomsDeclarationLodged {
+                declaration_id: self.declaration_id,
+                tracking_id: self.tracking_id,
+            },
+        )])
     }
 }

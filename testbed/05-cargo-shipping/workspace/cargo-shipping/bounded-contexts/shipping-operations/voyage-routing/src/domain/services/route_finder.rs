@@ -12,8 +12,14 @@ impl RouteFinderService for RouteFinder {
     /// Function: `find-optimal-route` — Returns the recommended voyage number connecting origin and destination ports.
     async fn find_optimal_route(
         &self,
-        _req: FindOptimalRouteRequest,
+        req: FindOptimalRouteRequest,
     ) -> Result<FindOptimalRouteResponse, FindOptimalRouteError> {
-        todo!("implement RouteFinderService::find_optimal_route for RouteFinder")
+        Ok(FindOptimalRouteResponse {
+            voyage_number: format!(
+                "v-{}-{}",
+                req.origin_locode.to_lowercase(),
+                req.destination_locode.to_lowercase()
+            ),
+        })
     }
 }

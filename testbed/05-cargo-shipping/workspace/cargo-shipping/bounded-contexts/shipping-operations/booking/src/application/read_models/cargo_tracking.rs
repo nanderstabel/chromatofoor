@@ -13,8 +13,18 @@ use chromatofoor::{
 ///
 /// Rule: Insert cargo-tracking record keyed by tracking-id with routing-status NotRouted.
 impl Project<CargoBooked> for CargoTracking {
-    async fn project(&self, _event: Envelope<CargoBooked>) -> Result<(), ViewError> {
-        todo!("implement Project::CargoBooked::project for CargoTracking")
+    async fn project(&self, event: Envelope<CargoBooked>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.tracking_id.as_str(), &event, |record| {
+                record.tracking_id = event.data.tracking_id.to_string();
+                record.origin_locode.clone_from(&event.data.origin_locode);
+                record
+                    .destination_locode
+                    .clone_from(&event.data.destination_locode);
+                record.routing_status = "NotRouted".to_owned();
+                record.voyage_number = None;
+            })?;
+        Ok(())
     }
 }
 /// Read Model: `cargo-tracking` — Materialized shipment tracking view showing route ports and assigned voyage.
@@ -22,7 +32,13 @@ impl Project<CargoBooked> for CargoTracking {
 ///
 /// Rule: Update routing-status to Routed and set voyage-number for the record keyed by tracking-id.
 impl Project<CargoAssignedToRoute> for CargoTracking {
-    async fn project(&self, _event: Envelope<CargoAssignedToRoute>) -> Result<(), ViewError> {
-        todo!("implement Project::CargoAssignedToRoute::project for CargoTracking")
+    async fn project(&self, event: Envelope<CargoAssignedToRoute>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.tracking_id.as_str(), &event, |record| {
+                record.tracking_id = event.data.tracking_id.to_string();
+                record.routing_status = "Routed".to_owned();
+                record.voyage_number = Some(event.data.voyage_number.clone());
+            })?;
+        Ok(())
     }
 }

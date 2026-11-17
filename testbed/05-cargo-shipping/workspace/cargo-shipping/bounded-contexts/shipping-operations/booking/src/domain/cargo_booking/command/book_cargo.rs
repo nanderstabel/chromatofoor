@@ -12,6 +12,13 @@ impl Command<CargoBooking> for BookCargo {
     type Error = CargoBookingError;
     #[tracing::instrument(skip(self, _state))]
     async fn decide(self, _state: &CargoBooking) -> Result<Vec<CargoBookingEvent>, Self::Error> {
-        todo!("implement Command::CargoBooking::decide for BookCargo")
+        if self.origin_locode == self.destination_locode {
+            return Err(CargoBookingError::SameOriginAndDestination);
+        }
+        Ok(vec![CargoBookingEvent::CargoBooked(CargoBooked {
+            destination_locode: self.destination_locode,
+            origin_locode: self.origin_locode,
+            tracking_id: self.tracking_id,
+        })])
     }
 }

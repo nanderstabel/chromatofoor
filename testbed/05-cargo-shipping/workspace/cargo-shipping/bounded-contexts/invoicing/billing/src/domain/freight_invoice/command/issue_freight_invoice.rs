@@ -13,6 +13,12 @@ impl Command<FreightInvoice> for IssueFreightInvoice {
         self,
         _state: &FreightInvoice,
     ) -> Result<Vec<FreightInvoiceEvent>, Self::Error> {
-        todo!("implement Command::FreightInvoice::decide for IssueFreightInvoice")
+        Ok(vec![FreightInvoiceEvent::FreightInvoiceIssued(
+            FreightInvoiceIssued {
+                amount_cents: self.amount_cents,
+                invoice_id: self.invoice_id,
+                tracking_id: self.tracking_id,
+            },
+        )])
     }
 }

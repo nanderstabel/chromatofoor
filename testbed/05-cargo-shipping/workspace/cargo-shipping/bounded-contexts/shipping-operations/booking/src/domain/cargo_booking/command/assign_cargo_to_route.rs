@@ -10,8 +10,16 @@ use chromatofoor::bounded_context::Command;
 ///   - `same-origin-and-destination` — Origin UN/LOCODE and destination UN/LOCODE cannot be identical.
 impl Command<CargoBooking> for AssignCargoToRoute {
     type Error = CargoBookingError;
-    #[tracing::instrument(skip(self, _state))]
-    async fn decide(self, _state: &CargoBooking) -> Result<Vec<CargoBookingEvent>, Self::Error> {
-        todo!("implement Command::CargoBooking::decide for AssignCargoToRoute")
+    #[tracing::instrument(skip(self, state))]
+    async fn decide(self, state: &CargoBooking) -> Result<Vec<CargoBookingEvent>, Self::Error> {
+        if state.is_none() {
+            return Ok(vec![]);
+        }
+        Ok(vec![CargoBookingEvent::CargoAssignedToRoute(
+            CargoAssignedToRoute {
+                tracking_id: self.tracking_id,
+                voyage_number: self.voyage_number,
+            },
+        )])
     }
 }
