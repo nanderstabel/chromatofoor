@@ -13,6 +13,8 @@ impl Command<ShoppingCart> for InitializeCart {
     type Error = ShoppingCartError;
     #[tracing::instrument(skip(self, _state))]
     async fn decide(self, _state: &ShoppingCart) -> Result<Vec<ShoppingCartEvent>, Self::Error> {
-        todo!("implement Command::ShoppingCart::decide for InitializeCart")
+        Ok(vec![ShoppingCartEvent::CartInitialized(CartInitialized {
+            customer_id: self.customer_id,
+        })])
     }
 }

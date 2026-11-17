@@ -11,8 +11,19 @@ use chromatofoor::bounded_context::Command;
 ///   - `cart-already-checked-out` — Cannot modify or re-submit a shopping cart that has already been checked out.
 impl Command<ShoppingCart> for CheckoutCart {
     type Error = ShoppingCartError;
-    #[tracing::instrument(skip(self, _state))]
-    async fn decide(self, _state: &ShoppingCart) -> Result<Vec<ShoppingCartEvent>, Self::Error> {
-        todo!("implement Command::ShoppingCart::decide for CheckoutCart")
+    #[tracing::instrument(skip(self, state))]
+    async fn decide(self, state: &ShoppingCart) -> Result<Vec<ShoppingCartEvent>, Self::Error> {
+        let ShoppingCart::Created(inner) = state else {
+            return Ok(vec![]);
+        };
+        if inner.checked_out {
+            return Err(ShoppingCartError::CartAlreadyCheckedOut);
+        }
+        if inner.items.is_empty() {
+            return Err(ShoppingCartError::EmptyCart);
+        }
+        Ok(vec![ShoppingCartEvent::CartCheckedOut(CartCheckedOut {
+            shipping_address: self.shipping_address,
+        })])
     }
 }

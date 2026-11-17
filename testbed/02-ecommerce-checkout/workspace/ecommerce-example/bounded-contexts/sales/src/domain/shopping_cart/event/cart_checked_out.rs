@@ -2,9 +2,10 @@ use crate::generated::domain::shopping_cart::{aggregate::ShoppingCart, event::Ca
 use chromatofoor::bounded_context::Event;
 /// Event: `cart-checked-out` — Emitted when a shopping cart is checked out with a shipping address.
 impl Event<ShoppingCart> for CartCheckedOut {
-    fn evolve(&self, _state: ShoppingCart) -> ShoppingCart {
-        todo!(
-            "implement Event::ShoppingCart::evolve for CartCheckedOut (return _state if stateless)"
-        )
+    fn evolve(&self, mut state: ShoppingCart) -> ShoppingCart {
+        if let ShoppingCart::Created(ref mut inner) = state {
+            inner.checked_out = true;
+        }
+        state
     }
 }
