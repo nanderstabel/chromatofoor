@@ -36,6 +36,45 @@ scenarios:
             student-id: "stu-alice"
             course-id: "cs-101"
 
+  - name: reject-when-course-not-published
+    description: Enrolling a registered student in an unpublished course fails with course-not-published.
+    given:
+      - boundedContext: enrollment
+        aggregate: student-registration
+        event: student-registered
+        data:
+          student-id: "stu-alice"
+          full-name: "Alice Visser"
+    when:
+      actor: student
+      command: enroll-student
+      data:
+        student-id: "stu-alice"
+        course-id: "cs-999"
+    then:
+      rejection:
+        invariant: course-not-published
+
+  - name: reject-when-student-not-registered
+    description: Enrolling an unregistered student in a published course fails with student-not-registered.
+    given:
+      - boundedContext: enrollment
+        aggregate: course
+        event: course-published
+        data:
+          course-id: "cs-101"
+          title: "Distributed Systems"
+          capacity: 20
+    when:
+      actor: student
+      command: enroll-student
+      data:
+        student-id: "stu-unknown"
+        course-id: "cs-101"
+    then:
+      rejection:
+        invariant: student-not-registered
+
   - name: reject-when-course-capacity-exceeded
     description: Enrolling a student when all course seats are taken fails with course-capacity-exceeded.
     given:

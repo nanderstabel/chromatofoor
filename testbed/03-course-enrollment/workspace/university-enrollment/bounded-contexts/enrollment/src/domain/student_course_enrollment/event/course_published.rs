@@ -6,9 +6,10 @@ use chromatofoor::bounded_context::Event;
 ///
 /// Consult Criteria: Course publication event matching the target course-id.
 impl Event<StudentCourseEnrollment> for CoursePublished {
-    fn evolve(&self, _state: StudentCourseEnrollment) -> StudentCourseEnrollment {
-        todo!(
-            "implement Event::StudentCourseEnrollment::evolve for CoursePublished (return _state if stateless)"
-        )
+    fn evolve(&self, mut state: StudentCourseEnrollment) -> StudentCourseEnrollment {
+        state
+            .course_capacities
+            .insert(self.course_id.to_string(), self.capacity);
+        state
     }
 }

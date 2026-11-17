@@ -6,9 +6,10 @@ use chromatofoor::bounded_context::Event;
 ///
 /// Consult Criteria: All dropped enrollments matching either the target course-id or target student-id.
 impl Event<StudentCourseEnrollment> for EnrollmentDropped {
-    fn evolve(&self, _state: StudentCourseEnrollment) -> StudentCourseEnrollment {
-        todo!(
-            "implement Event::StudentCourseEnrollment::evolve for EnrollmentDropped (return _state if stateless)"
-        )
+    fn evolve(&self, mut state: StudentCourseEnrollment) -> StudentCourseEnrollment {
+        state
+            .active_enrollments
+            .remove(&(self.student_id.to_string(), self.course_id.to_string()));
+        state
     }
 }

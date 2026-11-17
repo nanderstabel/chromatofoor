@@ -11,6 +11,14 @@ use chromatofoor::{
 };
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum StudentCourseEnrollmentError {
+    /// Invariant `course-not-published` — Target course must be published before students can enroll in it.
+    #[error(
+        "course-not-published: Target course must be published before students can enroll in it."
+    )]
+    CourseNotPublished,
+    /// Invariant `student-not-registered` — Student must be registered before enrolling in any course.
+    #[error("student-not-registered: Student must be registered before enrolling in any course.")]
+    StudentNotRegistered,
     /// Invariant `course-capacity-exceeded` — Active enrolled students for the target course cannot exceed its current capacity.
     #[error(
         "course-capacity-exceeded: Active enrolled students for the target course cannot exceed its current capacity."
@@ -32,6 +40,16 @@ impl Categorized for StudentCourseEnrollmentError {
 impl Problem for StudentCourseEnrollmentError {
     fn to_problem(&self) -> ProblemDetails {
         match self {
+            Self::CourseNotPublished => ProblemDetails::invariant(
+                StudentCourseEnrollment::TOPIC,
+                "course-not-published",
+                "Target course must be published before students can enroll in it.",
+            ),
+            Self::StudentNotRegistered => ProblemDetails::invariant(
+                StudentCourseEnrollment::TOPIC,
+                "student-not-registered",
+                "Student must be registered before enrolling in any course.",
+            ),
             Self::CourseCapacityExceeded => ProblemDetails::invariant(
                 StudentCourseEnrollment::TOPIC,
                 "course-capacity-exceeded",

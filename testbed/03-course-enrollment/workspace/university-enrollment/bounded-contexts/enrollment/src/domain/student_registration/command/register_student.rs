@@ -14,6 +14,11 @@ impl Command<StudentRegistration> for RegisterStudent {
         self,
         _state: &StudentRegistration,
     ) -> Result<Vec<StudentRegistrationEvent>, Self::Error> {
-        todo!("implement Command::StudentRegistration::decide for RegisterStudent")
+        Ok(vec![StudentRegistrationEvent::StudentRegistered(
+            StudentRegistered {
+                full_name: self.full_name,
+                student_id: self.student_id,
+            },
+        )])
     }
 }

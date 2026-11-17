@@ -10,6 +10,10 @@ impl Command<Course> for PublishCourse {
     type Error = CourseError;
     #[tracing::instrument(skip(self, _state))]
     async fn decide(self, _state: &Course) -> Result<Vec<CourseEvent>, Self::Error> {
-        todo!("implement Command::Course::decide for PublishCourse")
+        Ok(vec![CourseEvent::CoursePublished(CoursePublished {
+            capacity: self.capacity,
+            course_id: self.course_id,
+            title: self.title,
+        })])
     }
 }

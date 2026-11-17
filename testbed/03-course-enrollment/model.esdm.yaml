@@ -208,6 +208,10 @@ identifiedBy:
     source: command-payload
     field: course-id
 invariants:
+  - name: course-not-published
+    rule: Target course must be published before students can enroll in it.
+  - name: student-not-registered
+    rule: Student must be registered before enrolling in any course.
   - name: course-capacity-exceeded
     rule: Active enrolled students for the target course cannot exceed its current capacity.
   - name: student-load-exceeded

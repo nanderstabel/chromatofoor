@@ -47,6 +47,66 @@ async fn test_student_course_enrollment_boundary_enroll_student_within_capacity_
         );
 }
 /// Feature: `student-course-enrollment-boundary` — Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
+/// Scenario: `reject-when-course-not-published`
+///
+/// Enrolling a registered student in an unpublished course fails with course-not-published.
+#[tokio::test]
+async fn test_student_course_enrollment_boundary_reject_when_course_not_published() {
+    chromatofoor::testing::given::<
+        StudentCourseEnrollment,
+    >(
+            vec![
+                StudentCourseEnrollmentEvent::from(serde_json::from_str:: <
+                StudentRegistered >
+                ("{\"student-id\":\"stu-alice\",\"full-name\":\"Alice Visser\"}")
+                .expect("Failed to deserialize payload for given event 'StudentCourseEnrollmentEvent::StudentRegistered'"),)
+            ],
+        )
+        .when_by(
+            "student",
+            StudentCourseEnrollmentCommand::EnrollStudent(
+                serde_json::from_str(
+                        "{\"student-id\":\"stu-alice\",\"course-id\":\"cs-999\"}",
+                    )
+                    .expect(
+                        "Failed to deserialize payload for when command 'StudentCourseEnrollmentCommand::EnrollStudent'",
+                    ),
+            ),
+        )
+        .await
+        .then_rejected(StudentCourseEnrollmentError::CourseNotPublished);
+}
+/// Feature: `student-course-enrollment-boundary` — Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
+/// Scenario: `reject-when-student-not-registered`
+///
+/// Enrolling an unregistered student in a published course fails with student-not-registered.
+#[tokio::test]
+async fn test_student_course_enrollment_boundary_reject_when_student_not_registered() {
+    chromatofoor::testing::given::<
+        StudentCourseEnrollment,
+    >(
+            vec![
+                StudentCourseEnrollmentEvent::from(serde_json::from_str:: <
+                CoursePublished >
+                ("{\"course-id\":\"cs-101\",\"title\":\"Distributed Systems\",\"capacity\":20}")
+                .expect("Failed to deserialize payload for given event 'StudentCourseEnrollmentEvent::CoursePublished'"),)
+            ],
+        )
+        .when_by(
+            "student",
+            StudentCourseEnrollmentCommand::EnrollStudent(
+                serde_json::from_str(
+                        "{\"student-id\":\"stu-unknown\",\"course-id\":\"cs-101\"}",
+                    )
+                    .expect(
+                        "Failed to deserialize payload for when command 'StudentCourseEnrollmentCommand::EnrollStudent'",
+                    ),
+            ),
+        )
+        .await
+        .then_rejected(StudentCourseEnrollmentError::StudentNotRegistered);
+}
+/// Feature: `student-course-enrollment-boundary` — Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
 /// Scenario: `reject-when-course-capacity-exceeded`
 ///
 /// Enrolling a student when all course seats are taken fails with course-capacity-exceeded.

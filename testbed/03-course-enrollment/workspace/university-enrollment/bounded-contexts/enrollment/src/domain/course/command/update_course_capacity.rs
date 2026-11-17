@@ -8,8 +8,16 @@ use chromatofoor::bounded_context::Command;
 /// - Publishes: `course-capacity-updated`
 impl Command<Course> for UpdateCourseCapacity {
     type Error = CourseError;
-    #[tracing::instrument(skip(self, _state))]
-    async fn decide(self, _state: &Course) -> Result<Vec<CourseEvent>, Self::Error> {
-        todo!("implement Command::Course::decide for UpdateCourseCapacity")
+    #[tracing::instrument(skip(self, state))]
+    async fn decide(self, state: &Course) -> Result<Vec<CourseEvent>, Self::Error> {
+        if state.is_none() {
+            return Ok(vec![]);
+        }
+        Ok(vec![CourseEvent::CourseCapacityUpdated(
+            CourseCapacityUpdated {
+                capacity: self.capacity,
+                course_id: self.course_id,
+            },
+        )])
     }
 }

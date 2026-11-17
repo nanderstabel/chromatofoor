@@ -7,9 +7,10 @@ use chromatofoor::bounded_context::Event;
 ///
 /// Consult Criteria: Student registration event matching the target student-id.
 impl Event<StudentCourseEnrollment> for StudentRegistered {
-    fn evolve(&self, _state: StudentCourseEnrollment) -> StudentCourseEnrollment {
-        todo!(
-            "implement Event::StudentCourseEnrollment::evolve for StudentRegistered (return _state if stateless)"
-        )
+    fn evolve(&self, mut state: StudentCourseEnrollment) -> StudentCourseEnrollment {
+        state
+            .registered_students
+            .insert(self.student_id.to_string());
+        state
     }
 }

@@ -15,6 +15,6 @@ impl PrerequisiteCheckerService for PrerequisiteChecker {
         &self,
         _req: VerifyPrerequisitesRequest,
     ) -> Result<VerifyPrerequisitesResponse, VerifyPrerequisitesError> {
-        todo!("implement PrerequisiteCheckerService::verify_prerequisites for PrerequisiteChecker")
+        Ok(VerifyPrerequisitesResponse { eligible: true })
     }
 }

@@ -13,8 +13,15 @@ use chromatofoor::{
 ///
 /// Rule: Insert course roster entry keyed by course-id with enrolled-count 0.
 impl Project<CoursePublished> for CourseRoster {
-    async fn project(&self, _event: Envelope<CoursePublished>) -> Result<(), ViewError> {
-        todo!("implement Project::CoursePublished::project for CourseRoster")
+    async fn project(&self, event: Envelope<CoursePublished>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.course_id.as_str(), &event, |record| {
+                record.course_id = event.data.course_id.to_string();
+                record.title.clone_from(&event.data.title);
+                record.capacity = event.data.capacity;
+                record.enrolled_count = 0;
+            })?;
+        Ok(())
     }
 }
 /// Read Model: `course-roster` — Materialized course roster tracking capacity and active enrolled count per course.
@@ -22,8 +29,12 @@ impl Project<CoursePublished> for CourseRoster {
 ///
 /// Rule: Update capacity for the record keyed by course-id.
 impl Project<CourseCapacityUpdated> for CourseRoster {
-    async fn project(&self, _event: Envelope<CourseCapacityUpdated>) -> Result<(), ViewError> {
-        todo!("implement Project::CourseCapacityUpdated::project for CourseRoster")
+    async fn project(&self, event: Envelope<CourseCapacityUpdated>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.course_id.as_str(), &event, |record| {
+                record.capacity = event.data.capacity;
+            })?;
+        Ok(())
     }
 }
 /// Read Model: `course-roster` — Materialized course roster tracking capacity and active enrolled count per course.
@@ -31,8 +42,12 @@ impl Project<CourseCapacityUpdated> for CourseRoster {
 ///
 /// Rule: Increment enrolled-count for the record keyed by course-id.
 impl Project<StudentEnrolled> for CourseRoster {
-    async fn project(&self, _event: Envelope<StudentEnrolled>) -> Result<(), ViewError> {
-        todo!("implement Project::StudentEnrolled::project for CourseRoster")
+    async fn project(&self, event: Envelope<StudentEnrolled>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.course_id.as_str(), &event, |record| {
+                record.enrolled_count += 1;
+            })?;
+        Ok(())
     }
 }
 /// Read Model: `course-roster` — Materialized course roster tracking capacity and active enrolled count per course.
@@ -40,7 +55,11 @@ impl Project<StudentEnrolled> for CourseRoster {
 ///
 /// Rule: Decrement enrolled-count for the record keyed by course-id.
 impl Project<EnrollmentDropped> for CourseRoster {
-    async fn project(&self, _event: Envelope<EnrollmentDropped>) -> Result<(), ViewError> {
-        todo!("implement Project::EnrollmentDropped::project for CourseRoster")
+    async fn project(&self, event: Envelope<EnrollmentDropped>) -> Result<(), ViewError> {
+        self.records
+            .upsert(event.data.course_id.as_str(), &event, |record| {
+                record.enrolled_count = (record.enrolled_count - 1).max(0);
+            })?;
+        Ok(())
     }
 }
