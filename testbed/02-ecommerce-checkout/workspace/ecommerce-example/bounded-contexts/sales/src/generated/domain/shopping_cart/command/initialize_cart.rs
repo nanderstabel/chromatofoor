@@ -6,7 +6,7 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Initializes a new shopping cart
+/// Initializes a new empty shopping cart for a customer.
 #[chromatofoor::command(
     scope = crate::generated::domain::shopping_cart::aggregate::ShoppingCart,
     creates,
@@ -15,5 +15,5 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct InitializeCart {
     #[serde(rename = "customer-id")]
-    pub customer_id: String,
+    pub customer_id: chromatofoor::Identifier,
 }

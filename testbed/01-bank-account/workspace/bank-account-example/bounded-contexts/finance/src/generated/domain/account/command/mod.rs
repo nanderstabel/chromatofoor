@@ -15,10 +15,10 @@ pub use withdraw_funds::WithdrawFunds;
     validate,
 )]
 pub enum AccountCommand {
-    /// Opens a new bank account with an initial balance.
+    /// Opens a new bank account with an initial non-negative balance.
     OpenAccount(open_account::OpenAccount),
-    /// Deposits funds into an existing bank account.
+    /// Deposits funds into an existing bank account (a zero-amount deposit is an idempotent no-op).
     DepositFunds(deposit_funds::DepositFunds),
-    /// Withdraws funds from an existing bank account.
+    /// Withdraws funds from an existing bank account when sufficient balance is available.
     WithdrawFunds(withdraw_funds::WithdrawFunds),
 }

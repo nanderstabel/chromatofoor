@@ -1,0 +1,158 @@
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: booking-saga-coordination
+description: Process Manager scenarios covering happy-path booking confirmation, payment failure compensation, and payment timeout compensation.
+scope:
+  domain: travel-booking
+  processManager: booking-saga
+scenarios:
+  - name: reserve-hotel-when-flight-reserved
+    description: Receiving flight-reserved starts the saga and emits reserve-hotel.
+    given: []
+    when:
+      boundedContext: flight
+      aggregate: flight-reservation
+      event: flight-reserved
+      data:
+        reservation-id: "flt-100"
+        booking-id: "bkg-100"
+        flight-number: "KL1009"
+    then:
+      emits:
+        - boundedContext: hotel
+          aggregate: hotel-reservation
+          command: reserve-hotel
+          data:
+            reservation-id: "hotel-bkg-100"
+            booking-id: "bkg-100"
+
+  - name: request-payment-and-arm-timeout-when-hotel-reserved
+    description: Receiving hotel-reserved requests payment and arms payment-timeout.
+    given:
+      - boundedContext: flight
+        aggregate: flight-reservation
+        event: flight-reserved
+        data:
+          reservation-id: "flt-100"
+          booking-id: "bkg-100"
+          flight-number: "KL1009"
+    when:
+      boundedContext: hotel
+      aggregate: hotel-reservation
+      event: hotel-reserved
+      data:
+        reservation-id: "hotel-bkg-100"
+        booking-id: "bkg-100"
+    then:
+      emits:
+        - boundedContext: payment
+          aggregate: booking-payment
+          command: request-payment
+          data:
+            payment-id: "payment-bkg-100"
+            booking-id: "bkg-100"
+            amount-cents: 50000
+      setTimers:
+        - payment-timeout
+
+  - name: confirm-flight-and-end-saga-on-payment-completed
+    description: Completing payment cancels payment-timeout, confirms the flight, and ends the saga.
+    given:
+      - boundedContext: flight
+        aggregate: flight-reservation
+        event: flight-reserved
+        data:
+          reservation-id: "flt-100"
+          booking-id: "bkg-100"
+          flight-number: "KL1009"
+      - boundedContext: hotel
+        aggregate: hotel-reservation
+        event: hotel-reserved
+        data:
+          reservation-id: "hotel-bkg-100"
+          booking-id: "bkg-100"
+    when:
+      boundedContext: payment
+      aggregate: booking-payment
+      event: payment-completed
+      data:
+        payment-id: "payment-bkg-100"
+        booking-id: "bkg-100"
+    then:
+      emits:
+        - boundedContext: flight
+          aggregate: flight-reservation
+          command: confirm-flight
+          data:
+            reservation-id: "flt-100"
+            booking-id: "bkg-100"
+      cancelTimers:
+        - payment-timeout
+      ended: true
+
+  - name: compensate-flight-and-hotel-on-payment-timeout
+    description: Firing payment-timeout cancels both held flight and hotel reservations and ends the saga.
+    given:
+      - boundedContext: flight
+        aggregate: flight-reservation
+        event: flight-reserved
+        data:
+          reservation-id: "flt-100"
+          booking-id: "bkg-100"
+          flight-number: "KL1009"
+      - boundedContext: hotel
+        aggregate: hotel-reservation
+        event: hotel-reserved
+        data:
+          reservation-id: "hotel-bkg-100"
+          booking-id: "bkg-100"
+    when:
+      timer: payment-timeout
+    then:
+      emits:
+        - boundedContext: flight
+          aggregate: flight-reservation
+          command: cancel-flight
+          data:
+            reservation-id: "flt-100"
+            booking-id: "bkg-100"
+        - boundedContext: hotel
+          aggregate: hotel-reservation
+          command: cancel-hotel
+          data:
+            reservation-id: "hotel-bkg-100"
+            booking-id: "bkg-100"
+      ended: true
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: booking-status-queries
+description: Read-model query scenarios for booking payment status.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  readModel: booking-status
+scenarios:
+  - name: return-paid-booking-status
+    description: Querying get-booking-status returns Paid after payment-completed.
+    given:
+      - boundedContext: payment
+        aggregate: booking-payment
+        event: payment-requested
+        data:
+          payment-id: "payment-bkg-100"
+          booking-id: "bkg-100"
+          amount-cents: 50000
+      - boundedContext: payment
+        aggregate: booking-payment
+        event: payment-completed
+        data:
+          payment-id: "payment-bkg-100"
+          booking-id: "bkg-100"
+    when:
+      query: get-booking-status
+      parameters: {}
+    then:
+      result:
+        booking_id: "bkg-100"
+        payment_status: "Paid"

@@ -334,7 +334,7 @@
       return generateUuid();
     }
 
-    // Helpful defaults for studio fields
+    // Helpful defaults for sample fields
     if (field.name === "name") {
       if (targetAggregate === "workspace") return "Core Domain Workspace";
       if (targetAggregate === "project") return "Order Management System";
@@ -721,7 +721,7 @@
             />
           </div>
           <span class="px-1.5 py-0.5 text-[10px] font-code-mono font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 rounded border border-slate-200">
-            Studio
+            Workbench
           </span>
         </div>
 
@@ -822,7 +822,7 @@
             type="button"
             onclick={() => handleWindowControl("close")}
             class="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-[#cb4831] transition-colors cursor-pointer"
-            title="Close Chromatofoor Studio"
+            title="Close Chromatofoor"
           >
             <span class="material-symbols-outlined text-[16px]">close</span>
           </button>

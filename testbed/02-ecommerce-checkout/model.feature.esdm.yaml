@@ -1,183 +1,187 @@
 apiVersion: schema.esdm.io/given-when-then/v1
 kind: feature
-name: cart-commands-feature
-description: Tests for shopping cart commands
+name: shopping-cart-commands
+description: Behavioral scenarios for initializing, adding items to, and checking out a shopping cart.
 scope:
   domain: ecommerce-example
   boundedContext: sales
   aggregate: shopping-cart
 scenarios:
-  - name: verify-initialize-cart-command
-    description: Initializing a cart emits cart-initialized
+  - name: initialize-new-cart
+    description: Initializing a cart emits cart-initialized.
+    given: []
     when:
+      actor: customer
       command: initialize-cart
       data:
-        customer-id: "CUST-123"
+        customer-id: "cust-101"
     then:
       events:
         - event: cart-initialized
           data:
-            customer-id: "CUST-123"
+            customer-id: "cust-101"
 
-  - name: verify-add-item-command
-    description: Adding an item emits item-added-to-cart
+  - name: add-valid-item-to-cart
+    description: Adding a valid cart item emits item-added-to-cart.
     given:
       - event: cart-initialized
         data:
-          customer-id: "CUST-123"
+          customer-id: "cust-101"
     when:
+      actor: customer
       command: add-item-to-cart
       data:
         id: "00000000-0000-0000-0000-000000000001"
-        product-id: "PROD-A"
-        quantity: 2
-        price: 50
+        item:
+          sku: "book-ddd-blue"
+          quantity: 2
+          unit-price: 4500
     then:
       events:
         - event: item-added-to-cart
           data:
-            product-id: "PROD-A"
-            quantity: 2
-            price: 50
+            item:
+              sku: "book-ddd-blue"
+              quantity: 2
+              unit-price: 4500
 
-  - name: verify-checkout-command
-    description: Checking out emits cart-checked-out
+  - name: checkout-populated-cart
+    description: Checking out a cart containing items emits cart-checked-out.
     given:
       - event: cart-initialized
         data:
-          customer-id: "CUST-123"
+          customer-id: "cust-101"
       - event: item-added-to-cart
         data:
-          product-id: "PROD-A"
-          quantity: 2
-          price: 50
+          item:
+            sku: "book-ddd-blue"
+            quantity: 2
+            unit-price: 4500
     when:
+      actor: customer
       command: checkout-cart
       data:
         id: "00000000-0000-0000-0000-000000000001"
-        payment-method: "CREDIT_CARD"
+        shipping-address:
+          street: "Keizersgracht 120"
+          postal-code: "1015CW"
+          country-code: "NL"
     then:
       events:
         - event: cart-checked-out
           data:
-            payment-method: "CREDIT_CARD"
+            shipping-address:
+              street: "Keizersgracht 120"
+              postal-code: "1015CW"
+              country-code: "NL"
 
-  - name: verify-checkout-empty-cart-rejection
-    description: Checking out an empty cart is rejected
+  - name: reject-empty-cart-checkout
+    description: Checking out a cart with zero items fails with empty-cart.
     given:
       - event: cart-initialized
         data:
-          customer-id: "CUST-123"
+          customer-id: "cust-101"
     when:
+      actor: customer
       command: checkout-cart
       data:
         id: "00000000-0000-0000-0000-000000000001"
-        payment-method: "CREDIT_CARD"
+        shipping-address:
+          street: "Keizersgracht 120"
+          postal-code: "1015CW"
+          country-code: "NL"
     then:
       rejection:
-        reason: "Cannot checkout an empty cart"
+        invariant: empty-cart
 
-  - name: verify-add-item-to-checked-out-cart-rejection
-    description: Adding an item to a checked-out cart is rejected
+  - name: reject-item-addition-after-checkout
+    description: Adding an item after checkout fails with cart-already-checked-out.
     given:
       - event: cart-initialized
         data:
-          customer-id: "CUST-123"
+          customer-id: "cust-101"
       - event: item-added-to-cart
         data:
-          product-id: "PROD-A"
-          quantity: 2
-          price: 50
+          item:
+            sku: "book-ddd-blue"
+            quantity: 1
+            unit-price: 4500
       - event: cart-checked-out
         data:
-          payment-method: "CREDIT_CARD"
+          shipping-address:
+            street: "Keizersgracht 120"
+            postal-code: "1015CW"
+            country-code: "NL"
     when:
+      actor: customer
       command: add-item-to-cart
       data:
         id: "00000000-0000-0000-0000-000000000001"
-        product-id: "PROD-B"
-        quantity: 1
-        price: 100
+        item:
+          sku: "book-ddd-red"
+          quantity: 1
+          unit-price: 5000
     then:
       rejection:
-        reason: "Cannot add items to a checked out cart"
+        invariant: cart-already-checked-out
 
+  - name: reject-invalid-item-quantity
+    description: Nested entity validation rejects item quantity outside 1..=99 before decide runs.
+    given:
+      - event: cart-initialized
+        data:
+          customer-id: "cust-101"
+    when:
+      actor: customer
+      command: add-item-to-cart
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        item:
+          sku: "book-ddd-blue"
+          quantity: 0
+          unit-price: 4500
+    then:
+      rejection:
+        reason: "must be between 1 and 99"
 ---
 apiVersion: schema.esdm.io/given-when-then/v1
 kind: feature
-name: cart-summary-read-model-feature
-description: Tests for cart summary projection
+name: cart-summary-queries
+description: Read-model query scenarios for shopping cart totals and checkout status.
 scope:
   domain: ecommerce-example
   boundedContext: sales
   readModel: cart-summary
 scenarios:
-  - name: verify-cart-initialized-projection
-    description: Initializing sets default values
+  - name: return-projected-cart-totals
+    description: Querying get-cart-summary returns total_amount, item_count, and CheckedOut status.
     given:
       - boundedContext: sales
         aggregate: shopping-cart
         event: cart-initialized
         data:
-          customer-id: "CUST-123"
-    when:
-      query: get-cart-summary
-      parameters: {}
-    then:
-      readModel:
-        total_amount: 0
-        item_count: 0
-        status: "Open"
-
-  - name: verify-item-added-projection
-    description: Adding items updates totals
-    given:
-      - boundedContext: sales
-        aggregate: shopping-cart
-        event: cart-initialized
-        data:
-          customer-id: "CUST-123"
+          customer-id: "cust-101"
       - boundedContext: sales
         aggregate: shopping-cart
         event: item-added-to-cart
         data:
-          product-id: "PROD-A"
-          quantity: 2
-          price: 50
-    when:
-      query: get-cart-summary
-      parameters: {}
-    then:
-      readModel:
-        total_amount: 100
-        item_count: 2
-        status: "Open"
-
-  - name: verify-cart-checked-out-projection
-    description: Checking out updates status
-    given:
-      - boundedContext: sales
-        aggregate: shopping-cart
-        event: cart-initialized
-        data:
-          customer-id: "CUST-123"
-      - boundedContext: sales
-        aggregate: shopping-cart
-        event: item-added-to-cart
-        data:
-          product-id: "PROD-A"
-          quantity: 2
-          price: 50
+          item:
+            sku: "book-ddd-blue"
+            quantity: 2
+            unit-price: 4500
       - boundedContext: sales
         aggregate: shopping-cart
         event: cart-checked-out
         data:
-          payment-method: "CREDIT_CARD"
+          shipping-address:
+            street: "Keizersgracht 120"
+            postal-code: "1015CW"
+            country-code: "NL"
     when:
       query: get-cart-summary
       parameters: {}
     then:
-      readModel:
-        total_amount: 100
+      result:
+        total_amount: 9000
         item_count: 2
         status: "CheckedOut"

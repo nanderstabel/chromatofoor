@@ -800,7 +800,7 @@ mod tests {
         type Error = std::convert::Infallible;
 
         async fn execute(self, read_model: &ProductCatalog) -> Result<Self::Output, Self::Error> {
-            Ok(read_model.products.get(&self.sku).await?)
+            read_model.products.get(&self.sku).await
         }
     }
 

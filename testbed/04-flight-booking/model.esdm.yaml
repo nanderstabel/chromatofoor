@@ -1,0 +1,647 @@
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain
+name: travel-booking
+description: Multi-context travel reservation domain demonstrating stateful Process Manager sagas, timers, and compensating actions across flight, hotel, and payment bounded contexts.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: flight
+description: Manages airline flight seat reservations, confirmations, and cancellations.
+scope:
+  domain: travel-booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: hotel
+description: Manages hotel room reservations and cancellations.
+scope:
+  domain: travel-booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: payment
+description: Manages traveler payment requests, settlements, failures, and booking status views.
+scope:
+  domain: travel-booking
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: payment-depends-on-flight
+description: Customer-supplier relationship where payment tracks upstream flight reservation lifecycle.
+type: customer-supplier
+customer:
+  domain: travel-booking
+  boundedContext: payment
+supplier:
+  domain: travel-booking
+  boundedContext: flight
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: payment-depends-on-hotel
+description: Customer-supplier relationship where payment tracks upstream hotel reservation lifecycle.
+type: customer-supplier
+customer:
+  domain: travel-booking
+  boundedContext: payment
+supplier:
+  domain: travel-booking
+  boundedContext: hotel
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: booking-coordinator
+description: Automated booking saga coordinator issuing flight reservation, confirmation, and cancellation commands.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+type: system
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: traveler
+description: Traveler initiating flight reservations.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: flight-reservation
+description: Flight reservation consistency boundary tracking seat hold status for a trip booking.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+identifiedBy:
+  source: state
+  field: reservation-id
+state:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    flight-number:
+      type: string
+    status:
+      type: string
+  required: [reservation-id, booking-id, flight-number, status]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: reserve-flight
+description: Places an initial hold on a flight seat for a booking.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+  aggregate: flight-reservation
+actors: [traveler, booking-coordinator]
+publishes: [flight-reserved]
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    flight-number:
+      type: string
+  required: [reservation-id, booking-id, flight-number]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: confirm-flight
+description: Confirms a held flight reservation after payment succeeds.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+  aggregate: flight-reservation
+actors: [booking-coordinator]
+publishes: [flight-confirmed]
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: cancel-flight
+description: Cancels a held flight reservation when payment fails or times out.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+  aggregate: flight-reservation
+actors: [booking-coordinator]
+publishes: [flight-cancelled]
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: flight-reserved
+description: Emitted when a flight reservation hold is created.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+  aggregate: flight-reservation
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    flight-number:
+      type: string
+  required: [reservation-id, booking-id, flight-number]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: flight-confirmed
+description: Emitted when a held flight reservation is confirmed.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+  aggregate: flight-reservation
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: flight-cancelled
+description: Emitted when a held flight reservation is cancelled.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+  aggregate: flight-reservation
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: booking-coordinator
+description: Automated booking saga coordinator issuing hotel reservation and cancellation commands.
+scope:
+  domain: travel-booking
+  boundedContext: hotel
+type: system
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: hotel-reservation
+description: Hotel room reservation consistency boundary correlated with a trip booking.
+scope:
+  domain: travel-booking
+  boundedContext: hotel
+identifiedBy:
+  source: state
+  field: reservation-id
+state:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    status:
+      type: string
+  required: [reservation-id, booking-id, status]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: reserve-hotel
+description: Reserves a hotel room for a booking.
+scope:
+  domain: travel-booking
+  boundedContext: hotel
+  aggregate: hotel-reservation
+actors: [booking-coordinator]
+publishes: [hotel-reserved]
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: cancel-hotel
+description: Cancels a hotel reservation during saga compensation.
+scope:
+  domain: travel-booking
+  boundedContext: hotel
+  aggregate: hotel-reservation
+actors: [booking-coordinator]
+publishes: [hotel-cancelled]
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: hotel-reserved
+description: Emitted when a hotel room is reserved for a booking.
+scope:
+  domain: travel-booking
+  boundedContext: hotel
+  aggregate: hotel-reservation
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: hotel-cancelled
+description: Emitted when a hotel room reservation is cancelled.
+scope:
+  domain: travel-booking
+  boundedContext: hotel
+  aggregate: hotel-reservation
+data:
+  type: object
+  properties:
+    reservation-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [reservation-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: traveler
+description: Traveler settling or checking booking payment status.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: booking-coordinator
+description: Automated booking saga coordinator requesting trip payment.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+type: system
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: booking-payment
+description: Payment lifecycle aggregate for settling a travel booking.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+identifiedBy:
+  source: state
+  field: payment-id
+state:
+  type: object
+  properties:
+    payment-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    amount-cents:
+      type: integer
+    status:
+      type: string
+  required: [payment-id, booking-id, amount-cents, status]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: request-payment
+description: Initiates a payment request once flight and hotel holds are in place.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  aggregate: booking-payment
+actors: [booking-coordinator]
+publishes: [payment-requested]
+data:
+  type: object
+  properties:
+    payment-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    amount-cents:
+      type: integer
+      minimum: 1
+  required: [payment-id, booking-id, amount-cents]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: complete-payment
+description: Records successful payment capture by the traveler.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  aggregate: booking-payment
+actors: [traveler]
+publishes: [payment-completed]
+data:
+  type: object
+  properties:
+    payment-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [payment-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: fail-payment
+description: Records a declined payment attempt.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  aggregate: booking-payment
+actors: [traveler, booking-coordinator]
+publishes: [payment-failed]
+data:
+  type: object
+  properties:
+    payment-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    reason:
+      type: string
+  required: [payment-id, booking-id, reason]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: payment-requested
+description: Emitted when payment is requested for a booking.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  aggregate: booking-payment
+data:
+  type: object
+  properties:
+    payment-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    amount-cents:
+      type: integer
+  required: [payment-id, booking-id, amount-cents]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: payment-completed
+description: Emitted when payment for a booking succeeds.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  aggregate: booking-payment
+data:
+  type: object
+  properties:
+    payment-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+  required: [payment-id, booking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: payment-failed
+description: Emitted when payment for a booking is declined.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  aggregate: booking-payment
+data:
+  type: object
+  properties:
+    payment-id:
+      type: string
+      format: identifier
+    booking-id:
+      type: string
+      format: identifier
+    reason:
+      type: string
+  required: [payment-id, booking-id, reason]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: booking-status
+description: Materialized payment status view for travelers.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+paradigm: document
+schema:
+  type: object
+  properties:
+    booking-id:
+      type: string
+    payment-status:
+      type: string
+  required: [booking-id, payment-status]
+projections:
+  - boundedContext: payment
+    aggregate: booking-payment
+    event: payment-requested
+    rule: Insert booking-status record with payment-status Pending.
+  - boundedContext: payment
+    aggregate: booking-payment
+    event: payment-completed
+    rule: Update payment-status to Paid.
+  - boundedContext: payment
+    aggregate: booking-payment
+    event: payment-failed
+    rule: Update payment-status to Failed.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-booking-status
+description: Retrieves the payment status of a travel booking.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+readModel: booking-status
+paradigm: document
+actors: [traveler, booking-coordinator]
+parameters:
+  type: object
+result:
+  type: object
+---
+apiVersion: schema.esdm.io/core/v1
+kind: process-manager
+name: booking-saga
+description: Stateful travel booking saga coordinating flight holds, hotel reservations, payment deadlines, and compensating cancellations.
+scope:
+  domain: travel-booking
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: self
+  strategy: monotonic-event-id
+correlatedBy:
+  source: event-field
+  field: booking-id
+state:
+  type: object
+  properties:
+    booking-id:
+      type: string
+      format: identifier
+    flight-reservation-id:
+      type: string
+      format: identifier
+    hotel-reservation-id:
+      type: string
+      format: identifier
+    payment-id:
+      type: string
+      format: identifier
+    completed:
+      type: boolean
+  required: [booking-id]
+startsWhen:
+  - boundedContext: flight
+    aggregate: flight-reservation
+    event: flight-reserved
+endsWhen:
+  - name: saga-completed
+    condition: Payment completed and flight confirmed, or compensating cancellations issued.
+timers:
+  - name: payment-timeout
+    description: Expires if payment is not completed within 15 minutes of hotel reservation.
+    after:
+      value: 15
+      unit: minutes
+reactions:
+  - when:
+      boundedContext: flight
+      aggregate: flight-reservation
+      event: flight-reserved
+    rule: Record booking-id and flight-reservation-id, then emit reserve-hotel with deterministic reservation-id hotel-{booking-id}.
+    emits:
+      - boundedContext: hotel
+        aggregate: hotel-reservation
+        command: reserve-hotel
+  - when:
+      boundedContext: hotel
+      aggregate: hotel-reservation
+      event: hotel-reserved
+    rule: Record hotel-reservation-id, emit request-payment (payment-{booking-id}, 50000 cents), and arm payment-timeout.
+    emits:
+      - boundedContext: payment
+        aggregate: booking-payment
+        command: request-payment
+    setTimers:
+      - payment-timeout
+  - when:
+      boundedContext: payment
+      aggregate: booking-payment
+      event: payment-completed
+    rule: Mark completed true, cancel payment-timeout, and emit confirm-flight.
+    emits:
+      - boundedContext: flight
+        aggregate: flight-reservation
+        command: confirm-flight
+    cancelTimers:
+      - payment-timeout
+  - when:
+      boundedContext: payment
+      aggregate: booking-payment
+      event: payment-failed
+    rule: Mark completed true, cancel payment-timeout, and emit compensating cancel-flight and cancel-hotel commands.
+    emits:
+      - boundedContext: flight
+        aggregate: flight-reservation
+        command: cancel-flight
+      - boundedContext: hotel
+        aggregate: hotel-reservation
+        command: cancel-hotel
+    cancelTimers:
+      - payment-timeout
+  - when:
+      timer: payment-timeout
+    rule: Mark completed true and emit compensating cancel-flight and cancel-hotel commands.
+    emits:
+      - boundedContext: flight
+        aggregate: flight-reservation
+        command: cancel-flight
+      - boundedContext: hotel
+        aggregate: hotel-reservation
+        command: cancel-hotel

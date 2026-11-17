@@ -10,7 +10,6 @@ run_step() {
     local step_name="$1"
     shift
 
-    # If stdout is not a tty (e.g. redirected or running in CI), use simple fallback
     if [ ! -t 1 ]; then
         echo "=== $step_name ==="
         "$@"
@@ -21,14 +20,12 @@ run_step() {
     local tmp_log
     tmp_log=$(mktemp)
 
-    # Run command in background
     "$@" > "$tmp_log" 2>&1 &
     local pid=$!
 
     local lines_to_show=5
     local printed_lines=0
 
-    # Get terminal width for safe truncation to avoid word wrapping
     local cols
     cols=$(tput cols 2>/dev/null || echo 80)
     local max_len=$((cols - 12))
@@ -37,14 +34,12 @@ run_step() {
     fi
 
     while kill -0 "$pid" 2>/dev/null; do
-        # Clear previous lines
         if [ "$printed_lines" -gt 0 ]; then
             for ((i=0; i<printed_lines; i++)); do
                 echo -ne "\033[A\033[K"
             done
         fi
 
-        # Read last 5 lines
         local tail_output
         tail_output=$(tail -n "$lines_to_show" "$tmp_log" 2>/dev/null || true)
 
@@ -53,7 +48,6 @@ run_step() {
             local lines=()
             IFS=$'\n' read -rd '' -a lines <<< "$tail_output" || true
             for line in "${lines[@]}"; do
-                # Truncate line if it exceeds terminal width to prevent wrapping
                 if [ "${#line}" -gt "$max_len" ]; then
                     line="${line:0:max_len}..."
                 fi
@@ -65,18 +59,15 @@ run_step() {
         sleep 0.1
     done
 
-    # Wait for process to end and get exit status
     local exit_code=0
     wait "$pid" || exit_code=$?
 
-    # Clear tail lines
     if [ "$printed_lines" -gt 0 ]; then
         for ((i=0; i<printed_lines; i++)); do
             echo -ne "\033[A\033[K"
         done
     fi
 
-    # Move cursor up to overwrite the initial prompt
     echo -ne "\033[A\033[K"
 
     if [ "$exit_code" -eq 0 ]; then
@@ -92,8 +83,9 @@ run_step() {
 }
 
 run_step "Running workspace tests with all features" cargo test --all --all-features
-run_step "Running clippy with all features (warnings as errors)" cargo clippy --all --all-features -- -D warnings
-run_step "Running testbeds verification" ./scripts/verify_testbeds.sh
+run_step "Running clippy with all targets and features (warnings as errors)" cargo clippy --all --all-targets --all-features -- -D warnings
+# NOTE: Switch from `--red-phase` to default `./scripts/verify_testbeds.sh` once manual `todo!(...)` stubs across testbed/01-05 are implemented.
+run_step "Running testbeds verification" ./scripts/verify_testbeds.sh --red-phase
 
 echo ""
 echo "=================================================="

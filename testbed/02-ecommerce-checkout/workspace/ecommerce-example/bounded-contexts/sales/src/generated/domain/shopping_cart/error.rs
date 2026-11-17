@@ -4,6 +4,10 @@
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ShoppingCartError {
+    #[error("empty-cart")]
+    EmptyCart,
+    #[error("cart-already-checked-out")]
+    CartAlreadyCheckedOut,
     #[error("{0}")]
     Validation(String),
 }

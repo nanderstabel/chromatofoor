@@ -15,10 +15,10 @@ pub use checkout_cart::CheckoutCart;
     validate,
 )]
 pub enum ShoppingCartCommand {
-    /// Initializes a new shopping cart
+    /// Initializes a new empty shopping cart for a customer.
     InitializeCart(initialize_cart::InitializeCart),
-    /// Adds an item to the shopping cart
+    /// Adds a validated product line item to an open shopping cart.
     AddItemToCart(add_item_to_cart::AddItemToCart),
-    /// Checks out the shopping cart
+    /// Checks out a non-empty open cart with a validated shipping address.
     CheckoutCart(checkout_cart::CheckoutCart),
 }

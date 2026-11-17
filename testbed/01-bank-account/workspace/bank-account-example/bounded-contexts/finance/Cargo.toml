@@ -20,4 +20,6 @@
     rstest = "0.23"
     serde_json = { workspace = true }
     tracing-test = { workspace = true }
-    
+
+[lints]
+workspace = true

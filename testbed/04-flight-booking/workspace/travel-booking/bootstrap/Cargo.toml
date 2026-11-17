@@ -1,0 +1,18 @@
+[package]
+name = "bootstrap"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chromatofoor = { workspace = true }
+domain = { path = "../domain" }
+flight = { path = "../bounded-contexts/flight" }
+hotel = { path = "../bounded-contexts/hotel" }
+payment = { path = "../bounded-contexts/payment" }
+booking-saga = { path = "../integration/process-managers/booking-saga" }
+
+[lints]
+workspace = true

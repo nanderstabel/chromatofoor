@@ -6,9 +6,11 @@ pub use crate::generated::application::query::get_cart_summary::GetCartSummary;
 pub use crate::generated::application::read_models::cart_summary::{
     CartSummary, CartSummaryRecord,
 };
+pub use crate::generated::domain::entities::*;
 pub use crate::generated::domain::shopping_cart::aggregate::ShoppingCart;
 pub use crate::generated::domain::shopping_cart::command::ShoppingCartCommand;
 pub use crate::generated::domain::shopping_cart::command::add_item_to_cart::AddItemToCart;
 pub use crate::generated::domain::shopping_cart::command::checkout_cart::CheckoutCart;
 pub use crate::generated::domain::shopping_cart::command::initialize_cart::InitializeCart;
 pub use crate::generated::domain::shopping_cart::error::ShoppingCartError;
+pub use crate::generated::domain::value_objects::*;

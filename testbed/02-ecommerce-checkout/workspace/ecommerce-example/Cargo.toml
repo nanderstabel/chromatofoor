@@ -21,3 +21,9 @@ chromatofoor-graphql = { path = "../../../../presentation/graphql", features = [
 chromatofoor-mcp = { path = "../../../../presentation/mcp" }
 chromatofoor-tui = { path = "../../../../presentation/tui" }
 chromatofoor-tauri = { path = "../../../../presentation/tauri" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+todo = "warn"

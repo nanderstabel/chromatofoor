@@ -1,0 +1,43 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: cargo-booking-lifecycle
+description: Lifecycle rules for cargo bookings.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+  aggregate: cargo-booking
+created:
+  - book-cargo
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: voyage-lifecycle
+description: Lifecycle rules for vessel voyages.
+scope:
+  domain: cargo-shipping
+  boundedContext: voyage-routing
+  aggregate: voyage
+created:
+  - schedule-voyage
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: customs-declaration-lifecycle
+description: Lifecycle rules for customs declarations.
+scope:
+  domain: cargo-shipping
+  boundedContext: customs-handling
+  aggregate: customs-declaration
+created:
+  - lodge-customs-declaration
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: freight-invoice-lifecycle
+description: Lifecycle rules for freight invoices.
+scope:
+  domain: cargo-shipping
+  boundedContext: billing
+  aggregate: freight-invoice
+created:
+  - issue-freight-invoice

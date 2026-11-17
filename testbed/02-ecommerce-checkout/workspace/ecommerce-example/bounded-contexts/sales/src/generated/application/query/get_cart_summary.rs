@@ -4,7 +4,7 @@
 
 use crate::generated::application::read_models::cart_summary::{CartSummary, CartSummaryRecord};
 use chromatofoor::bounded_context::Query;
-/// Retrieves the cart summary
+/// Retrieves the projected shopping cart summary.
 #[chromatofoor::query(
     scope = crate::generated::domain::Sales,
     actors = [crate::generated::domain::actors::Customer],

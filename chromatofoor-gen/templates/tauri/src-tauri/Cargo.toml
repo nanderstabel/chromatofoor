@@ -5,11 +5,14 @@ edition = "2024"
 
 [dependencies]
 tokio = { workspace = true }
-tauri = { version = "2.0.0-rc", features = [] }
+tauri = { version = "2.11.5", features = [] }
 tauri-plugin-mcp-bridge = "0.13.0"
 bootstrap = { path = "../../../bootstrap" }
 chromatofoor = { workspace = true }
 chromatofoor-tauri = { workspace = true }
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-rc", features = [] }
+tauri-build = { version = "2", features = [] }
+
+[lints]
+workspace = true

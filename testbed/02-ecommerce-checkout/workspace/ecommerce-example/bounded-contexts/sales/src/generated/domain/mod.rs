@@ -5,5 +5,9 @@
 pub use ::domain::EcommerceExample;
 #[chromatofoor::bounded_context(scope = EcommerceExample)]
 pub struct Sales;
-pub mod actors;
+pub mod entities;
 pub mod shopping_cart;
+pub use entities::*;
+pub mod value_objects;
+pub use value_objects::*;
+pub mod actors;

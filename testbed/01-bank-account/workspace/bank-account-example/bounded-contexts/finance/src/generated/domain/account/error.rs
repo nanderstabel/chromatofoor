@@ -4,6 +4,8 @@
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AccountError {
+    #[error("insufficient-funds")]
+    InsufficientFunds,
     #[error("{0}")]
     Validation(String),
 }

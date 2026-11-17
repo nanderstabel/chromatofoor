@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "bootstrap",
+    "bounded-contexts/invoicing/billing",
+    "bounded-contexts/port-logistics/customs-handling",
+    "bounded-contexts/shipping-operations/booking",
+    "bounded-contexts/shipping-operations/voyage-routing",
+    "domain",
+    "integration/event-handlers",
+    "integration/policies",
+    "presentation/api-server",
+    "presentation/graphql-server",
+    "presentation/interactive-tui",
+    "presentation/mcp-server",
+    "presentation/tauri-app/src-tauri",
+    "shared-kernels/location-catalog",
+]
+
+[workspace.dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+tokio = { version = "1.40", features = ["full"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-test = "0.2"
+chromatofoor = { path = "../../../../chromatofoor" }
+chromatofoor-http = { path = "../../../../presentation/http" }
+chromatofoor-graphql = { path = "../../../../presentation/graphql", features = ["axum"] }
+chromatofoor-mcp = { path = "../../../../presentation/mcp" }
+chromatofoor-tui = { path = "../../../../presentation/tui" }
+chromatofoor-tauri = { path = "../../../../presentation/tauri" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+todo = "warn"

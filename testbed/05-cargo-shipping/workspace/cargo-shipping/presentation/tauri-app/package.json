@@ -1,0 +1,22 @@
+{
+  "name": "tauri-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@chromatofoor/ui": "file:../../../../../../packages/ui",
+    "@tauri-apps/api": "^2.1.1",
+    "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@tauri-apps/cli": "^2.1.0",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

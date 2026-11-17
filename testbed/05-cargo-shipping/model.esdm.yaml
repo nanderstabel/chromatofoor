@@ -1,0 +1,593 @@
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain
+name: cargo-shipping
+description: Strategic maritime freight shipping domain modeled after Evans' DDD reference, demonstrating core/supporting/generic subdomains, shared kernels, context mappings, policies, outbound event handlers, external systems, and all presentation transports.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: subdomain
+name: shipping-operations
+description: Core competitive capability managing cargo bookings and optimal vessel voyage routing.
+scope:
+  domain: cargo-shipping
+type: core
+boundedContexts:
+  - booking
+  - voyage-routing
+---
+apiVersion: schema.esdm.io/core/v1
+kind: subdomain
+name: port-logistics
+description: Supporting capability coordinating port customs declarations and regulatory manifest filings.
+scope:
+  domain: cargo-shipping
+type: supporting
+boundedContexts:
+  - customs-handling
+---
+apiVersion: schema.esdm.io/core/v1
+kind: subdomain
+name: invoicing
+description: Generic commercial billing capability issuing freight invoices upon booking.
+scope:
+  domain: cargo-shipping
+type: generic
+boundedContexts:
+  - billing
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: location-catalog
+description: Shared kernel publishing standardized five-character UN/LOCODE port value objects across contexts.
+metadata:
+  labels:
+    tier: shared-kernel
+scope:
+  domain: cargo-shipping
+---
+apiVersion: schema.esdm.io/core/v1
+kind: value-object
+name: un-locode
+description: Five-character United Nations Code for Trade and Transport Locations (for example NLRTM or USNYC).
+scope:
+  domain: cargo-shipping
+  boundedContext: location-catalog
+schema:
+  type: object
+  properties:
+    code:
+      type: string
+      minLength: 5
+      maxLength: 5
+  required: [code]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: booking
+description: Manages shipper cargo bookings, route assignments, and shipment tracking projections.
+scope:
+  domain: cargo-shipping
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: voyage-routing
+description: Manages vessel voyage schedules and optimal route computation.
+scope:
+  domain: cargo-shipping
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: customs-handling
+description: Manages port customs declarations and anti-corruption translation to external government gateways.
+scope:
+  domain: cargo-shipping
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: billing
+description: Manages automated freight invoicing triggered by cargo bookings.
+scope:
+  domain: cargo-shipping
+---
+apiVersion: schema.esdm.io/core/v1
+kind: external-system
+name: customs-clearance-gateway
+description: External national customs authority API receiving electronic cargo manifests.
+scope:
+  domain: cargo-shipping
+direction: outbound
+category: government-api
+capabilities:
+  - Submit electronic cargo manifest for port clearance
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: booking-location-shared-kernel
+description: Shared kernel between booking and location-catalog for standardized UN/LOCODE port codes.
+type: shared-kernel
+participants:
+  - domain: cargo-shipping
+    boundedContext: booking
+  - domain: cargo-shipping
+    boundedContext: location-catalog
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: booking-voyage-customer-supplier
+description: Customer-supplier mapping where booking consumes route planning from voyage-routing.
+type: customer-supplier
+customer:
+  domain: cargo-shipping
+  boundedContext: booking
+supplier:
+  domain: cargo-shipping
+  boundedContext: voyage-routing
+---
+apiVersion: schema.esdm.io/core/v1
+kind: context-mapping
+name: customs-gateway-acl
+description: Anti-corruption layer isolating customs-handling from the external customs-clearance-gateway API.
+type: anti-corruption-layer
+downstream:
+  domain: cargo-shipping
+  boundedContext: customs-handling
+upstream:
+  domain: cargo-shipping
+  externalSystem: customs-clearance-gateway
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: shipper
+description: Freight customer booking cargo shipments and tracking route assignments.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: cargo-booking
+description: Cargo booking consistency boundary tracking origin/destination ports and assigned vessel voyage.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+identifiedBy:
+  source: state
+  field: tracking-id
+invariants:
+  - name: same-origin-and-destination
+    rule: Origin UN/LOCODE and destination UN/LOCODE cannot be identical.
+state:
+  type: object
+  properties:
+    tracking-id:
+      type: string
+      format: identifier
+    origin-locode:
+      type: string
+    destination-locode:
+      type: string
+    assigned-voyage:
+      type: string
+  required: [tracking-id, origin-locode, destination-locode]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: book-cargo
+description: Books a new cargo shipment between an origin port and a distinct destination port.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+  aggregate: cargo-booking
+actors: [shipper]
+publishes: [cargo-booked]
+data:
+  type: object
+  properties:
+    tracking-id:
+      type: string
+      format: identifier
+    origin-locode:
+      type: string
+      minLength: 5
+      maxLength: 5
+    destination-locode:
+      type: string
+      minLength: 5
+      maxLength: 5
+  required: [tracking-id, origin-locode, destination-locode]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: assign-cargo-to-route
+description: Assigns an existing cargo booking to a scheduled vessel voyage.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+  aggregate: cargo-booking
+actors: [shipper]
+publishes: [cargo-assigned-to-route]
+data:
+  type: object
+  properties:
+    tracking-id:
+      type: string
+      format: identifier
+    voyage-number:
+      type: string
+      minLength: 3
+  required: [tracking-id, voyage-number]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: cargo-booked
+description: Emitted when a new cargo shipment is booked.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+  aggregate: cargo-booking
+data:
+  type: object
+  properties:
+    tracking-id:
+      type: string
+      format: identifier
+    origin-locode:
+      type: string
+    destination-locode:
+      type: string
+  required: [tracking-id, origin-locode, destination-locode]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: cargo-assigned-to-route
+description: Emitted when a booked cargo shipment is assigned to a vessel voyage.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+  aggregate: cargo-booking
+data:
+  type: object
+  properties:
+    tracking-id:
+      type: string
+      format: identifier
+    voyage-number:
+      type: string
+  required: [tracking-id, voyage-number]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: cargo-tracking
+description: Materialized shipment tracking view showing route ports and assigned voyage.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+paradigm: document
+schema:
+  type: object
+  properties:
+    tracking-id:
+      type: string
+    origin-locode:
+      type: string
+    destination-locode:
+      type: string
+    routing-status:
+      type: string
+    voyage-number:
+      type: string
+  required: [tracking-id, origin-locode, destination-locode, routing-status]
+projections:
+  - boundedContext: booking
+    aggregate: cargo-booking
+    event: cargo-booked
+    rule: Insert cargo-tracking record with routing-status NotRouted.
+  - boundedContext: booking
+    aggregate: cargo-booking
+    event: cargo-assigned-to-route
+    rule: Update routing-status to Routed and set voyage-number.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-cargo-tracking
+description: Retrieves the current tracking summary for a booked cargo shipment.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+readModel: cargo-tracking
+paradigm: document
+actors: [shipper]
+parameters:
+  type: object
+result:
+  type: object
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: planner
+description: Maritime logistics planner scheduling vessel voyages.
+scope:
+  domain: cargo-shipping
+  boundedContext: voyage-routing
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: voyage
+description: Scheduled maritime vessel voyage between ports.
+scope:
+  domain: cargo-shipping
+  boundedContext: voyage-routing
+identifiedBy:
+  source: state
+  field: voyage-number
+state:
+  type: object
+  properties:
+    voyage-number:
+      type: string
+      format: identifier
+    departure-locode:
+      type: string
+    arrival-locode:
+      type: string
+  required: [voyage-number, departure-locode, arrival-locode]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: schedule-voyage
+description: Schedules a new vessel voyage between departure and arrival UN/LOCODE ports.
+scope:
+  domain: cargo-shipping
+  boundedContext: voyage-routing
+  aggregate: voyage
+actors: [planner]
+publishes: [voyage-scheduled]
+data:
+  type: object
+  properties:
+    voyage-number:
+      type: string
+      format: identifier
+    departure-locode:
+      type: string
+      minLength: 5
+      maxLength: 5
+    arrival-locode:
+      type: string
+      minLength: 5
+      maxLength: 5
+  required: [voyage-number, departure-locode, arrival-locode]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: voyage-scheduled
+description: Emitted when a vessel voyage is scheduled.
+scope:
+  domain: cargo-shipping
+  boundedContext: voyage-routing
+  aggregate: voyage
+data:
+  type: object
+  properties:
+    voyage-number:
+      type: string
+      format: identifier
+    departure-locode:
+      type: string
+    arrival-locode:
+      type: string
+  required: [voyage-number, departure-locode, arrival-locode]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain-service
+name: route-finder
+description: Stateless domain service computing an optimal voyage candidate between two UN/LOCODE ports.
+scope:
+  domain: cargo-shipping
+  boundedContext: voyage-routing
+functions:
+  - name: find-optimal-route
+    description: Returns the recommended voyage number connecting origin and destination ports.
+    arguments:
+      properties:
+        origin-locode:
+          type: string
+          minLength: 5
+          maxLength: 5
+        destination-locode:
+          type: string
+          minLength: 5
+          maxLength: 5
+      required: [origin-locode, destination-locode]
+    returns:
+      properties:
+        voyage-number:
+          type: string
+      required: [voyage-number]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: customs-officer
+description: Port customs specialist lodging customs declarations.
+scope:
+  domain: cargo-shipping
+  boundedContext: customs-handling
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: customs-declaration
+description: Port customs declaration aggregate tracking regulatory clearance status.
+scope:
+  domain: cargo-shipping
+  boundedContext: customs-handling
+identifiedBy:
+  source: state
+  field: declaration-id
+state:
+  type: object
+  properties:
+    declaration-id:
+      type: string
+      format: identifier
+    tracking-id:
+      type: string
+      format: identifier
+  required: [declaration-id, tracking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: lodge-customs-declaration
+description: Lodges a customs declaration for a booked cargo shipment.
+scope:
+  domain: cargo-shipping
+  boundedContext: customs-handling
+  aggregate: customs-declaration
+actors: [customs-officer]
+publishes: [customs-declaration-lodged]
+data:
+  type: object
+  properties:
+    declaration-id:
+      type: string
+      format: identifier
+    tracking-id:
+      type: string
+      format: identifier
+  required: [declaration-id, tracking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: customs-declaration-lodged
+description: Emitted when a customs declaration is lodged.
+scope:
+  domain: cargo-shipping
+  boundedContext: customs-handling
+  aggregate: customs-declaration
+data:
+  type: object
+  properties:
+    declaration-id:
+      type: string
+      format: identifier
+    tracking-id:
+      type: string
+      format: identifier
+  required: [declaration-id, tracking-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: billing-clerk
+description: Automated billing actor issuing freight invoices.
+scope:
+  domain: cargo-shipping
+  boundedContext: billing
+type: system
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: freight-invoice
+description: Freight invoice aggregate representing commercial charges for a booked shipment.
+scope:
+  domain: cargo-shipping
+  boundedContext: billing
+identifiedBy:
+  source: state
+  field: invoice-id
+state:
+  type: object
+  properties:
+    invoice-id:
+      type: string
+      format: identifier
+    tracking-id:
+      type: string
+      format: identifier
+    amount-cents:
+      type: integer
+  required: [invoice-id, tracking-id, amount-cents]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: issue-freight-invoice
+description: Issues a commercial freight invoice for a booked shipment.
+scope:
+  domain: cargo-shipping
+  boundedContext: billing
+  aggregate: freight-invoice
+actors: [billing-clerk]
+publishes: [freight-invoice-issued]
+data:
+  type: object
+  properties:
+    invoice-id:
+      type: string
+      format: identifier
+    tracking-id:
+      type: string
+      format: identifier
+    amount-cents:
+      type: integer
+      minimum: 1
+  required: [invoice-id, tracking-id, amount-cents]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: freight-invoice-issued
+description: Emitted when a freight invoice is issued.
+scope:
+  domain: cargo-shipping
+  boundedContext: billing
+  aggregate: freight-invoice
+data:
+  type: object
+  properties:
+    invoice-id:
+      type: string
+      format: identifier
+    tracking-id:
+      type: string
+      format: identifier
+    amount-cents:
+      type: integer
+  required: [invoice-id, tracking-id, amount-cents]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: policy
+name: auto-invoice-on-booking
+description: Stateless reactive policy that issues a freight invoice whenever new cargo is booked.
+scope:
+  domain: cargo-shipping
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: self
+  strategy: deterministic-invoice-id
+handles:
+  - boundedContext: booking
+    aggregate: cargo-booking
+    event: cargo-booked
+emits:
+  - boundedContext: billing
+    aggregate: freight-invoice
+    command: issue-freight-invoice
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event-handler
+name: notify-customs-gateway
+description: Outbound event handler submitting an electronic manifest to the external customs gateway when cargo is routed.
+scope:
+  domain: cargo-shipping
+deliveryGuarantee: at-least-once
+idempotency:
+  owner: downstream
+  strategy: tracking-id-idempotency-key
+handles:
+  - boundedContext: booking
+    aggregate: cargo-booking
+    event: cargo-assigned-to-route
+sideEffects:
+  - type: external-call
+    externalSystem: customs-clearance-gateway
+    rule: Submit electronic cargo manifest to customs-clearance-gateway for the assigned voyage.

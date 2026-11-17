@@ -10,3 +10,6 @@ tracing-subscriber = { workspace = true }
 bootstrap = { path = "../../bootstrap" }
 chromatofoor-tui = { workspace = true }
 chromatofoor = { workspace = true }
+
+[lints]
+workspace = true

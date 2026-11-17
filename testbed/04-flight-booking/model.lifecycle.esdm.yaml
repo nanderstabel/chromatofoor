@@ -1,0 +1,32 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: flight-reservation-lifecycle
+description: Lifecycle rules for flight reservations.
+scope:
+  domain: travel-booking
+  boundedContext: flight
+  aggregate: flight-reservation
+created:
+  - reserve-flight
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: hotel-reservation-lifecycle
+description: Lifecycle rules for hotel reservations.
+scope:
+  domain: travel-booking
+  boundedContext: hotel
+  aggregate: hotel-reservation
+created:
+  - reserve-hotel
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: booking-payment-lifecycle
+description: Lifecycle rules for booking payments.
+scope:
+  domain: travel-booking
+  boundedContext: payment
+  aggregate: booking-payment
+created:
+  - request-payment

@@ -1,36 +1,39 @@
 # Chromatofoor Testbeds
 
-This directory contains end-to-end reference domains used to verify `chromatofoor`, `chromatofoor-derive`, `chromatofoor-gen`, `esdm`, and all presentation adapters under `./scripts/verify_testbeds.sh`.
+This directory contains five progressive, domain-agnostic DDD reference domains used to verify `chromatofoor`, `chromatofoor-derive`, `chromatofoor-gen`, `esdm`, and all presentation adapters under `./scripts/verify_testbeds.sh`. Together, `01` through `05` cover 100% of ESDM's 18 core `kind`s plus `aggregate-lifecycle`, `feature`, and all five `presentation-binding` transports.
 
-Each subdirectory contains a declarative `model.esdm.yaml` alongside its extension specifications (`model.lifecycle.esdm.yaml`, `model.feature.esdm.yaml`, and optional `model.infra.esdm.yaml`) and generated Cargo workspace.
+Each subdirectory contains declarative `.esdm.yaml` specifications (`model.esdm.yaml`, `model.lifecycle.esdm.yaml`, `model.feature.esdm.yaml`, and optional `model.infra.esdm.yaml`) alongside its generated Cargo `workspace/`.
 
-## Testbed Catalog
+## Canonical Progression (`01` → `05`)
 
-- **`01-bank-account`**: Foundational banking domain demonstrating aggregates, lifecycle creation/mutation commands, events, actors, and an account summary read model.
-- **`02-ecommerce-checkout`**: E-commerce cart and checkout domain exercising JSON Schema validation constraints, explicit rejection scenarios, and list updates inside read models.
-- **`03-flight-booking`**: Distributed travel booking domain testing stateful `process-manager` sagas, compensating commands, and scheduled `ProcessTimer` timeouts.
-- **`04-virtual-apartment`**: Multi-context property & tenancy domain demonstrating subdomains, `shared-kernel` crates, Dynamic Consistency Boundaries (`consults`), entities, value objects, domain services, policies, event handlers, and process managers.
-- **`05-helpdesk-ticketing`**: Support ticketing domain exercising Dynamic Consistency Boundaries, actor authorization, entities, and domain services.
-- **`06-notification-delivery`**: Multi-context notification domain demonstrating `context-mapping` patterns, `external-system` infrastructure traits, policies, and outbound event handlers.
-- **`07-life-chart`**: Desktop mood & symptom tracking application (Life Chart Method) demonstrating Tauri v2 + Svelte 5 (`@chromatofoor/ui`) presentation bindings.
-- **`08-digital-identity-ecosystem`**: Multi-context Decentralized Identity (OID4VCI, OID4VP, OpenID Federation, Token Status List) reference architecture demonstrating declarative `model.infra.esdm.yaml` HTTP specification bindings, cross-context policies, and cryptographic domain boundaries.
+| # | Directory | Classic DDD Problem Space | Primary ESDM & Runtime Mechanisms Covered |
+| :--- | :--- | :--- | :--- |
+| **01** | [`01-bank-account`](./01-bank-account/model.esdm.yaml) | Retail bank account | `domain`, `bounded-context`, `actor` (`human`), `aggregate` (`generated(uuid)`), `aggregate-lifecycle` (`created`), `command`, `event`, `read-model` (`DocumentView`), `query`, `feature` (`then.events`, `events: []` idempotency, `rejection.invariant`, unauthorized actor rejection, `then.result`). |
+| **02** | [`02-ecommerce-checkout`](./02-ecommerce-checkout/model.esdm.yaml) | Shopping cart & checkout | `entity` (`identifiedBy: schema`), `value-object`, `$ref` schema composition, `validator::Validate` nested & range constraints, multi-event state invariants (`empty-cart`, `cart-already-checked-out`). |
+| **03** | [`03-course-enrollment`](./03-course-enrollment/model.esdm.yaml) | University course registration | `dynamic-consistency-boundary` (`identifiedBy: command-payload` composite key + cross-aggregate `consults` + free-standing BC events), `domain-service`, DCB `feature` scenarios. |
+| **04** | [`04-flight-booking`](./04-flight-booking/model.esdm.yaml) | Travel reservation saga | Multi-BC coordination (`flight`, `hotel`, `payment`), `actor` (`system`), `process-manager` (`correlatedBy: event-field`, `startsWhen`, `endsWhen`, `timers` with `after`, `setTimers`, `cancelTimers`, compensating commands, `deliveryGuarantee: at-least-once`, `idempotency`), `customer-supplier` `context-mapping`, PM `feature` scenarios. |
+| **05** | [`05-cargo-shipping`](./05-cargo-shipping/model.esdm.yaml) | Freight & cargo routing (Evans) | `subdomain` (`core`, `supporting`, `generic`), `shared-kernel` (`tier: shared-kernel`), `policy` (`React`), `event-handler` (`Handle` + outbound `sideEffects`), `external-system` (`outbound`), `anti-corruption-layer` `context-mapping` (`src/infrastructure/`), `model.infra.esdm.yaml` (`http-rest`, `graphql`, `mcp`, `cli`, `tauri-ipc`), `typescript-client/`. |
 
 ## Regenerating & Verifying Testbeds
 
-To lint, test, regenerate all testbeds, and verify zero git-diff non-determinism in one step from the repository root:
+To verify strict Green-phase completion (all generated tests passing and zero leftover `todo!` stubs) and zero git-diff non-determinism from the repository root:
 
 ```bash
 ./scripts/verify_testbeds.sh
 ```
 
-To regenerate an individual testbed manually:
+When testbeds are freshly scaffolded in Red state (before manual `todo!(...)` stubs are implemented), verify compilation, lint cleanliness (`-D warnings -A clippy::todo`), and regeneration determinism with:
 
 ```bash
-cargo run -p chromatofoor-gen -- \
-  --input testbed/<example>/model.esdm.yaml \
-  --features testbed/<example>/model.feature.esdm.yaml \
-  --lifecycle testbed/<example>/model.lifecycle.esdm.yaml \
-  --out-dir testbed/<example>/workspace \
+./scripts/verify_testbeds.sh --red-phase
+```
+
+To regenerate an individual testbed manually (`model.lifecycle.esdm.yaml`, `model.feature.esdm.yaml`, and `model.infra.esdm.yaml` are auto-discovered alongside `model.esdm.yaml`):
+
+```bash
+cargo run -p chromatofoor-gen --features tui -- \
+  --input testbed/04-flight-booking/model.esdm.yaml \
+  --out-dir testbed/04-flight-booking/workspace \
   --chromatofoor-path ../../../../chromatofoor
 ```
-*(Add `--infra testbed/<example>/model.infra.esdm.yaml` when an infrastructure binding file is present.)*
+*(Use `--features full` instead of `--features tui` when generating `05-cargo-shipping` so all presentation servers and `typescript-client/` are emitted.)*

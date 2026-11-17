@@ -6,7 +6,7 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Emitted when funds have been deposited into a bank account.
+/// Emitted when positive funds have been deposited into a bank account.
 #[chromatofoor::event(scope = crate::generated::domain::account::aggregate::Account)]
 #[derive(chromatofoor::validator::Validate)]
 #[validate(crate = "chromatofoor::validator")]

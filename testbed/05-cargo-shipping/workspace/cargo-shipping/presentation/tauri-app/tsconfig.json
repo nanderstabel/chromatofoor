@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "$domain": ["../../typescript-client/index.ts"],
+      "$domain/*": ["../../typescript-client/*"],
+      "@chromatofoor/ui": ["../../../../packages/ui/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte", "../../typescript-client/**/*.ts", "../../../../packages/ui/src/**/*.svelte"]
+}

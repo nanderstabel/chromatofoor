@@ -13,7 +13,7 @@ pub use funds_withdrawn::FundsWithdrawn;
 pub enum AccountEvent {
     /// Emitted when a new bank account has been opened.
     AccountOpened(account_opened::AccountOpened),
-    /// Emitted when funds have been deposited into a bank account.
+    /// Emitted when positive funds have been deposited into a bank account.
     FundsDeposited(funds_deposited::FundsDeposited),
     /// Emitted when funds have been withdrawn from a bank account.
     FundsWithdrawn(funds_withdrawn::FundsWithdrawn),

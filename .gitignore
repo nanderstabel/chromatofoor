@@ -1,10 +1,11 @@
 target/
-/virtual-apartment
 /out/
 private/
 node_modules/
 package-lock.json
 src-tauri/gen/
 dist/
+!**/presentation/tauri-app/dist/
+!**/presentation/tauri-app/dist/index.html
 storybook-static/
 

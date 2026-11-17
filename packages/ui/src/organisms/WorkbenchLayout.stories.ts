@@ -15,6 +15,6 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
-    brandName: 'Chromatofoor Studio',
+    brandName: 'Chromatofoor',
   },
 };

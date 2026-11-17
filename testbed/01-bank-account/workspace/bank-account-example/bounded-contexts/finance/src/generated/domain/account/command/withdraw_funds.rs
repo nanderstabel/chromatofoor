@@ -6,14 +6,14 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Withdraws funds from an existing bank account.
+/// Withdraws funds from an existing bank account when sufficient balance is available.
 #[chromatofoor::command(
     scope = crate::generated::domain::account::aggregate::Account,
     validate,
-    actors = [crate::generated::domain::actors::Customer,
-    crate::generated::domain::actors::BankTeller],
+    actors = [crate::generated::domain::actors::Customer],
 )]
 pub struct WithdrawFunds {
+    #[validate(range(min = 1i64, message = "Field 'amount' must be at least 1"))]
     pub amount: i64,
     pub id: uuid::Uuid,
 }

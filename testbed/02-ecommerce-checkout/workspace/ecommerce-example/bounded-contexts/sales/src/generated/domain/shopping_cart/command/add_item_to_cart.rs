@@ -6,7 +6,7 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Adds an item to the shopping cart
+/// Adds a validated product line item to an open shopping cart.
 #[chromatofoor::command(
     scope = crate::generated::domain::shopping_cart::aggregate::ShoppingCart,
     validate,
@@ -14,8 +14,6 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct AddItemToCart {
     pub id: uuid::Uuid,
-    pub price: i64,
-    #[serde(rename = "product-id")]
-    pub product_id: String,
-    pub quantity: i64,
+    #[validate(nested)]
+    pub item: crate::generated::domain::CartItem,
 }

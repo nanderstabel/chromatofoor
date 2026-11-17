@@ -1,7 +1,7 @@
 ---
 title: Project-Wide Agent Rules
 type: agent_rules
-last_updated: 2026-11-14
+last_updated: 2026-11-16
 context: Global operational constraints for AI agents operating in this repository.
 ---
 # Project-Wide Agent Rules
@@ -29,18 +29,16 @@ To navigate the codebase efficiently without reading unnecessary files, use the 
 When modifying `chromatofoor-gen`, all generated outputs MUST be 100% deterministic:
 
 - **Sorting**: Sort all lists derived from `HashMap` or `HashSet` alphabetically before emitting `Cargo.toml` members, `pub mod` declarations, enum variants, or struct fields.
-- **Non-Destructive Boundaries**: Overwrite only `src/generated/`, `bootstrap/`, `domain/`, `tests/`, and generated presentation entry points; never clobber existing developer-authored logic in `src/domain/`, `src/application/read_models/`, `src/infrastructure/`, or manual `process_manager.rs` files.
+- **Non-Destructive Boundaries**: Overwrite only `src/generated/`, `bootstrap/`, `domain/`, `<crate>/tests/generated/`, and generated presentation entry points; never clobber existing developer-authored logic in `src/domain/`, `src/application/read_models/`, `src/infrastructure/`, manual `process_manager.rs` files, or manual `<crate>/tests/*.rs` files.
 
 ## Invoking the Code Generator for Testing
 
-When verifying `chromatofoor-gen` changes against a sample domain model from the repository root, use:
+When verifying `chromatofoor-gen` changes against a sample domain model from the repository root (`model.lifecycle.esdm.yaml`, `model.feature.esdm.yaml`, and `model.infra.esdm.yaml` are auto-discovered alongside `model.esdm.yaml`):
 
 ```bash
-cargo run -p chromatofoor-gen -- \
-  --input testbed/04-virtual-apartment/model.esdm.yaml \
-  --features testbed/04-virtual-apartment/model.feature.esdm.yaml \
-  --lifecycle testbed/04-virtual-apartment/model.lifecycle.esdm.yaml \
-  --out-dir testbed/04-virtual-apartment/workspace \
+cargo run -p chromatofoor-gen --features tui -- \
+  --input testbed/04-flight-booking/model.esdm.yaml \
+  --out-dir testbed/04-flight-booking/workspace \
   --chromatofoor-path ../../../../chromatofoor
 ```
 

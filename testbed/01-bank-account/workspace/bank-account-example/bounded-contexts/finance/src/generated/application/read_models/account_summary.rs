@@ -5,16 +5,16 @@
 #[allow(unused_imports)]
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
-/// Summary view of account owner and current balance.
+/// Materialized summary view of account owner and current balance.
 #[derive(
     Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema,
 )]
 #[architecturekit(crate = "chromatofoor::architecturekit")]
 pub struct AccountSummaryRecord {
-    pub owner_name: Option<String>,
-    pub current_balance: Option<i64>,
+    pub owner_name: String,
+    pub current_balance: i64,
 }
-/// Summary view of account owner and current balance.
+/// Materialized summary view of account owner and current balance.
 #[chromatofoor::read_model(
     scope = crate::generated::domain::Finance,
     events = [crate::generated::domain::account::event::account_opened::AccountOpened,

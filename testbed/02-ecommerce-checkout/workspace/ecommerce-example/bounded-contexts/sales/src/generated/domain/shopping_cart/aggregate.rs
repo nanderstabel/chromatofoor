@@ -5,7 +5,7 @@
 #[allow(unused_imports)]
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
-/// The shopping cart aggregate
+/// Shopping cart consistency boundary enforcing non-empty checkout and post-checkout immutability.
 #[chromatofoor::aggregate(
     scope = crate::generated::domain::Sales,
     identified_by = [generated(uuid)],
@@ -16,30 +16,15 @@ pub enum ShoppingCart {
     None,
     Created(ShoppingCartInner),
 }
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    serde::Serialize,
-    serde::Deserialize,
-    PartialEq,
-    chromatofoor::validator::Validate,
-    chromatofoor::architecturekit::Schema,
-)]
-#[validate(crate = "chromatofoor::validator")]
-#[architecturekit(crate = "chromatofoor::architecturekit")]
-pub struct ShoppingCartItemsItem {
-    pub price: i64,
-    #[serde(rename = "product-id")]
-    pub product_id: String,
-    pub quantity: i64,
-}
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, chromatofoor::validator::Validate)]
 #[validate(crate = "chromatofoor::validator")]
 pub struct ShoppingCartInner {
+    #[serde(rename = "checked-out")]
+    pub checked_out: bool,
+    #[serde(rename = "customer-id")]
+    pub customer_id: chromatofoor::Identifier,
     #[validate(nested)]
-    pub items: Option<Vec<ShoppingCartItemsItem>>,
-    pub status: Option<String>,
+    pub items: Vec<crate::generated::domain::CartItem>,
 }
 impl ShoppingCart {
     pub fn is_none(&self) -> bool {

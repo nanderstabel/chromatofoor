@@ -1,31 +1,109 @@
 apiVersion: schema.esdm.io/given-when-then/v1
 kind: feature
-name: account-summary-read-model-feature
-description: Tests for the Account Summary read model projection.
+name: account-commands
+description: Behavioral scenarios for opening, depositing into, and withdrawing from a bank account.
+scope:
+  domain: bank-account-example
+  boundedContext: finance
+  aggregate: account
+scenarios:
+  - name: open-new-account
+    description: Opening an account emits account-opened with the initial balance.
+    given: []
+    when:
+      actor: customer
+      command: open-account
+      data:
+        owner-name: "Alice"
+        initial-balance: 100
+    then:
+      events:
+        - event: account-opened
+          data:
+            owner-name: "Alice"
+            balance: 100
+
+  - name: deposit-positive-amount
+    description: Depositing a positive amount emits funds-deposited with the updated balance.
+    given:
+      - event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      actor: customer
+      command: deposit-funds
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        amount: 50
+    then:
+      events:
+        - event: funds-deposited
+          data:
+            amount: 50
+            new-balance: 150
+
+  - name: ignore-zero-amount-deposit
+    description: Depositing zero funds is an idempotent no-op that emits zero events.
+    given:
+      - event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      actor: bank-teller
+      command: deposit-funds
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        amount: 0
+    then:
+      events: []
+
+  - name: reject-overdraft-withdrawal
+    description: Withdrawing more than the current balance is rejected with insufficient-funds.
+    given:
+      - event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      actor: customer
+      command: withdraw-funds
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        amount: 150
+    then:
+      rejection:
+        invariant: insufficient-funds
+
+  - name: reject-unauthorized-teller-withdrawal
+    description: A bank teller attempting to withdraw customer funds is rejected by actor authorization.
+    given:
+      - event: account-opened
+        data:
+          owner-name: "Alice"
+          balance: 100
+    when:
+      actor: bank-teller
+      command: withdraw-funds
+      data:
+        id: "00000000-0000-0000-0000-000000000001"
+        amount: 40
+    then:
+      rejection:
+        reason: "not authorized"
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: account-summary-queries
+description: Read-model query scenarios for account balance summaries.
 scope:
   domain: bank-account-example
   boundedContext: finance
   readModel: account-summary
 scenarios:
-  - name: verify-account-opened-projection
-    description: When an account is opened, the read model populates the owner name and initial balance.
-    given:
-      - boundedContext: finance
-        aggregate: account
-        event: account-opened
-        data:
-          owner-name: "Alice"
-          balance: 100
-    when:
-      query: get-account-summary
-      parameters: {}
-    then:
-      readModel:
-        owner_name: "Alice"
-        current_balance: 100
-
-  - name: verify-funds-deposited-projection
-    description: Depositing funds updates the current balance in the read model.
+  - name: return-projected-balance-after-transactions
+    description: Querying get-account-summary returns the projected owner and balance after deposits and withdrawals.
     given:
       - boundedContext: finance
         aggregate: account
@@ -39,81 +117,16 @@ scenarios:
         data:
           amount: 50
           new-balance: 150
-    when:
-      query: get-account-summary
-      parameters: {}
-    then:
-      readModel:
-        owner_name: "Alice"
-        current_balance: 150
-
-  - name: verify-funds-withdrawn-projection
-    description: Withdrawing funds updates the current balance in the read model.
-    given:
-      - boundedContext: finance
-        aggregate: account
-        event: account-opened
-        data:
-          owner-name: "Alice"
-          balance: 100
       - boundedContext: finance
         aggregate: account
         event: funds-withdrawn
         data:
-          amount: 40
-          new-balance: 60
+          amount: 30
+          new-balance: 120
     when:
       query: get-account-summary
       parameters: {}
     then:
-      readModel:
+      result:
         owner_name: "Alice"
-        current_balance: 60
-
----
-apiVersion: schema.esdm.io/given-when-then/v1
-kind: feature
-name: account-commands-feature
-description: Tests for Account aggregate commands.
-scope:
-  domain: bank-account-example
-  boundedContext: finance
-  aggregate: account
-scenarios:
-  - name: verify-deposit-funds-command
-    description: Depositing funds emits a funds-deposited event
-    given:
-      - event: account-opened
-        data:
-          owner-name: "Alice"
-          balance: 100
-    when:
-      command: deposit-funds
-      data:
-        id: "00000000-0000-0000-0000-000000000001"
-        amount: 50
-    then:
-      events:
-        - event: funds-deposited
-          data:
-            amount: 50
-            new-balance: 150
-
-  - name: verify-withdraw-funds-command
-    description: Withdrawing funds emits a funds-withdrawn event
-    given:
-      - event: account-opened
-        data:
-          owner-name: "Alice"
-          balance: 100
-    when:
-      command: withdraw-funds
-      data:
-        id: "00000000-0000-0000-0000-000000000001"
-        amount: 40
-    then:
-      events:
-        - event: funds-withdrawn
-          data:
-            amount: 40
-            new-balance: 60
+        current_balance: 120

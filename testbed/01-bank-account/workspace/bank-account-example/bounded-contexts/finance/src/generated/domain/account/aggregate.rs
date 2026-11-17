@@ -5,7 +5,7 @@
 #[allow(unused_imports)]
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
-/// Bank account aggregate managing account state and transactions.
+/// Bank account consistency boundary tracking account holder identity and current balance.
 #[chromatofoor::aggregate(
     scope = crate::generated::domain::Finance,
     identified_by = [generated(uuid)],
@@ -19,9 +19,9 @@ pub enum Account {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, chromatofoor::validator::Validate)]
 #[validate(crate = "chromatofoor::validator")]
 pub struct AccountInner {
-    pub balance: Option<i64>,
+    pub balance: i64,
     #[serde(rename = "owner-name")]
-    pub owner_name: Option<String>,
+    pub owner_name: String,
 }
 impl Account {
     pub fn is_none(&self) -> bool {

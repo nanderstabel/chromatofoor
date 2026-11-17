@@ -14,5 +14,5 @@ use serde::{Deserialize, Serialize};
 #[validate(crate = "chromatofoor::validator")]
 pub struct CartInitialized {
     #[serde(rename = "customer-id")]
-    pub customer_id: String,
+    pub customer_id: chromatofoor::Identifier,
 }

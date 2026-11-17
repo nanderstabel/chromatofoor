@@ -1,0 +1,97 @@
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: cargo-booking-commands
+description: Behavioral scenarios for booking cargo and assigning voyages.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+  aggregate: cargo-booking
+scenarios:
+  - name: book-cargo-between-distinct-ports
+    description: Booking cargo between Rotterdam (NLRTM) and New York (USNYC) emits cargo-booked.
+    given: []
+    when:
+      actor: shipper
+      command: book-cargo
+      data:
+        tracking-id: "cargo-900"
+        origin-locode: "NLRTM"
+        destination-locode: "USNYC"
+    then:
+      events:
+        - event: cargo-booked
+          data:
+            tracking-id: "cargo-900"
+            origin-locode: "NLRTM"
+            destination-locode: "USNYC"
+
+  - name: reject-identical-origin-and-destination
+    description: Booking cargo where origin and destination UN/LOCODEs are equal fails with same-origin-and-destination.
+    given: []
+    when:
+      actor: shipper
+      command: book-cargo
+      data:
+        tracking-id: "cargo-901"
+        origin-locode: "NLRTM"
+        destination-locode: "NLRTM"
+    then:
+      rejection:
+        invariant: same-origin-and-destination
+
+  - name: assign-booked-cargo-to-voyage
+    description: Assigning booked cargo to voyage v-204 emits cargo-assigned-to-route.
+    given:
+      - event: cargo-booked
+        data:
+          tracking-id: "cargo-900"
+          origin-locode: "NLRTM"
+          destination-locode: "USNYC"
+    when:
+      actor: shipper
+      command: assign-cargo-to-route
+      data:
+        tracking-id: "cargo-900"
+        voyage-number: "v-204"
+    then:
+      events:
+        - event: cargo-assigned-to-route
+          data:
+            tracking-id: "cargo-900"
+            voyage-number: "v-204"
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: cargo-tracking-queries
+description: Read-model query scenarios for shipment tracking status.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+  readModel: cargo-tracking
+scenarios:
+  - name: return-routed-cargo-tracking-summary
+    description: Querying get-cargo-tracking returns Routed status and assigned voyage number.
+    given:
+      - boundedContext: booking
+        aggregate: cargo-booking
+        event: cargo-booked
+        data:
+          tracking-id: "cargo-900"
+          origin-locode: "NLRTM"
+          destination-locode: "USNYC"
+      - boundedContext: booking
+        aggregate: cargo-booking
+        event: cargo-assigned-to-route
+        data:
+          tracking-id: "cargo-900"
+          voyage-number: "v-204"
+    when:
+      query: get-cargo-tracking
+      parameters: {}
+    then:
+      result:
+        tracking_id: "cargo-900"
+        origin_locode: "NLRTM"
+        destination_locode: "USNYC"
+        routing_status: "Routed"
+        voyage_number: "v-204"

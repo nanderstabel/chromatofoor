@@ -6,7 +6,7 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Opens a new bank account with an initial balance.
+/// Opens a new bank account with an initial non-negative balance.
 #[chromatofoor::command(
     scope = crate::generated::domain::account::aggregate::Account,
     creates,

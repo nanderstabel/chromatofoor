@@ -2,43 +2,46 @@
 apiVersion: schema.esdm.io/core/v1
 kind: domain
 name: bank-account-example
-description: "A simple isolated domain to test raw event sourcing throughput and projection speeds."
+description: Foundational retail banking domain demonstrating event-sourced aggregates, actor authorization, and read-model projections.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: bounded-context
 name: finance
-description: "Bounded context managing financial operations and account balances."
+description: Bounded context managing bank accounts, deposits, withdrawals, and balance summaries.
 scope:
   domain: bank-account-example
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: actor
 name: customer
+description: Account holder authorized to open accounts, deposit funds, and withdraw funds.
 scope:
   domain: bank-account-example
   boundedContext: finance
 type: human
-description: A bank customer.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: actor
 name: bank-teller
+description: Bank branch employee authorized to open accounts and accept deposits, but not withdraw customer funds directly.
 scope:
   domain: bank-account-example
   boundedContext: finance
 type: human
-description: A bank employee handling transactions.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: aggregate
 name: account
-description: "Bank account aggregate managing account state and transactions."
+description: Bank account consistency boundary tracking account holder identity and current balance.
 scope:
   domain: bank-account-example
   boundedContext: finance
 identifiedBy:
   source: generated
   generator: uuid
+invariants:
+  - name: insufficient-funds
+    rule: Account balance must cover the requested withdrawal amount.
 state:
   type: object
   properties:
@@ -46,19 +49,21 @@ state:
       type: string
     balance:
       type: integer
+  required: [owner-name, balance]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: command
 name: open-account
-description: "Opens a new bank account with an initial balance."
-actors: [customer, bank-teller]
+description: Opens a new bank account with an initial non-negative balance.
 scope:
   domain: bank-account-example
   boundedContext: finance
   aggregate: account
+actors: [customer, bank-teller]
 publishes:
   - account-opened
 data:
+  type: object
   properties:
     owner-name:
       type: string
@@ -71,54 +76,57 @@ data:
 apiVersion: schema.esdm.io/core/v1
 kind: command
 name: deposit-funds
-description: "Deposits funds into an existing bank account."
-actors: [customer, bank-teller]
+description: Deposits funds into an existing bank account (a zero-amount deposit is an idempotent no-op).
 scope:
   domain: bank-account-example
   boundedContext: finance
   aggregate: account
+actors: [customer, bank-teller]
 publishes:
   - funds-deposited
 data:
+  type: object
   properties:
     id:
       type: string
       format: uuid
     amount:
       type: integer
-      exclusiveMinimum: 0
+      minimum: 0
   required: [id, amount]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: command
 name: withdraw-funds
-description: "Withdraws funds from an existing bank account."
-actors: [customer, bank-teller]
+description: Withdraws funds from an existing bank account when sufficient balance is available.
 scope:
   domain: bank-account-example
   boundedContext: finance
   aggregate: account
+actors: [customer]
 publishes:
   - funds-withdrawn
 data:
+  type: object
   properties:
     id:
       type: string
       format: uuid
     amount:
       type: integer
-      exclusiveMinimum: 0
+      minimum: 1
   required: [id, amount]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: event
 name: account-opened
-description: "Emitted when a new bank account has been opened."
+description: Emitted when a new bank account has been opened.
 scope:
   domain: bank-account-example
   boundedContext: finance
   aggregate: account
 data:
+  type: object
   properties:
     owner-name:
       type: string
@@ -129,12 +137,13 @@ data:
 apiVersion: schema.esdm.io/core/v1
 kind: event
 name: funds-deposited
-description: "Emitted when funds have been deposited into a bank account."
+description: Emitted when positive funds have been deposited into a bank account.
 scope:
   domain: bank-account-example
   boundedContext: finance
   aggregate: account
 data:
+  type: object
   properties:
     amount:
       type: integer
@@ -145,12 +154,13 @@ data:
 apiVersion: schema.esdm.io/core/v1
 kind: event
 name: funds-withdrawn
-description: "Emitted when funds have been withdrawn from a bank account."
+description: Emitted when funds have been withdrawn from a bank account.
 scope:
   domain: bank-account-example
   boundedContext: finance
   aggregate: account
 data:
+  type: object
   properties:
     amount:
       type: integer
@@ -161,10 +171,11 @@ data:
 apiVersion: schema.esdm.io/core/v1
 kind: read-model
 name: account-summary
-description: "Summary view of account owner and current balance."
+description: Materialized summary view of account owner and current balance.
 scope:
   domain: bank-account-example
   boundedContext: finance
+paradigm: document
 schema:
   type: object
   properties:
@@ -172,33 +183,32 @@ schema:
       type: string
     current-balance:
       type: integer
+  required: [owner-name, current-balance]
 projections:
   - boundedContext: finance
     aggregate: account
     event: account-opened
-    rule: "Set owner-name and current-balance from the event."
+    rule: Insert a summary record with owner-name and current-balance equal to balance.
   - boundedContext: finance
     aggregate: account
     event: funds-deposited
-    rule: "Add amount to current-balance."
+    rule: Update current-balance to new-balance.
   - boundedContext: finance
     aggregate: account
     event: funds-withdrawn
-    rule: "Subtract amount from current-balance."
+    rule: Update current-balance to new-balance.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: query
 name: get-account-summary
-description: Retrieves the current balance and owner details.
+description: Retrieves the current balance and owner details for an account.
 scope:
   domain: bank-account-example
   boundedContext: finance
 readModel: account-summary
 paradigm: document
-result:
-  type: object
+actors: [customer, bank-teller]
 parameters:
   type: object
-actors:
-  - customer
-constraints: []
+result:
+  type: object

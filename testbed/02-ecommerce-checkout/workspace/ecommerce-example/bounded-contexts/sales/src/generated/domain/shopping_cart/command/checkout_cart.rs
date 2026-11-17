@@ -6,7 +6,7 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Checks out the shopping cart
+/// Checks out a non-empty open cart with a validated shipping address.
 #[chromatofoor::command(
     scope = crate::generated::domain::shopping_cart::aggregate::ShoppingCart,
     validate,
@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct CheckoutCart {
     pub id: uuid::Uuid,
-    #[serde(rename = "payment-method")]
-    pub payment_method: String,
+    #[serde(rename = "shipping-address")]
+    #[validate(nested)]
+    pub shipping_address: crate::generated::domain::ShippingAddress,
 }

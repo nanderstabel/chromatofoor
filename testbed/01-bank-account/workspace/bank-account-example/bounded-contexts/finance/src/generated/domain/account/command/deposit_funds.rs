@@ -6,7 +6,7 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Deposits funds into an existing bank account.
+/// Deposits funds into an existing bank account (a zero-amount deposit is an idempotent no-op).
 #[chromatofoor::command(
     scope = crate::generated::domain::account::aggregate::Account,
     validate,
@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
     crate::generated::domain::actors::BankTeller],
 )]
 pub struct DepositFunds {
+    #[validate(range(min = 0i64, message = "Field 'amount' must be at least 0"))]
     pub amount: i64,
     pub id: uuid::Uuid,
 }

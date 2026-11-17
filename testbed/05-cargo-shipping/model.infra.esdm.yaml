@@ -1,0 +1,56 @@
+apiVersion: schema.esdm.io/infrastructure/v1
+kind: presentation-binding
+name: cargo-http-rest
+description: HTTP REST and OpenAPI server binding for cargo shipping operations.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+transport: http-rest
+rest:
+  path: /api/cargo/bookings
+  method: POST
+  successStatus: 201
+---
+apiVersion: schema.esdm.io/infrastructure/v1
+kind: presentation-binding
+name: cargo-graphql
+description: GraphQL schema, mutation, query, and subscription server binding.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+transport: graphql
+graphql:
+  operationType: mutation
+  field: bookCargo
+---
+apiVersion: schema.esdm.io/infrastructure/v1
+kind: presentation-binding
+name: cargo-mcp
+description: Model Context Protocol server binding exposing cargo commands and queries as tools.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+transport: mcp
+---
+apiVersion: schema.esdm.io/infrastructure/v1
+kind: presentation-binding
+name: cargo-cli-tui
+description: Interactive terminal UI binding for cargo shipping operations.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+transport: cli
+cli:
+  command: cargo-shipping
+  subcommand: tui
+---
+apiVersion: schema.esdm.io/infrastructure/v1
+kind: presentation-binding
+name: cargo-tauri-desktop
+description: Tauri v2 desktop application IPC binding for cargo shipping operations.
+scope:
+  domain: cargo-shipping
+  boundedContext: booking
+transport: tauri-ipc
+tauriIpc:
+  commandName: dispatch_command

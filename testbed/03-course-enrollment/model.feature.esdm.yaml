@@ -1,0 +1,204 @@
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: student-course-enrollment-boundary
+description: Dynamic Consistency Boundary scenarios enforcing course seat capacity and per-student course load.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  dynamicConsistencyBoundary: student-course-enrollment
+scenarios:
+  - name: enroll-student-within-capacity-and-load
+    description: Enrolling a registered student in a course with open seats emits student-enrolled.
+    given:
+      - boundedContext: enrollment
+        aggregate: course
+        event: course-published
+        data:
+          course-id: "cs-101"
+          title: "Distributed Systems"
+          capacity: 2
+      - boundedContext: enrollment
+        aggregate: student-registration
+        event: student-registered
+        data:
+          student-id: "stu-alice"
+          full-name: "Alice Visser"
+    when:
+      actor: student
+      command: enroll-student
+      data:
+        student-id: "stu-alice"
+        course-id: "cs-101"
+    then:
+      events:
+        - event: student-enrolled
+          data:
+            student-id: "stu-alice"
+            course-id: "cs-101"
+
+  - name: reject-when-course-capacity-exceeded
+    description: Enrolling a student when all course seats are taken fails with course-capacity-exceeded.
+    given:
+      - boundedContext: enrollment
+        aggregate: course
+        event: course-published
+        data:
+          course-id: "cs-101"
+          title: "Distributed Systems"
+          capacity: 1
+      - boundedContext: enrollment
+        aggregate: student-registration
+        event: student-registered
+        data:
+          student-id: "stu-alice"
+          full-name: "Alice Visser"
+      - boundedContext: enrollment
+        aggregate: student-registration
+        event: student-registered
+        data:
+          student-id: "stu-bob"
+          full-name: "Bob Bakker"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-101"
+    when:
+      actor: student
+      command: enroll-student
+      data:
+        student-id: "stu-bob"
+        course-id: "cs-101"
+    then:
+      rejection:
+        invariant: course-capacity-exceeded
+
+  - name: reject-when-student-load-exceeded
+    description: Enrolling a student already holding 5 active courses fails with student-load-exceeded.
+    given:
+      - boundedContext: enrollment
+        aggregate: course
+        event: course-published
+        data:
+          course-id: "cs-106"
+          title: "Event Sourcing Seminar"
+          capacity: 30
+      - boundedContext: enrollment
+        aggregate: student-registration
+        event: student-registered
+        data:
+          student-id: "stu-alice"
+          full-name: "Alice Visser"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-101"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-102"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-103"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-104"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-105"
+    when:
+      actor: student
+      command: enroll-student
+      data:
+        student-id: "stu-alice"
+        course-id: "cs-106"
+    then:
+      rejection:
+        invariant: student-load-exceeded
+
+  - name: ignore-duplicate-drop-enrollment
+    description: Dropping an already-dropped enrollment is an idempotent no-op emitting zero events.
+    given:
+      - boundedContext: enrollment
+        aggregate: course
+        event: course-published
+        data:
+          course-id: "cs-101"
+          title: "Distributed Systems"
+          capacity: 20
+      - boundedContext: enrollment
+        aggregate: student-registration
+        event: student-registered
+        data:
+          student-id: "stu-alice"
+          full-name: "Alice Visser"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-101"
+      - boundedContext: enrollment
+        event: enrollment-dropped
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-101"
+    when:
+      actor: student
+      command: drop-enrollment
+      data:
+        student-id: "stu-alice"
+        course-id: "cs-101"
+    then:
+      events: []
+---
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: course-roster-queries
+description: Read-model query scenarios for projected course enrollment counts.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  readModel: course-roster
+scenarios:
+  - name: return-projected-roster-count
+    description: Querying get-course-roster reflects net active enrollments after drops.
+    given:
+      - boundedContext: enrollment
+        aggregate: course
+        event: course-published
+        data:
+          course-id: "cs-101"
+          title: "Distributed Systems"
+          capacity: 25
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-alice"
+          course-id: "cs-101"
+      - boundedContext: enrollment
+        event: student-enrolled
+        data:
+          student-id: "stu-bob"
+          course-id: "cs-101"
+      - boundedContext: enrollment
+        event: enrollment-dropped
+        data:
+          student-id: "stu-bob"
+          course-id: "cs-101"
+    when:
+      query: get-course-roster
+      parameters: {}
+    then:
+      result:
+        course_id: "cs-101"
+        title: "Distributed Systems"
+        capacity: 25
+        enrolled_count: 1

@@ -162,7 +162,7 @@ $defs:
         $ref: "#/$defs/scopeDomain"
       transport:
         type: string
-        enum: [http-rest, cli, graphql, tauri-ipc]
+        enum: [http-rest, cli, graphql, tauri-ipc, mcp]
       rest:
         type: object
         properties:

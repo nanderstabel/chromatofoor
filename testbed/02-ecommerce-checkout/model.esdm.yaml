@@ -1,109 +1,160 @@
+---
 apiVersion: schema.esdm.io/core/v1
 kind: domain
 name: ecommerce-example
-description: Domain for e-commerce checkout and shopping cart management.
+description: E-commerce shopping cart and checkout domain demonstrating entities, value objects, nested schema validation, and domain invariants.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: bounded-context
 name: sales
-description: Manages shopping carts and checkout
+description: Manages customer shopping carts, line items, shipping addresses, and checkout.
 scope:
   domain: ecommerce-example
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: actor
 name: customer
-description: A shopping customer.
+description: Online shopper managing their cart and completing checkout.
 scope:
   domain: ecommerce-example
   boundedContext: sales
 type: human
 ---
 apiVersion: schema.esdm.io/core/v1
+kind: entity
+name: cart-item
+description: Product line item inside a shopping cart identified by SKU.
+scope:
+  domain: ecommerce-example
+  boundedContext: sales
+identifiedBy:
+  source: schema
+  field: sku
+schema:
+  type: object
+  properties:
+    sku:
+      type: string
+      format: identifier
+    quantity:
+      type: integer
+      minimum: 1
+      maximum: 99
+    unit-price:
+      type: integer
+      minimum: 0
+  required: [sku, quantity, unit-price]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: value-object
+name: shipping-address
+description: Validated postal destination required to check out a shopping cart.
+scope:
+  domain: ecommerce-example
+  boundedContext: sales
+schema:
+  type: object
+  properties:
+    street:
+      type: string
+      minLength: 3
+      maxLength: 100
+    postal-code:
+      type: string
+      minLength: 4
+      maxLength: 12
+    country-code:
+      type: string
+      minLength: 2
+      maxLength: 2
+  required: [street, postal-code, country-code]
+---
+apiVersion: schema.esdm.io/core/v1
 kind: aggregate
 name: shopping-cart
-description: The shopping cart aggregate
+description: Shopping cart consistency boundary enforcing non-empty checkout and post-checkout immutability.
 scope:
   domain: ecommerce-example
   boundedContext: sales
 identifiedBy:
   source: generated
   generator: uuid
+invariants:
+  - name: empty-cart
+    rule: Cannot check out an empty shopping cart.
+  - name: cart-already-checked-out
+    rule: Cannot modify or re-submit a shopping cart that has already been checked out.
 state:
   type: object
   properties:
-    status:
+    customer-id:
       type: string
+      format: identifier
+    checked-out:
+      type: boolean
     items:
       type: array
       items:
-        type: object
-        properties:
-          product-id:
-            type: string
-          quantity:
-            type: integer
-          price:
-            type: integer
-        required: [product-id, quantity, price]
+        $ref: "#/cart-item"
+  required: [customer-id, checked-out, items]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: command
 name: initialize-cart
-actors: [customer]
-description: Initializes a new shopping cart
+description: Initializes a new empty shopping cart for a customer.
 scope:
   domain: ecommerce-example
   boundedContext: sales
   aggregate: shopping-cart
+actors: [customer]
+publishes: [cart-initialized]
 data:
+  type: object
   properties:
     customer-id:
       type: string
+      format: identifier
   required: [customer-id]
-publishes: [cart-initialized]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: command
 name: add-item-to-cart
-actors: [customer]
-description: Adds an item to the shopping cart
+description: Adds a validated product line item to an open shopping cart.
 scope:
   domain: ecommerce-example
   boundedContext: sales
   aggregate: shopping-cart
+actors: [customer]
+publishes: [item-added-to-cart]
 data:
+  type: object
   properties:
     id:
       type: string
       format: uuid
-    product-id:
-      type: string
-    quantity:
-      type: integer
-    price:
-      type: integer
-  required: [id, product-id, quantity, price]
-publishes: [item-added-to-cart]
+    item:
+      $ref: "#/cart-item"
+  required: [id, item]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: command
 name: checkout-cart
-actors: [customer]
-description: Checks out the shopping cart
+description: Checks out a non-empty open cart with a validated shipping address.
 scope:
   domain: ecommerce-example
   boundedContext: sales
   aggregate: shopping-cart
+actors: [customer]
+publishes: [cart-checked-out]
 data:
+  type: object
   properties:
     id:
       type: string
       format: uuid
-    payment-method:
-      type: string
-  required: [id, payment-method]
-publishes: [cart-checked-out]
+    shipping-address:
+      $ref: "#/shipping-address"
+  required: [id, shipping-address]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: event
@@ -114,50 +165,51 @@ scope:
   boundedContext: sales
   aggregate: shopping-cart
 data:
+  type: object
   properties:
     customer-id:
       type: string
+      format: identifier
   required: [customer-id]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: event
 name: item-added-to-cart
-description: Emitted when an item is added to a shopping cart.
+description: Emitted when a product line item is added to an open shopping cart.
 scope:
   domain: ecommerce-example
   boundedContext: sales
   aggregate: shopping-cart
 data:
+  type: object
   properties:
-    product-id:
-      type: string
-    quantity:
-      type: integer
-    price:
-      type: integer
-  required: [product-id, quantity, price]
+    item:
+      $ref: "#/cart-item"
+  required: [item]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: event
 name: cart-checked-out
-description: Emitted when a shopping cart is checked out.
+description: Emitted when a shopping cart is checked out with a shipping address.
 scope:
   domain: ecommerce-example
   boundedContext: sales
   aggregate: shopping-cart
 data:
+  type: object
   properties:
-    payment-method:
-      type: string
-  required: [payment-method]
+    shipping-address:
+      $ref: "#/shipping-address"
+  required: [shipping-address]
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: read-model
 name: cart-summary
-description: Projection of the shopping cart for UI display
+description: Materialized shopping cart summary displaying item count, total amount, and checkout status.
 scope:
   domain: ecommerce-example
   boundedContext: sales
+paradigm: document
 schema:
   type: object
   properties:
@@ -167,33 +219,32 @@ schema:
       type: integer
     status:
       type: string
+  required: [total-amount, item-count, status]
 projections:
   - boundedContext: sales
     aggregate: shopping-cart
     event: cart-initialized
-    rule: Initialize the cart with zero total amount, zero item count, and an open status
+    rule: Initialize total-amount to 0, item-count to 0, and status to Open.
   - boundedContext: sales
     aggregate: shopping-cart
     event: item-added-to-cart
-    rule: Add the item price to the total amount and increment the item count
+    rule: Add item.quantity * item.unit-price to total-amount and add item.quantity to item-count.
   - boundedContext: sales
     aggregate: shopping-cart
     event: cart-checked-out
-    rule: Change the status to checked out
+    rule: Set status to CheckedOut.
 ---
 apiVersion: schema.esdm.io/core/v1
 kind: query
 name: get-cart-summary
-description: Retrieves the cart summary
-readModel: cart-summary
+description: Retrieves the projected shopping cart summary.
 scope:
   domain: ecommerce-example
   boundedContext: sales
+readModel: cart-summary
 paradigm: document
-result:
-  type: object
+actors: [customer]
 parameters:
   type: object
-actors:
-  - customer
-constraints: []
+result:
+  type: object

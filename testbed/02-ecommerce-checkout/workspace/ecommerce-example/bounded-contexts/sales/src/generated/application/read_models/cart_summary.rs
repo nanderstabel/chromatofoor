@@ -5,17 +5,17 @@
 #[allow(unused_imports)]
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
-/// Projection of the shopping cart for UI display
+/// Materialized shopping cart summary displaying item count, total amount, and checkout status.
 #[derive(
     Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema,
 )]
 #[architecturekit(crate = "chromatofoor::architecturekit")]
 pub struct CartSummaryRecord {
-    pub total_amount: Option<i64>,
-    pub item_count: Option<i64>,
-    pub status: Option<String>,
+    pub total_amount: i64,
+    pub item_count: i64,
+    pub status: String,
 }
-/// Projection of the shopping cart for UI display
+/// Materialized shopping cart summary displaying item count, total amount, and checkout status.
 #[chromatofoor::read_model(
     scope = crate::generated::domain::Sales,
     events = [crate::generated::domain::shopping_cart::event::cart_initialized::CartInitialized,

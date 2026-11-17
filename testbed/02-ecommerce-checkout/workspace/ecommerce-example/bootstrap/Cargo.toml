@@ -10,3 +10,6 @@ tracing = { workspace = true }
 chromatofoor = { workspace = true }
 domain = { path = "../domain" }
 sales = { path = "../bounded-contexts/sales" }
+
+[lints]
+workspace = true

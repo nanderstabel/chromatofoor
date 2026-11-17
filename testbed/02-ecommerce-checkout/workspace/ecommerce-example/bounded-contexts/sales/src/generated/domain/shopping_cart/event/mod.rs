@@ -13,8 +13,8 @@ pub use cart_checked_out::CartCheckedOut;
 pub enum ShoppingCartEvent {
     /// Emitted when a new shopping cart is initialized.
     CartInitialized(cart_initialized::CartInitialized),
-    /// Emitted when an item is added to a shopping cart.
+    /// Emitted when a product line item is added to an open shopping cart.
     ItemAddedToCart(item_added_to_cart::ItemAddedToCart),
-    /// Emitted when a shopping cart is checked out.
+    /// Emitted when a shopping cart is checked out with a shipping address.
     CartCheckedOut(cart_checked_out::CartCheckedOut),
 }

@@ -6,13 +6,14 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Emitted when a shopping cart is checked out.
+/// Emitted when a shopping cart is checked out with a shipping address.
 #[chromatofoor::event(
     scope = crate::generated::domain::shopping_cart::aggregate::ShoppingCart
 )]
 #[derive(chromatofoor::validator::Validate)]
 #[validate(crate = "chromatofoor::validator")]
 pub struct CartCheckedOut {
-    #[serde(rename = "payment-method")]
-    pub payment_method: String,
+    #[serde(rename = "shipping-address")]
+    #[validate(nested)]
+    pub shipping_address: crate::generated::domain::ShippingAddress,
 }

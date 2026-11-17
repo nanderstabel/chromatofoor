@@ -6,10 +6,11 @@ use crate::generated::application::read_models::account_summary::{
     AccountSummary, AccountSummaryRecord,
 };
 use chromatofoor::bounded_context::Query;
-/// Retrieves the current balance and owner details.
+/// Retrieves the current balance and owner details for an account.
 #[chromatofoor::query(
     scope = crate::generated::domain::Finance,
-    actors = [crate::generated::domain::actors::Customer],
+    actors = [crate::generated::domain::actors::Customer,
+    crate::generated::domain::actors::BankTeller],
 )]
 #[derive(Default)]
 pub struct GetAccountSummary {}

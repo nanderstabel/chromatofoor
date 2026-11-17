@@ -6,15 +6,13 @@
 use chromatofoor::validator::Validate;
 #[allow(unused_imports)]
 use serde::{Deserialize, Serialize};
-/// Emitted when an item is added to a shopping cart.
+/// Emitted when a product line item is added to an open shopping cart.
 #[chromatofoor::event(
     scope = crate::generated::domain::shopping_cart::aggregate::ShoppingCart
 )]
 #[derive(chromatofoor::validator::Validate)]
 #[validate(crate = "chromatofoor::validator")]
 pub struct ItemAddedToCart {
-    pub price: i64,
-    #[serde(rename = "product-id")]
-    pub product_id: String,
-    pub quantity: i64,
+    #[validate(nested)]
+    pub item: crate::generated::domain::CartItem,
 }

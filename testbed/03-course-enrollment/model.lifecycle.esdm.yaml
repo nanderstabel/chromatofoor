@@ -1,0 +1,21 @@
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: course-lifecycle
+description: Lifecycle rules for course catalog offerings.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: course
+created:
+  - publish-course
+---
+apiVersion: schema.esdm.io/lifecycle/v1
+kind: aggregate-lifecycle
+name: student-registration-lifecycle
+description: Lifecycle rules for student registration profiles.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: student-registration
+created:
+  - register-student

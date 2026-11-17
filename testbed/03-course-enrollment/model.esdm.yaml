@@ -1,0 +1,387 @@
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain
+name: university-enrollment
+description: University course registration domain demonstrating Dynamic Consistency Boundaries (DCB) across multiple aggregates without a container aggregate.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: bounded-context
+name: enrollment
+description: Manages course offerings, student registrations, prerequisite checks, and cross-stream enrollment invariants.
+scope:
+  domain: university-enrollment
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: registrar
+description: University registrar managing course catalog capacity and administrative enrollments.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: actor
+name: student
+description: Enrolled university student registering for and dropping courses.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+type: human
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: course
+description: Course catalog entry tracking title and maximum seat capacity.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+identifiedBy:
+  source: state
+  field: course-id
+state:
+  type: object
+  properties:
+    course-id:
+      type: string
+      format: identifier
+    title:
+      type: string
+    capacity:
+      type: integer
+  required: [course-id, title, capacity]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: publish-course
+description: Publishes a new course offering with an initial seat capacity.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: course
+actors: [registrar]
+publishes: [course-published]
+data:
+  type: object
+  properties:
+    course-id:
+      type: string
+      format: identifier
+    title:
+      type: string
+      minLength: 3
+    capacity:
+      type: integer
+      minimum: 1
+  required: [course-id, title, capacity]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: update-course-capacity
+description: Updates the maximum seat capacity of an existing course.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: course
+actors: [registrar]
+publishes: [course-capacity-updated]
+data:
+  type: object
+  properties:
+    course-id:
+      type: string
+      format: identifier
+    capacity:
+      type: integer
+      minimum: 1
+  required: [course-id, capacity]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: course-published
+description: Emitted when a new course offering is published.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: course
+data:
+  type: object
+  properties:
+    course-id:
+      type: string
+      format: identifier
+    title:
+      type: string
+    capacity:
+      type: integer
+  required: [course-id, title, capacity]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: course-capacity-updated
+description: Emitted when a course offering's seat capacity is updated.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: course
+data:
+  type: object
+  properties:
+    course-id:
+      type: string
+      format: identifier
+    capacity:
+      type: integer
+  required: [course-id, capacity]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: aggregate
+name: student-registration
+description: Registered student profile eligible to enroll in university courses.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+identifiedBy:
+  source: state
+  field: student-id
+state:
+  type: object
+  properties:
+    student-id:
+      type: string
+      format: identifier
+    full-name:
+      type: string
+  required: [student-id, full-name]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: register-student
+description: Registers a student in the enrollment bounded context.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: student-registration
+actors: [registrar]
+publishes: [student-registered]
+data:
+  type: object
+  properties:
+    student-id:
+      type: string
+      format: identifier
+    full-name:
+      type: string
+      minLength: 2
+  required: [student-id, full-name]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: student-registered
+description: Emitted when a student profile is registered.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  aggregate: student-registration
+data:
+  type: object
+  properties:
+    student-id:
+      type: string
+      format: identifier
+    full-name:
+      type: string
+  required: [student-id, full-name]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: dynamic-consistency-boundary
+name: student-course-enrollment
+description: Ad-hoc consistency boundary spanning course capacity and active student course load per enrollment decision.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+identifiedBy:
+  - name: student-id
+    source: command-payload
+    field: student-id
+  - name: course-id
+    source: command-payload
+    field: course-id
+invariants:
+  - name: course-capacity-exceeded
+    rule: Active enrolled students for the target course cannot exceed its current capacity.
+  - name: student-load-exceeded
+    rule: A student cannot hold more than 5 active course enrollments simultaneously.
+consults:
+  - boundedContext: enrollment
+    aggregate: course
+    event: course-published
+    criteria: Course publication event matching the target course-id.
+  - boundedContext: enrollment
+    aggregate: course
+    event: course-capacity-updated
+    criteria: Capacity updates matching the target course-id.
+  - boundedContext: enrollment
+    aggregate: student-registration
+    event: student-registered
+    criteria: Student registration event matching the target student-id.
+  - boundedContext: enrollment
+    event: student-enrolled
+    criteria: All enrollments matching either the target course-id (for seat count) or target student-id (for course load).
+  - boundedContext: enrollment
+    event: enrollment-dropped
+    criteria: All dropped enrollments matching either the target course-id or target student-id.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: enroll-student
+description: Enrolls a registered student in a published course when seat capacity and course-load limits allow.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  dynamicConsistencyBoundary: student-course-enrollment
+actors: [student, registrar]
+publishes: [student-enrolled]
+data:
+  type: object
+  properties:
+    student-id:
+      type: string
+      format: identifier
+    course-id:
+      type: string
+      format: identifier
+  required: [student-id, course-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: command
+name: drop-enrollment
+description: Drops a student's active enrollment in a course (idempotent if not currently enrolled).
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+  dynamicConsistencyBoundary: student-course-enrollment
+actors: [student, registrar]
+publishes: [enrollment-dropped]
+data:
+  type: object
+  properties:
+    student-id:
+      type: string
+      format: identifier
+    course-id:
+      type: string
+      format: identifier
+  required: [student-id, course-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: student-enrolled
+description: Free-standing bounded-context event emitted when a student enrolls in a course.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+data:
+  type: object
+  properties:
+    student-id:
+      type: string
+      format: identifier
+    course-id:
+      type: string
+      format: identifier
+  required: [student-id, course-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: event
+name: enrollment-dropped
+description: Free-standing bounded-context event emitted when a student drops a course enrollment.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+data:
+  type: object
+  properties:
+    student-id:
+      type: string
+      format: identifier
+    course-id:
+      type: string
+      format: identifier
+  required: [student-id, course-id]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: domain-service
+name: prerequisite-checker
+description: Stateless domain service evaluating academic prerequisite eligibility prior to enrollment.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+functions:
+  - name: verify-prerequisites
+    description: Checks whether a student satisfies prerequisites for a target course.
+    arguments:
+      properties:
+        student-id:
+          type: string
+          format: identifier
+        course-id:
+          type: string
+          format: identifier
+      required: [student-id, course-id]
+    returns:
+      properties:
+        eligible:
+          type: boolean
+      required: [eligible]
+---
+apiVersion: schema.esdm.io/core/v1
+kind: read-model
+name: course-roster
+description: Materialized course roster tracking capacity and active enrolled count per course.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+paradigm: document
+schema:
+  type: object
+  properties:
+    course-id:
+      type: string
+    title:
+      type: string
+    capacity:
+      type: integer
+    enrolled-count:
+      type: integer
+  required: [course-id, title, capacity, enrolled-count]
+projections:
+  - boundedContext: enrollment
+    aggregate: course
+    event: course-published
+    rule: Insert course roster entry with enrolled-count 0.
+  - boundedContext: enrollment
+    aggregate: course
+    event: course-capacity-updated
+    rule: Update capacity for the matching course-id.
+  - boundedContext: enrollment
+    event: student-enrolled
+    rule: Increment enrolled-count for the matching course-id.
+  - boundedContext: enrollment
+    event: enrollment-dropped
+    rule: Decrement enrolled-count for the matching course-id.
+---
+apiVersion: schema.esdm.io/core/v1
+kind: query
+name: get-course-roster
+description: Retrieves the projected roster summary for a course.
+scope:
+  domain: university-enrollment
+  boundedContext: enrollment
+readModel: course-roster
+paradigm: document
+actors: [registrar, student]
+parameters:
+  type: object
+result:
+  type: object
