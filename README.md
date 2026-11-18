@@ -15,7 +15,9 @@
 
 Chromatofoor lets you model event-sourced domains, either directly in Rust with `#[chromatofoor::...]` macros or declaratively in [ESDM](https://esdm.io) YAML, and focus strictly on pure business rules. Everything around your domain logic (event streams, read-model projections, sagas, Given-When-Then tests, and HTTP / GraphQL / MCP / TUI / Tauri interfaces) wires up out of the box.
 
-**Why the name?** *Chromatofoor* comes from *chromatophores* (Dutch: *chromatofoor*), the biological cells that dynamically adapt their structure and state in response to changing signals. Chromatofoor keeps domains malleable instead of letting them harden into a "Big Ball of Mud", turning fast iteration into safe, continuous domain molding through strict boundaries between **specification**, **deterministic compilation**, and **pure business logic**.
+**Why DDD + CQRS/ES for agentic programming?** Unstructured "vibe coding" quickly produces unmaintainable codebases. DDD and CQRS/ES counter this by expressing technical architecture directly in business terms (commands, events, invariants, and Given-When-Then scenarios), so business stakeholders, engineers, and AI agents all speak the same language. Instead of letting AI improvise architecture on the fly, Chromatofoor locks down the model, permissions, and test suite deterministically upfront, keeping AI strictly under control inside pure domain logic.
+
+**Why the name?** *Chromatofoor* comes from *chromatophores* (Dutch: *chromatofoor*), the biological cells that dynamically adapt their structure and state in response to changing signals. By separating **declarative models**, **deterministic code generation**, and **pure business rules**, Chromatofoor keeps domains malleable as requirements evolve instead of letting them harden into a "Big Ball of Mud".
 
 > [!NOTE]
 > **Work in Progress:** Chromatofoor is under active development and APIs may still change. Generated applications currently run against an in-memory event store (`InMemoryEventStore`), so runtime events and read-model state are not persisted to disk across restarts yet.
