@@ -1,5 +1,6 @@
 use crate::common::MEMBER_LINTS_TOML;
 use anyhow::Result;
+use convert_case::{Case, Casing};
 use std::fs;
 use std::path::Path;
 
@@ -37,6 +38,7 @@ pub fn generate_transports(
     out_dir: &Path,
     active_transports: &ActiveTransports,
     chromatofoor_path: &str,
+    domain_name: Option<&str>,
 ) -> Result<()> {
     if active_transports.http || active_transports.graphql || active_transports.mcp {
         let api_server_dir = out_dir.join("presentation/api-server");
@@ -213,10 +215,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let dist_dir = tauri_app_dir.join("dist");
         fs::create_dir_all(&dist_dir)?;
         let dist_index = dist_dir.join("index.html");
-        if !dist_index.exists() {
+        let is_legacy_stub = fs::read_to_string(&dist_index)
+            .is_ok_and(|content| content.contains("<body></body>"));
+        if !dist_index.exists() || is_legacy_stub {
+            let dist_assets_dir = dist_dir.join("assets");
+            fs::create_dir_all(&dist_assets_dir)?;
             fs::write(
                 dist_index,
-                "<!doctype html><html><head><meta charset=\"utf-8\"><title>Chromatofoor</title></head><body></body></html>\n",
+                include_str!("../../../presentation/http/ui-dist/index.html"),
+            )?;
+            fs::write(
+                dist_assets_dir.join("workbench.js"),
+                include_str!("../../../presentation/http/ui-dist/assets/workbench.js"),
+            )?;
+            fs::write(
+                dist_assets_dir.join("workbench.css"),
+                include_str!("../../../presentation/http/ui-dist/assets/workbench.css"),
+            )?;
+            fs::write(
+                dist_dir.join("logo-horizontal.jpg"),
+                include_bytes!("../../../presentation/http/ui-dist/logo-horizontal.jpg"),
+            )?;
+            fs::write(
+                dist_dir.join("logo-icon.jpg"),
+                include_bytes!("../../../branding/logo-icon.jpg"),
             )?;
         }
 
@@ -229,13 +251,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let public_dir = tauri_app_dir.join("public");
         fs::create_dir_all(&public_dir)?;
-
-        if let Ok(logo_data) = fs::read("branding/logo-horizontal.jpg") {
-            let _ = fs::write(public_dir.join("logo-horizontal.jpg"), logo_data);
-        }
-        if let Ok(logo_data) = fs::read("branding/logo-icon.jpg") {
-            let _ = fs::write(public_dir.join("logo-icon.jpg"), logo_data);
-        }
+        fs::write(
+            public_dir.join("logo-horizontal.jpg"),
+            include_bytes!("../../../branding/logo-horizontal.jpg"),
+        )?;
+        fs::write(
+            public_dir.join("logo-icon.jpg"),
+            include_bytes!("../../../branding/logo-icon.jpg"),
+        )?;
 
         fs::write(
             tauri_app_dir.join("index.html"),
@@ -254,12 +277,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             )?;
         }
 
+        let domain_slug =
+            domain_name.map_or_else(|| "app".to_string(), |d| d.to_case(Case::Kebab));
+        let window_title =
+            domain_name.map_or_else(|| "Chromatofoor".to_string(), |d| d.to_case(Case::Title));
+        let tauri_conf = include_str!("../../templates/tauri/src-tauri/tauri.conf.json")
+            .replace("__PRODUCT_NAME__", &domain_slug)
+            .replace("__DOMAIN_NAME__", &domain_slug)
+            .replace("__WINDOW_TITLE__", &window_title);
+
         let src_tauri_dir = tauri_app_dir.join("src-tauri");
         fs::create_dir_all(&src_tauri_dir)?;
-        fs::write(
-            src_tauri_dir.join("tauri.conf.json"),
-            include_str!("../../templates/tauri/src-tauri/tauri.conf.json"),
-        )?;
+        fs::write(src_tauri_dir.join("tauri.conf.json"), tauri_conf)?;
         fs::write(
             src_tauri_dir.join("Cargo.toml"),
             include_str!("../../templates/tauri/src-tauri/Cargo.toml"),
@@ -275,6 +304,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             capabilities_dir.join("default.json"),
             include_str!("../../templates/tauri/src-tauri/capabilities/default.json"),
         )?;
+        fs::write(
+            capabilities_dir.join("desktop.json"),
+            include_str!("../../templates/tauri/src-tauri/capabilities/desktop.json"),
+        )?;
 
         let src_tauri_src_dir = src_tauri_dir.join("src");
         fs::create_dir_all(&src_tauri_src_dir)?;
@@ -288,6 +321,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         ];
         fs::write(icons_dir.join("icon.png"), dummy_icon)?;
 
+        fs::write(
+            src_tauri_src_dir.join("lib.rs"),
+            include_str!("../../templates/tauri/src-tauri/src/lib.rs"),
+        )?;
         fs::write(
             src_tauri_src_dir.join("main.rs"),
             include_str!("../../templates/tauri/src-tauri/src/main.rs"),
@@ -311,7 +348,13 @@ mod tests {
             tauri: true,
             mcp: true,
         };
-        generate_transports(dir.path(), &active, "../../../../chromatofoor").unwrap();
+        generate_transports(
+            dir.path(),
+            &active,
+            "../../../../chromatofoor",
+            Some("cargo-shipping"),
+        )
+        .unwrap();
 
         for rel in [
             "presentation/api-server/Cargo.toml",
@@ -336,8 +379,33 @@ mod tests {
                 .join("presentation/tauri-app/dist/index.html")
                 .is_file()
         );
+        assert!(
+            dir.path()
+                .join("presentation/tauri-app/dist/assets/workbench.js")
+                .is_file()
+        );
+        assert!(
+            dir.path()
+                .join("presentation/tauri-app/src-tauri/src/lib.rs")
+                .is_file()
+        );
+        assert!(
+            dir.path()
+                .join("presentation/tauri-app/src-tauri/capabilities/desktop.json")
+                .is_file()
+        );
+        let tauri_conf = fs::read_to_string(
+            dir.path()
+                .join("presentation/tauri-app/src-tauri/tauri.conf.json"),
+        )
+        .unwrap();
+        assert!(tauri_conf.contains("\"productName\": \"cargo-shipping\""));
+        assert!(tauri_conf.contains("\"identifier\": \"com.chromatofoor.cargo-shipping\""));
+        assert!(tauri_conf.contains("\"title\": \"Cargo Shipping\""));
+
         let pkg =
             fs::read_to_string(dir.path().join("presentation/tauri-app/package.json")).unwrap();
         assert!(pkg.contains("../../../../../../packages/ui"));
+        assert!(pkg.contains("\"android:init\""));
     }
 }

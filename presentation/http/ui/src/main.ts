@@ -1,8 +1,7 @@
 import { mount } from "svelte";
-import App from "@workbench/App.svelte";
-import "@workbench/index.css";
+import { WorkbenchApp } from "@chromatofoor/ui";
 
-const app = mount(App, {
+const app = mount(WorkbenchApp, {
   target: document.getElementById("app")!,
 });
 

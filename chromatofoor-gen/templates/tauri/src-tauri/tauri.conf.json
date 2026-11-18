@@ -1,5 +1,6 @@
 {
-  "identifier": "com.chromatofoor.app",
+  "productName": "__PRODUCT_NAME__",
+  "identifier": "com.chromatofoor.__DOMAIN_NAME__",
   "version": "0.1.0",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,7 +15,7 @@
     },
     "windows": [
       {
-        "title": "Chromatofoor",
+        "title": "__WINDOW_TITLE__",
         "width": 1440,
         "height": 900,
         "decorations": false

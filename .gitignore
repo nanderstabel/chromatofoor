@@ -3,9 +3,9 @@ target/
 private/
 node_modules/
 package-lock.json
-src-tauri/gen/
+**/src-tauri/gen/
 dist/
 !**/presentation/tauri-app/dist/
-!**/presentation/tauri-app/dist/index.html
+!**/presentation/tauri-app/dist/**
 storybook-static/
 

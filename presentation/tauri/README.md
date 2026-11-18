@@ -1,7 +1,7 @@
 # Chromatofoor Tauri Presentation Adapter (`chromatofoor-tauri`)
 
 ## Overview
-`chromatofoor-tauri` provides Tauri v2 (`tauri = "2.11.5"`) desktop IPC bindings for `chromatofoor::domain::DomainRuntime`. It wraps `Arc<DomainRuntime>` in managed `DomainState` and exposes seven `#[tauri::command]` handlers in `chromatofoor_tauri::commands` for command dispatch, read-model querying, domain catalog introspection, pull-based event-store snapshot retrieval, and native window controls (consumed by `TauriBridge` in generated TypeScript SDKs).
+`chromatofoor-tauri` provides Tauri v2 (`tauri = "2.11.5"`) desktop and mobile (`android`, `ios`) IPC bindings for `chromatofoor::domain::DomainRuntime`. It wraps `Arc<DomainRuntime>` in managed `DomainState` and exposes seven `#[tauri::command]` handlers in `chromatofoor_tauri::commands` for command dispatch, read-model querying, domain catalog introspection, pull-based event-store snapshot retrieval, and native window controls (consumed by `TauriBridge` in generated TypeScript SDKs).
 
 ## Interface
 - **Managed Runtime State** (`src/lib.rs` — no Cargo feature flags):
@@ -32,7 +32,7 @@
 ## Side Effects
 - **Store Mutations & Catch-Up Synchronization** (`src/lib.rs:commands::dispatch_command`, `execute_command`): Appends events via `DomainRuntime::dispatch_command` and awaits `let _ = DomainRuntime::wait_caught_up().await` before returning over IPC.
 - **Read-Model Queries & Transient Event Snapshots** (`src/lib.rs:commands::query_read_model`, `execute_query`, `get_events`): Reads projections via `DomainRuntime::dispatch_query`; `get_events` runs a short-lived `Store::start_projection` collector (`"{topic}-tauri-events"`), awaits `architecturekit::wait_caught_up` (propagating errors), and cancels the projection token (no persistent background push emitter is spawned).
-- **Native Window Mutations** (`src/lib.rs:commands::window_control`): Invokes synchronous OS/webview window operations (`start_dragging`, `minimize`, `is_maximized`, `unmaximize`, `maximize`, `close`) on `tauri::WebviewWindow`.
+- **Native Window Mutations** (`src/lib.rs:commands::window_control`): Invokes synchronous OS/webview window operations (`start_dragging`, `minimize`, `is_maximized`, `unmaximize`, `maximize` on desktop targets via `#[cfg(not(any(target_os = "android", target_os = "ios")))]`, and `close` across all platforms) on `tauri::WebviewWindow`.
 
 ## Verification
 ```bash

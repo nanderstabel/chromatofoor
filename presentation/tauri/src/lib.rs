@@ -281,25 +281,35 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub fn window_control(window: tauri::WebviewWindow, action: String) -> Result<bool, String> {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn window_control(
+        #[allow(unused_variables)] window: tauri::WebviewWindow,
+        action: String,
+    ) -> Result<bool, String> {
         match action.as_str() {
             "drag" => {
+                #[cfg(not(any(target_os = "android", target_os = "ios")))]
                 window.start_dragging().map_err(|e| e.to_string())?;
                 Ok(false)
             }
             "minimize" => {
+                #[cfg(not(any(target_os = "android", target_os = "ios")))]
                 window.minimize().map_err(|e| e.to_string())?;
                 Ok(false)
             }
             "toggle_maximize" => {
-                let is_max = window.is_maximized().map_err(|e| e.to_string())?;
-                if is_max {
-                    window.unmaximize().map_err(|e| e.to_string())?;
-                    Ok(false)
-                } else {
+                #[cfg(not(any(target_os = "android", target_os = "ios")))]
+                {
+                    let is_max = window.is_maximized().map_err(|e| e.to_string())?;
+                    if is_max {
+                        window.unmaximize().map_err(|e| e.to_string())?;
+                        return Ok(false);
+                    }
                     window.maximize().map_err(|e| e.to_string())?;
                     Ok(true)
                 }
+                #[cfg(any(target_os = "android", target_os = "ios"))]
+                Ok(false)
             }
             "close" => {
                 window.close().map_err(|e| e.to_string())?;

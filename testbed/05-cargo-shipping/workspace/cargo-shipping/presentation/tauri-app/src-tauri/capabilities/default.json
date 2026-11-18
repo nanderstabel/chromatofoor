@@ -3,7 +3,6 @@
   "description": "Default capability for the main window",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "mcp-bridge:default"
+    "core:default"
   ]
 }

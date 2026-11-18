@@ -115,6 +115,10 @@ pub fn generate_workspace(
         }
     }
 
+    let domain_name = all_esdm_docs
+        .iter()
+        .find(|d| d.kind == "domain")
+        .map(|d| d.name.as_str());
     crate::domain::generate_domain_crate(out_dir, all_esdm_docs, routing)?;
     crate::bounded_context::generate_bounded_context_scaffolds(
         out_dir,
@@ -122,7 +126,12 @@ pub fn generate_workspace(
         bc_contexts,
         routing,
     )?;
-    crate::presentation::generate_transports(out_dir, active_transports, chromatofoor_path)?;
+    crate::presentation::generate_transports(
+        out_dir,
+        active_transports,
+        chromatofoor_path,
+        domain_name,
+    )?;
     crate::bounded_context::generate_consistency_units(out_dir, contexts, bc_contexts, routing)?;
     crate::bounded_context::generate_application(out_dir, bc_contexts, contexts, routing)?;
     crate::bounded_context::generate_preludes(out_dir, bc_contexts, contexts, routing)?;

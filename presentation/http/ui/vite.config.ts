@@ -2,14 +2,11 @@ import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import path from "path";
 
-const templatesSrc = path.resolve(__dirname, "../../../chromatofoor-gen/templates/tauri/src");
-
 export default defineConfig({
   plugins: [svelte()],
   resolve: {
     alias: {
-      "@workbench/App.svelte": path.join(templatesSrc, "App.svelte"),
-      "@workbench/index.css": path.join(templatesSrc, "index.css"),
+      "@chromatofoor/ui": path.resolve(__dirname, "../../../packages/ui/src"),
     },
   },
   server: {

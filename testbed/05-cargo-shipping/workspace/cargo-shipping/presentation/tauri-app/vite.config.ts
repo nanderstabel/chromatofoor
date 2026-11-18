@@ -14,11 +14,19 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    host: process.env.TAURI_DEV_HOST || false,
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {
     target: "es2021",
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/workbench.js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/workbench[extname]",
+      },
+    },
   },
 });

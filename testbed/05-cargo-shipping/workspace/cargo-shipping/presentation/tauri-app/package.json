@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "cargo tauri",
+    "android:init": "cargo tauri android init --ci --skip-targets-install",
+    "android:dev": "sh -c 'test -d src-tauri/gen/android || cargo tauri android init --ci --skip-targets-install; exec cargo tauri android dev \"$@\"' --",
+    "ios:init": "cargo tauri ios init --ci --skip-targets-install",
+    "ios:dev": "sh -c 'test -d src-tauri/gen/apple || cargo tauri ios init --ci --skip-targets-install; exec cargo tauri ios dev \"$@\"' --"
   },
   "dependencies": {
     "@chromatofoor/ui": "file:../../../../../../packages/ui",
@@ -15,7 +20,6 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
-    "@tauri-apps/cli": "^2.1.0",
     "typescript": "^5.6.2",
     "vite": "^5.4.8"
   }
