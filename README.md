@@ -44,6 +44,10 @@ cargo test --manifest-path testbed/01-bank-account/workspace/bank-account-exampl
 
 ## How It Works
 
+<p align="center">
+  <img src="./docs/workflow-loop.svg" width="960" alt="Chromatofoor Iterative Domain Development Loop">
+</p>
+
 ### 1. Model your domain (YAML or Rust macros)
 
 Define bounded contexts, actors, aggregates, commands, events, and read models in `.esdm.yaml` and run `chromatofoor-gen`, or write the same `#[chromatofoor::...]` attributes directly by hand.

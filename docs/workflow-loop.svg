@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 404" width="1080" height="404" role="img" aria-labelledby="title desc">
+  <title id="title">Chromatofoor Iterative Domain Development Loop</title>
+  <desc id="desc">Six-step clockwise workflow: 1. Define domain and BDD scenarios in ESDM YAML, 2. Scaffold project with chromatofoor-gen, 3. See predetermined tests fail (Red), 4. Implement pure domain logic by hand or with an AI agent (Green), 5. Run and test live across HTTP, GraphQL, MCP, TUI, or Tauri, 6. Update ESDM YAML to add features or fix bugs and repeat safely.</desc>
+
+  <defs>
+    <style>
+      .font-sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+      .font-mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "JetBrains Mono", monospace; }
+      .card-title { font-size: 15px; font-weight: 700; fill: #0F172A; }
+      .card-body { font-size: 12.5px; font-weight: 400; fill: #475569; }
+      .pill-text { font-size: 11.5px; font-weight: 600; }
+      .step-num { font-size: 13px; font-weight: 700; fill: #FFFFFF; text-anchor: middle; dominant-baseline: central; }
+      .phase-tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-anchor: middle; }
+    </style>
+
+    <filter id="card-shadow" x="-4%" y="-6%" width="108%" height="116%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.06"/>
+    </filter>
+
+    <clipPath id="clip-c1"><rect x="40" y="36" width="296" height="128" rx="12"/></clipPath>
+    <clipPath id="clip-c2"><rect x="392" y="36" width="296" height="128" rx="12"/></clipPath>
+    <clipPath id="clip-c3"><rect x="744" y="36" width="296" height="128" rx="12"/></clipPath>
+    <clipPath id="clip-c4"><rect x="744" y="240" width="296" height="128" rx="12"/></clipPath>
+    <clipPath id="clip-c5"><rect x="392" y="240" width="296" height="128" rx="12"/></clipPath>
+    <clipPath id="clip-c6"><rect x="40" y="240" width="296" height="128" rx="12"/></clipPath>
+
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 1 1.5 L 8.5 5 L 1 8.5 z" fill="#64748B"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 1 1.5 L 8.5 5 L 1 8.5 z" fill="#0D9488"/>
+    </marker>
+  </defs>
+
+  <!-- Outer Canvas -->
+  <rect x="2" y="2" width="1076" height="400" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
+
+  <!-- Subtle dashed loop track behind cards -->
+  <rect x="188" y="100" width="704" height="204" rx="28" fill="none" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="6 6"/>
+
+  <!-- ================= ARROWS ================= -->
+  <!-- 1 -> 2 -->
+  <line x1="342" y1="100" x2="383" y2="100" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrow-slate)"/>
+  <!-- 2 -> 3 -->
+  <line x1="694" y1="100" x2="735" y2="100" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrow-slate)"/>
+  <!-- 3 -> 4 (Right side down) -->
+  <line x1="892" y1="170" x2="892" y2="231" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrow-slate)"/>
+  <!-- 4 -> 5 (Bottom row right-to-left) -->
+  <line x1="738" y1="304" x2="697" y2="304" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrow-slate)"/>
+  <!-- 5 -> 6 (Bottom row right-to-left) -->
+  <line x1="386" y1="304" x2="345" y2="304" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" marker-end="url(#arrow-slate)"/>
+  <!-- 6 -> 1 (Left side up, closing the loop) -->
+  <line x1="188" y1="234" x2="188" y2="173" stroke="#0D9488" stroke-width="2.4" stroke-linecap="round" marker-end="url(#arrow-teal)"/>
+
+  <!-- Center Loop Callout Pill -->
+  <rect x="220" y="185" width="640" height="34" rx="17" fill="#0E2330"/>
+  <text x="540" y="206" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#F8FAFC" text-anchor="middle">
+    <tspan fill="#26B8BF" font-weight="700">↻</tspan>&#160;&#160;Non-destructive cycle: regenerating updates types &amp; tests while preserving your Rust logic
+  </text>
+
+  <!-- ================= CARD 1: TOP LEFT ================= -->
+  <g filter="url(#card-shadow)">
+    <rect x="40" y="36" width="296" height="128" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2"/>
+    <rect x="40" y="36" width="296" height="4.5" fill="#0D9488" clip-path="url(#clip-c1)"/>
+  </g>
+  <circle cx="64" cy="63" r="12" fill="#0D9488"/>
+  <text x="64" y="63" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="84" y="68" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Define Model &amp; Scenarios</text>
+  <rect x="56" y="81" width="248" height="22" rx="5" fill="#F0FDFA" stroke="#99F6E4" stroke-width="1"/>
+  <text x="66" y="96" font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, JetBrains Mono, monospace" font-size="11.5" font-weight="600" fill="#0F766E">.esdm.yaml + .feature.esdm.yaml</text>
+  <text x="56" y="123" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">Describe domain structure, invariants,</text>
+  <text x="56" y="141" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">actors, and BDD Given-When-Then specs.</text>
+
+  <!-- ================= CARD 2: TOP CENTER ================= -->
+  <g filter="url(#card-shadow)">
+    <rect x="392" y="36" width="296" height="128" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2"/>
+    <rect x="392" y="36" width="296" height="4.5" fill="#0E2330" clip-path="url(#clip-c2)"/>
+  </g>
+  <circle cx="416" cy="63" r="12" fill="#0E2330"/>
+  <text x="416" y="63" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">2</text>
+  <text x="436" y="68" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Scaffold Workspace</text>
+  <rect x="408" y="81" width="144" height="22" rx="5" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="418" y="96" font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, JetBrains Mono, monospace" font-size="11.5" font-weight="600" fill="#1E293B">chromatofoor-gen</text>
+  <text x="408" y="123" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">Compiles types, todo!() stubs, transports,</text>
+  <text x="408" y="141" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">and read-only scenario test suites.</text>
+
+  <!-- ================= CARD 3: TOP RIGHT (RED) ================= -->
+  <g filter="url(#card-shadow)">
+    <rect x="744" y="36" width="296" height="128" rx="12" fill="#FFFFFF" stroke="#FECACA" stroke-width="1.4"/>
+    <rect x="744" y="36" width="296" height="4.5" fill="#DC2626" clip-path="url(#clip-c3)"/>
+  </g>
+  <circle cx="768" cy="63" r="12" fill="#DC2626"/>
+  <text x="768" y="63" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">3</text>
+  <text x="788" y="68" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">See All Tests Fail</text>
+  <rect x="974" y="52" width="52" height="20" rx="10" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1"/>
+  <text x="1000" y="66" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" letter-spacing="0.04em" text-anchor="middle" fill="#DC2626">RED</text>
+  <rect x="760" y="81" width="96" height="22" rx="5" fill="#FEF2F2" stroke="#FECACA" stroke-width="1"/>
+  <text x="770" y="96" font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, JetBrains Mono, monospace" font-size="11.5" font-weight="600" fill="#B91C1C">cargo test</text>
+  <text x="760" y="123" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">Predetermined BDD tests fail against</text>
+  <text x="760" y="141" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">unimplemented stubs before coding starts.</text>
+
+  <!-- ================= CARD 4: BOTTOM RIGHT (GREEN) ================= -->
+  <g filter="url(#card-shadow)">
+    <rect x="744" y="240" width="296" height="128" rx="12" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.4"/>
+    <rect x="744" y="240" width="296" height="4.5" fill="#059669" clip-path="url(#clip-c4)"/>
+  </g>
+  <circle cx="768" cy="267" r="12" fill="#059669"/>
+  <text x="768" y="267" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">4</text>
+  <text x="788" y="272" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Implement Pure Logic</text>
+  <rect x="962" y="256" width="64" height="20" rx="10" fill="#ECFDF5" stroke="#6EE7B7" stroke-width="1"/>
+  <text x="994" y="270" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" letter-spacing="0.04em" text-anchor="middle" fill="#059669">GREEN</text>
+  <rect x="760" y="285" width="198" height="22" rx="5" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+  <text x="770" y="300" font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, JetBrains Mono, monospace" font-size="11.5" font-weight="600" fill="#047857">By hand or with AI Agent</text>
+  <text x="760" y="327" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">Write pure Rust domain rules until every</text>
+  <text x="760" y="345" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">locked-in BDD scenario turns green.</text>
+
+  <!-- ================= CARD 5: BOTTOM CENTER ================= -->
+  <g filter="url(#card-shadow)">
+    <rect x="392" y="240" width="296" height="128" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2"/>
+    <rect x="392" y="240" width="296" height="4.5" fill="#0284C7" clip-path="url(#clip-c5)"/>
+  </g>
+  <circle cx="416" cy="267" r="12" fill="#0284C7"/>
+  <text x="416" y="267" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">5</text>
+  <text x="436" y="272" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Run &amp; Test Live</text>
+  <rect x="408" y="285" width="264" height="22" rx="5" fill="#F0F9FF" stroke="#BAE6FD" stroke-width="1"/>
+  <text x="418" y="300" font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, JetBrains Mono, monospace" font-size="11.5" font-weight="600" fill="#0369A1">HTTP • GraphQL • MCP • TUI • Tauri</text>
+  <text x="408" y="327" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">Launch the app and exercise commands,</text>
+  <text x="408" y="345" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">queries, and events through any interface.</text>
+
+  <!-- ================= CARD 6: BOTTOM LEFT ================= -->
+  <g filter="url(#card-shadow)">
+    <rect x="40" y="240" width="296" height="128" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2"/>
+    <rect x="40" y="240" width="296" height="4.5" fill="#CB4831" clip-path="url(#clip-c6)"/>
+  </g>
+  <circle cx="64" cy="267" r="12" fill="#CB4831"/>
+  <text x="64" y="267" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">6</text>
+  <text x="84" y="272" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#0F172A">Evolve &amp; Repeat</text>
+  <rect x="56" y="285" width="166" height="22" rx="5" fill="#FFF7ED" stroke="#FED7AA" stroke-width="1"/>
+  <text x="66" y="300" font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, JetBrains Mono, monospace" font-size="11.5" font-weight="600" fill="#C2410C">Update .esdm.yaml ↻</text>
+  <text x="56" y="327" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">New features or bugs? Adjust the model</text>
+  <text x="56" y="345" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#475569">and scenarios, then loop until satisfied.</text>
+</svg>
