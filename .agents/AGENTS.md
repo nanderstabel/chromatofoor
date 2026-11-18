@@ -14,16 +14,6 @@ This repository uses the **Elephant-Goldfish Model (EGM)** for architectural spe
 - **Component Contracts ("Peanuts & Hay")**: Root `README.md` and crate-level `README.md` files document code-grounded `Interface`, `Invariants`, `Side Effects`, and `Verification` contracts. Keep them synchronized with source changes and verify alignment with `/egm:egm-drift-report`.
 - **Immutable Upstream Core Schema**: Never modify `schemas/core/v1.yaml`. Modeling extensions belong in dedicated extension schemas under `schemas/<extension>/v1.yaml`.
 
-## Utilizing Codebase Graphs (graphify-rs)
-
-To navigate the codebase efficiently without reading unnecessary files, use the structural graph built by `graphify-rs`:
-
-- Rebuild after adding/removing source files or making structural changes:
-  ```bash
-  ./scripts/build_graph.sh
-  ```
-- Output lives in `~/.graphify-rs/Chromatofoor-<hash>/` (`GRAPH_REPORT.md`, `graph.json`, `graph.html`).
-
 ## Deterministic Code Generation
 
 When modifying `chromatofoor-gen`, all generated outputs MUST be 100% deterministic:

@@ -428,7 +428,7 @@ Every ESDM document across all five testbeds MUST include a non-empty `descripti
     *   `scripts/verify_all.sh`: Update root Clippy step to `cargo clippy --all --all-targets --all-features -- -D warnings`. For the Phase 3 automated handoff commit, invoke `./scripts/verify_testbeds.sh --red-phase` explicitly (so CI never silently auto-downgrades on leftover `todo!` stubs; once the author completes manual stub implementations across `01`–`05`, remove `--red-phase` from `scripts/verify_all.sh`).
 *   **Rationale**: Keeps `verify_all.sh` deterministic and green at the automated handoff boundary while providing the strict Green gate (`cargo test` + `-D clippy::todo`) once the author completes manual testbed implementations.
 
-##### 17. Repository Documentation, EGM Contracts, & Codebase Graph (Modify)
+##### 17. Repository Documentation & EGM Contracts (Modify)
 *   **Files to Modify**:
     *   `README.md`: Replace the `08-digital-identity-ecosystem` Quick Example and Spotlight with a domain-agnostic example from `testbed/02-ecommerce-checkout` / `testbed/03-course-enrollment`, update the `testbed/` summary (`01`–`05`), and update Global Invariants (`tests/generated/` overwritten while manual `tests/*.rs` are preserved, and generated workspaces inheriting `unsafe_code = "deny"` + `clippy::todo = "warn"`).
     *   `testbed/README.md`: Document the `01`–`05` canonical DDD progression table and updated regeneration/verification commands.
@@ -436,7 +436,6 @@ Every ESDM document across all five testbeds MUST include a non-empty `descripti
     *   `docs/designs/code-generator.md`: Synchronize module layout, `[workspace.lints]`, `todo!` scaffold table, and `tests/generated/main.rs` boundary, and fix existing drift in §2.1 (`#[chromatofoor::subdomain]` and `#[chromatofoor::context_mapping]` live in `bootstrap/`, not `domain/`) and §2.2 (`integration/policies/src/handlers/` and `sync_manual_pm_impls`).
     *   `docs/tdd-workflow.md`: Update Red-phase walkthrough (`todo!` panics and `cargo clippy` warning burndown), `tests/generated/main.rs` layout, and Green-phase `cargo clippy -- -D clippy::todo` completion check.
     *   `.agents/AGENTS.md`: Update non-destructive boundaries (`tests/generated/` vs. manual `tests/*.rs`) and replace the `testbed/04-virtual-apartment` CLI example with `testbed/04-flight-booking`.
-    *   Rebuild the structural graph via `./scripts/build_graph.sh` after file relocations complete.
 *   **Rationale**: Eliminates EGM contract drift across all repository blueprints, guides, and agent rules.
 
 ### Verification Plan
@@ -451,8 +450,8 @@ Every ESDM document across all five testbeds MUST include a non-empty `descripti
     *   `cargo clippy --workspace --all-targets -- -D warnings -A clippy::todo` on freshly scaffolded Red-state `testbed/01`–`05` workspaces (confirming zero `unsafe`, `unused_imports`, `unused_mut`, `unused_variables`, or `unreachable_code` warnings), followed by `cargo clippy --workspace --all-targets -- -D warnings -D clippy::todo` once the author completes manual stub implementation
 *   **Test Coverage Requirement**:
     *   100% of the 18 core ESDM `kind`s plus `aggregate-lifecycle`, `feature`, and all 5 `presentation-binding` transports (`http-rest`, `graphql`, `mcp`, `cli`, `tauri-ipc`) exercised across `testbed/01`–`05`
-*   **E2E/Integration, Graph & Determinism**:
-    *   `./scripts/build_graph.sh` and `./scripts/verify_all.sh` exiting `0` with zero `git diff` or untracked files across repeated testbed regenerations, zero broken relative Markdown links, and zero references outside `chromatofoor`
+*   **E2E/Integration & Determinism**:
+    *   `./scripts/verify_all.sh` exiting `0` with zero `git diff` or untracked files across repeated testbed regenerations, zero broken relative Markdown links, and zero references outside `chromatofoor`
 
 --------------------------------------------------------------------------------
 
