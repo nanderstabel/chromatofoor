@@ -11,7 +11,7 @@ context: Global operational constraints for AI agents operating in this reposito
 This repository uses the **Elephant-Goldfish Model (EGM)** for architectural specifications, reviews, and codebase contracts:
 
 - **Living Design Specifications**: Architectural designs, trade-offs, and implementation plans live in `docs/designs/` (indexed in `docs/designs/SITEMAP.md`), not in append-only ADR logs.
-- **Component Contracts ("Peanuts & Hay")**: Root `README.md` and crate-level `README.md` files document code-grounded `Interface`, `Invariants`, `Side Effects`, and `Verification` contracts. Keep them synchronized with source changes and verify alignment with `/egm:egm-drift-report`.
+- **Component Contracts ("Peanuts & Hay")**: Keep the top of the root `README.md` concise, welcoming, and free of internal EGM meta-jargon, with the EGM root blueprint sections (`Subdirectories & System Boundaries`, `Global Invariants`, `Global Side Effects`, `System Verification`) tucked inside the collapsible `<details>` block near the bottom; crate-level `README.md` files document code-grounded `Interface`, `Invariants`, `Side Effects`, and `Verification` contracts. Keep them synchronized with source changes and verify alignment with `/egm:egm-drift-report`.
 - **Immutable Upstream Core Schema**: Never modify `schemas/core/v1.yaml`. Modeling extensions belong in dedicated extension schemas under `schemas/<extension>/v1.yaml`.
 
 ## Deterministic Code Generation

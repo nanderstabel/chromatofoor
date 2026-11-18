@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./branding/logo-horizontal.jpg" width="640" alt="Chromatofoor">
+  <img src="./branding/logo-horizontal.jpg" width="600" alt="Chromatofoor">
 </p>
 
 <p align="center">
@@ -9,105 +9,229 @@
   <img src="https://img.shields.io/badge/license-MIT%20%2F%20AGPL--3.0-blue.svg" alt="License: MIT / AGPL-3.0">
 </p>
 
-# Chromatofoor Blueprint
+# Chromatofoor
 
-## System Overview
-Chromatofoor is a Rust Domain-Driven Design (DDD), CQRS, and Event Sourcing platform built on `architecturekit`. It compiles declarative ESDM (`Event-Sourced Domain Model`) YAML specifications—or hand-authored Rust `#[chromatofoor::<kind>]` attribute macros—into `#![deny(unsafe_code)]` Cargo workspaces, composable presentation servers (`HTTP/SSE`, `GraphQL`, `MCP`, `TUI`, `Tauri v2`), Given-When-Then test suites (`chromatofoor::testing`), and dual-transport TypeScript SDKs.
+**Event Sourcing, CQRS, and Domain-Driven Design for Rust.**
 
-Living design specifications and architectural decisions live in [`docs/designs/SITEMAP.md`](./docs/designs/SITEMAP.md). Schema-driven TDD workflow instructions live in [`docs/tdd-workflow.md`](./docs/tdd-workflow.md).
+Chromatofoor lets you model event-sourced domains, either directly in Rust with `#[chromatofoor::...]` macros or declaratively in [ESDM](https://esdm.io) YAML, and focus strictly on pure business rules. Everything around your domain logic (event streams, read-model projections, sagas, Given-When-Then tests, and HTTP / GraphQL / MCP / TUI / Tauri interfaces) wires up out of the box.
 
-## Quick Example: Canonical Macro & ESDM Parity
-From [`testbed/02-ecommerce-checkout`](./testbed/02-ecommerce-checkout/model.esdm.yaml), a declarative command specification compiles deterministically into canonical `#[chromatofoor::<kind>]` Rust with compile-time scope, lifecycle, nested schema validation, and fail-closed actor checks:
+**Why the name?** *Chromatofoor* comes from *chromatophores* (Dutch: *chromatofoor*), the biological cells that dynamically adapt their structure and state in response to changing signals. Chromatofoor keeps domains malleable instead of letting them harden into a "Big Ball of Mud", turning fast iteration into safe, continuous domain molding through strict boundaries between **specification**, **deterministic compilation**, and **pure business logic**.
+
+> [!NOTE]
+> **Work in Progress:** Chromatofoor is under active development and APIs may still change. Generated applications currently run against an in-memory event store (`InMemoryEventStore`), so runtime events and read-model state are not persisted to disk across restarts yet.
+
+---
+
+## Try It in 60 Seconds
+
+This repository includes five complete, runnable example domains under [`testbed/`](./testbed/README.md):
+
+```bash
+# 1. Launch the HTTP server (with embedded Web Workbench, GraphiQL, OpenAPI, and MCP)
+cargo run --manifest-path testbed/05-cargo-shipping/workspace/cargo-shipping/Cargo.toml -p api-server
+# -> Open http://localhost:3000/ in your browser (or http://localhost:3000/graphiql)
+
+# 2. Or explore a domain in the interactive terminal UI
+cargo run --manifest-path testbed/01-bank-account/workspace/bank-account-example/Cargo.toml -p interactive-tui
+
+# 3. Run the generated Given-When-Then scenario tests
+cargo test --manifest-path testbed/01-bank-account/workspace/bank-account-example/Cargo.toml
+```
+
+---
+
+## How It Works
+
+### 1. Model your domain (YAML or Rust macros)
+
+Define bounded contexts, actors, aggregates, commands, events, and read models in `.esdm.yaml` and run `chromatofoor-gen`, or write the same `#[chromatofoor::...]` attributes directly by hand.
+
+From [`testbed/01-bank-account`](./testbed/01-bank-account/model.esdm.yaml):
 
 ```yaml
 apiVersion: schema.esdm.io/core/v1
 kind: command
-name: add-item-to-cart
-actors: [customer]
+name: withdraw-funds
+description: Withdraws funds from an existing bank account when sufficient balance is available.
 scope:
-  domain: ecommerce-example
-  boundedContext: sales
-  aggregate: shopping-cart
-publishes: [item-added-to-cart]
+  domain: bank-account-example
+  boundedContext: finance
+  aggregate: account
+actors: [customer]
+publishes: [funds-withdrawn]
 data:
   type: object
   properties:
     id: { type: string, format: uuid }
-    item: { $ref: "#/cart-item" }
-  required: [id, item]
+    amount: { type: integer, minimum: 1 }
+  required: [id, amount]
 ```
+
+`chromatofoor-gen` compiles this into strongly typed Rust structs with compile-time scope checks, field validation, and fail-closed actor permissions:
 
 ```rust
-#[chromatofoor::aggregate(
-    scope = crate::generated::domain::Sales,
-    identified_by = [generated(uuid)],
-)]
-#[derive(Default, Deserialize, Serialize, Debug, Clone)]
-pub enum ShoppingCart {
-    #[default]
-    None,
-    Created(ShoppingCartInner),
-}
-
-#[chromatofoor::command(
-    scope = crate::generated::domain::shopping_cart::aggregate::ShoppingCart,
-    validate,
-    actors = [crate::generated::domain::actors::Customer],
-)]
-pub struct AddItemToCart {
+#[chromatofoor::command(scope = Account, validate, actors = [Customer])]
+pub struct WithdrawFunds {
+    #[validate(range(min = 1i64, message = "Field 'amount' must be at least 1"))]
+    pub amount: i64,
     pub id: uuid::Uuid,
-    #[validate(nested)]
-    pub item: crate::generated::domain::CartItem,
 }
 ```
 
-## Responsible AI-First Rust Engineering (Elephant-Goldfish Model)
-Instead of unconstrained "vibe coding", Chromatofoor pairs the **Elephant-Goldfish Model (EGM)** with strict compiler, lint, and runtime guardrails so AI agents can design, implement, test, and audit safely:
+### 2. Lock in behavior with Given-When-Then scenarios
 
-- **Living Architectural Memory ("Elephant")**: Design specs and trade-offs live in [`docs/designs/SITEMAP.md`](./docs/designs/SITEMAP.md), operational constraints in [`.agents/AGENTS.md`](./.agents/AGENTS.md), and code-grounded crate contracts ("Peanuts & Hay") in each core crate's `README.md`.
-- **Zero-Context Verification ("Goldfish")**: Subagents audit crate contracts and designs in fresh contexts against source files (`egm-codebase-details`, `egm-structural`, `egm-drift-report`), preventing doc-to-code drift and context-window rot.
-- **Compiler & Static Guardrails**: Workspace lints enforce `#![deny(unsafe_code)]`, `clippy::pedantic`, and `deny(unwrap_used, expect_used, panic, todo, unimplemented)` across platform crates, while generated workspaces inherit `unsafe_code = "deny"` and `clippy::todo = "warn"` across every member crate; `chromatofoor-derive` verifies scope hierarchies, `Identified` fields, and `Aggregate` lifecycle preconditions at compile time.
-- **Deterministic Codegen, Red-Phase Stubs, & Non-Destructive Boundaries**: `chromatofoor-gen` validates models via `esdm::lint::validate_model` before emission, parses generated token streams via `syn::parse_file`, sorts outputs deterministically, scaffolds explicit `todo!(...)` failure markers in newly created manual stubs, isolates generated Given-When-Then suites under `<crate>/tests/generated/main.rs`, and preserves developer-authored logic in `src/domain/`, `src/application/read_models/`, `src/infrastructure/`, and `<crate>/tests/*.rs`.
-- **Fail-Closed Runtime & Schema-Driven BDD**: `DomainRuntime` enforces two-phase `Authorized` actor checks (rejecting unauthorized callers before JSON deserialization), while `chromatofoor::testing` executes Given-When-Then suites compiled from `.feature.esdm.yaml`.
+Capture expected outcomes, edge cases, invariant rejections, and actor permissions upfront in `.feature.esdm.yaml` (from [`model.feature.esdm.yaml`](./testbed/01-bank-account/model.feature.esdm.yaml)):
 
-## Spotlights
-- **Native Model Context Protocol Adapter ([`presentation/mcp/`](./presentation/mcp/README.md))**: `chromatofoor-mcp` projects any `DomainRuntime` into an MCP JSON-RPC 2.0 server over standalone `stdio` (`Mcp::stdio()`) or Axum Streamable HTTP + live `notifications/domain_event` SSE (`Mcp::http()`). Commands (`invoke_*`) and queries (`query_*`) automatically carry `_actor`-enriched JSON Schemas so AI agents operate under the exact same fail-closed authorization rules as human callers.
-- **Dynamic Consistency Boundaries & Progressive Reference Suite ([`testbed/`](./testbed/README.md))**: Five progressive, textbook DDD reference domains (`01-bank-account`, `02-ecommerce-checkout`, `03-course-enrollment`, `04-flight-booking`, `05-cargo-shipping`) exercise 100% of ESDM's 18 core `kind`s—including ad-hoc multi-stream consistency in [`03-course-enrollment`](./testbed/03-course-enrollment/model.esdm.yaml) (`dynamic-consistency-boundary`), compensating sagas with timers in [`04-flight-booking`](./testbed/04-flight-booking/model.esdm.yaml) (`process-manager`), and Evans' strategic freight model across all 5 presentation transports in [`05-cargo-shipping`](./testbed/05-cargo-shipping/model.esdm.yaml).
+```yaml
+apiVersion: schema.esdm.io/given-when-then/v1
+kind: feature
+name: account-commands
+scope:
+  domain: bank-account-example
+  boundedContext: finance
+  aggregate: account
+scenarios:
+  - name: reject-overdraft-withdrawal
+    given:
+      - event: account-opened
+        data: { owner-name: "Alice", balance: 100 }
+    when:
+      actor: customer
+      command: withdraw-funds
+      data: { id: "00000000-0000-0000-0000-000000000001", amount: 150 }
+    then:
+      rejection:
+        invariant: insufficient-funds
+```
+
+`chromatofoor-gen` compiles every scenario into a predetermined, read-only Rust test under `tests/generated/` (`// DO NOT EDIT`), while scaffolding unimplemented domain methods with `todo!(...)`. Every new feature starts in a clean **Red** state, and because the test suite is generated directly from the specification, neither humans nor AI agents can cut corners by weakening assertions:
+
+```rust
+#[tokio::test]
+async fn test_account_commands_reject_overdraft_withdrawal() {
+    chromatofoor::testing::given::<Account>(vec![/* AccountOpened { balance: 100 } */])
+        .when_by("customer", AccountCommand::WithdrawFunds(/* amount: 150 */))
+        .await
+        .then_rejected(AccountError::InsufficientFunds);
+}
+```
+
+### 3. Write pure domain logic to turn the tests green
+
+You only implement the business decisions and state transitions until `cargo test` passes. Re-running `chromatofoor-gen` updates generated types and scenario tests without overwriting your domain code:
+
+```rust
+impl Command<Account> for WithdrawFunds {
+    type Error = AccountError;
+
+    async fn decide(self, state: &Account) -> Result<Vec<AccountEvent>, Self::Error> {
+        let Account::Created(inner) = state else {
+            return Ok(vec![]);
+        };
+        if self.amount > inner.balance {
+            return Err(AccountError::InsufficientFunds);
+        }
+        Ok(vec![AccountEvent::FundsWithdrawn(FundsWithdrawn {
+            amount: self.amount,
+            new_balance: inner.balance - self.amount,
+        })])
+    }
+}
+```
+
+### 4. Attach presentations and serve
+
+Mount one or more transports onto the built `DomainRuntime`:
+
+```rust
+bootstrap::Domain::build()
+    .await?
+    .attach(
+        chromatofoor_http::HttpServer::bind("0.0.0.0:3000")
+            .attach(chromatofoor_graphql::GraphQL::new())
+            .attach(chromatofoor_mcp::Mcp::http()),
+    )
+    .serve()
+    .await
+```
+
+---
+
+## What's Included
+
+- **Predetermined Given-When-Then test suites:** `.feature.esdm.yaml` scenarios compile into deterministic, in-memory `cargo test` suites across **Aggregates**, **Dynamic Consistency Boundaries**, **Read Models**, and **Process Managers** (verifying emitted events, idempotent no-ops, invariant and actor rejections, query outputs, and saga timers), backed by `chromatofoor::testing` for hand-written tests too.
+- **Complete tactical & strategic DDD building blocks:** Aggregates, Entities, Value Objects, Domain Services, Dynamic Consistency Boundaries (ad-hoc multi-stream consistency), Read Models, Queries, Policies, Event Handlers, and stateful Process Managers with durable timers.
+- **Safety by default:** `#![deny(unsafe_code)]`, compile-time scope and lifecycle checks, automatic payload validation, fail-closed actor authorization, and structured RFC 9457 `ProblemDetails` errors across all transports.
+- **Plug-and-play interfaces:**
+  - **[HTTP (`chromatofoor-http`)](./presentation/http/README.md):** Command `POST` and query `GET` endpoints, SSE event streaming, OpenAPI 3.0 spec (`/openapi.json`), and a built-in Svelte 5 Web Workbench at `/`.
+  - **[GraphQL (`chromatofoor-graphql`)](./presentation/graphql/README.md):** Auto-derived queries, mutations, subscriptions, and GraphiQL (`/graphiql`).
+  - **[MCP (`chromatofoor-mcp`)](./presentation/mcp/README.md):** Model Context Protocol server (`stdio` or Streamable HTTP at `/mcp`) so AI tools can call commands and queries under the same actor authorization rules.
+  - **[Terminal UI (`chromatofoor-tui`)](./presentation/tui/README.md):** Interactive Ratatui terminal workbench for browsing commands, queries, and live events.
+  - **[Tauri v2 (`chromatofoor-tauri`)](./presentation/tauri/README.md):** Native desktop and mobile (iOS & Android) apps powered by the shared Svelte 5 workbench, plus generated TypeScript SDKs.
+
+---
+
+## Example Domains
+
+The [`testbed/`](./testbed/README.md) directory walks from a single aggregate up to a multi-context system:
+
+| Example | Domain | Highlights |
+| :--- | :--- | :--- |
+| **[`01-bank-account`](./testbed/01-bank-account/model.esdm.yaml)** | Retail banking | Aggregates, lifecycle states, actor permissions, read-model projections, Given-When-Then tests. |
+| **[`02-ecommerce-checkout`](./testbed/02-ecommerce-checkout/model.esdm.yaml)** | Shopping cart | Nested entities & value objects, schema validation, multi-event invariants. |
+| **[`03-course-enrollment`](./testbed/03-course-enrollment/model.esdm.yaml)** | University registration | Dynamic Consistency Boundaries (DCB) across multiple streams and domain services. |
+| **[`04-flight-booking`](./testbed/04-flight-booking/model.esdm.yaml)** | Travel booking saga | Cross-context Process Managers, compensating commands, and scheduled timers. |
+| **[`05-cargo-shipping`](./testbed/05-cargo-shipping/model.esdm.yaml)** | Freight & cargo routing | Subdomains, Shared Kernel, Policies, External Systems, Anti-Corruption Layers, and all 5 transports. |
+
+---
+
+## Documentation
+
+- **[Schema-Driven TDD Workflow](./docs/tdd-workflow.md):** Step-by-step guide from `.esdm.yaml` models and `.feature.esdm.yaml` scenarios to working domain code.
+- **[Design Specifications](./docs/designs/SITEMAP.md):** Architecture and code-generator specifications.
+
+<details>
+<summary><strong>System Architecture & Invariants</strong> (crate boundaries, global invariants, side effects, and verification)</summary>
 
 ## Subdirectories & System Boundaries
-- **Core Compiler & Runtime Crates** *(primary EGM scope)*:
-  - [`esdm/`](./esdm/README.md) — ESDM YAML AST, JSON Schema validation (`schemas/`), and cross-document semantic linter (`esdm::lint`).
-  - [`chromatofoor/`](./chromatofoor/README.md) — Core pure-functional DDD/CQRS/ES runtime (`Aggregate`, `DynamicConsistencyBoundary`, `Command`, `Event`, `ReadModel`, `DocumentView`, `Query`, `Policy`, `EventHandler`, `ProcessManager`, `DomainBuilder`, `DomainRuntime`, `testing`).
-  - [`chromatofoor-derive/`](./chromatofoor-derive/README.md) — Procedural attribute macros (`#[chromatofoor::<kind>]`) enforcing compile-time scope hierarchy, `Identified` field validation, lifecycle preconditions, and `Authorized` actor checks.
-  - [`chromatofoor-gen/`](./chromatofoor-gen/README.md) — Deterministic workspace, domain, integration, BDD test, presentation, and TypeScript SDK code generator.
+
+- **Core Compiler & Runtime Crates**:
+  - [`chromatofoor/`](./chromatofoor/README.md): Pure-functional DDD/CQRS/ES runtime (`Aggregate`, `DynamicConsistencyBoundary`, `Command`, `Event`, `ReadModel`, `DocumentView`, `Query`, `Policy`, `EventHandler`, `ProcessManager`, `DomainBuilder`, `DomainRuntime`, `ProblemDetails`, `testing`).
+  - [`chromatofoor-derive/`](./chromatofoor-derive/README.md): Procedural attribute macros (`#[chromatofoor::<kind>]`) enforcing compile-time scope hierarchy, `Identified` field validation, lifecycle preconditions, and `Authorized` actor checks.
+  - [`esdm/`](./esdm/README.md): ESDM YAML AST, JSON Schema validation (`schemas/`), and cross-document semantic linter (`esdm::lint`).
+  - [`chromatofoor-gen/`](./chromatofoor-gen/README.md): Deterministic workspace, domain, integration, BDD test, presentation, and TypeScript SDK generator (plus `chromatofoor-gen visualize` interactive domain graph server).
 - **Composable Presentation & UI Adapters**:
-  - [`presentation/http/`](./presentation/http/README.md) (`chromatofoor-http`) — HTTP (`GET`, `POST`, `SSE`) + OpenAPI server (`HttpServer`) and `HttpProtocol` sub-router host.
-  - [`presentation/graphql/`](./presentation/graphql/README.md) (`chromatofoor-graphql`) — Dynamic GraphQL schema, mutations, queries, and subscriptions (`HttpProtocol`).
-  - [`presentation/mcp/`](./presentation/mcp/README.md) (`chromatofoor-mcp`) — Model Context Protocol server over `stdio` (`Presentation`) and Streamable HTTP (`HttpProtocol`).
-  - [`presentation/tui/`](./presentation/tui/README.md) (`chromatofoor-tui`) — Ratatui interactive terminal UI (`Presentation`).
-  - [`presentation/tauri/`](./presentation/tauri/README.md) (`chromatofoor-tauri`) — Tauri v2 desktop IPC commands and event streaming bridge.
-  - `packages/ui/` — `@chromatofoor/ui` Svelte 5 atomic component library and W3C design tokens.
-- **Verification Suites**:
-  - [`testbed/`](./testbed/README.md) — Five canonical DDD reference domains (`01-bank-account` through `05-cargo-shipping`) verifying 100% ESDM construct coverage, runtime semantics, and generator determinism.
+  - [`presentation/`](./presentation/README.md): Transport adapter index covering [`presentation/http/`](./presentation/http/README.md) (`chromatofoor-http` + embedded Web Workbench), [`presentation/graphql/`](./presentation/graphql/README.md) (`chromatofoor-graphql`), [`presentation/mcp/`](./presentation/mcp/README.md) (`chromatofoor-mcp`), [`presentation/tui/`](./presentation/tui/README.md) (`chromatofoor-tui`), and [`presentation/tauri/`](./presentation/tauri/README.md) (`chromatofoor-tauri` desktop & mobile IPC).
+  - `packages/ui/`: `@chromatofoor/ui` shared Svelte 5 `WorkbenchApp` and component library.
+- **Reference Suites**:
+  - [`testbed/`](./testbed/README.md): Five canonical DDD reference domains (`01-bank-account` through `05-cargo-shipping`) covering all 18 ESDM `kind`s, runtime semantics, and generator determinism.
 
 ## Global Invariants
-- **Pure Functional Domain Core**: `#![deny(unsafe_code)]`, `clippy::pedantic`, and `deny(unwrap_used, expect_used, panic, todo, unimplemented)` across platform workspace crates (`chromatofoor-gen/src/main.rs` carries targeted crate-local `unwrap_used`/`expect_used` allowances, and `chromatofoor/src/testing.rs` permits `panic` in assertion helpers). Generated workspaces enforce inherited `unsafe_code = "deny"` and `clippy::todo = "warn"` across all member crates.
-- **Canonical Macro Parity**: `chromatofoor-gen` emits the exact same `#[chromatofoor::<kind>]` macros and traits used by hand-written Rust domains, sharing a generated `<workspace>/domain` crate.
-- **Fail-Closed Authorization**: Commands and queries without declared `actors` reject all actor-checked dispatch (`DispatchError::Unauthorized`).
-- **Deterministic Non-Destructive Code Generation**: All generated collections and workspace members are sorted deterministically (while `IndexMap`-backed read-model, query, and process-manager fields preserve YAML declaration order); `src/generated/` and `<crate>/tests/generated/` are overwritten cleanly while manual domain files (`src/domain/`, `src/application/read_models/`, `src/infrastructure/`, and `<crate>/tests/*.rs`) are preserved.
+
+- **Strict Rust Safety & Lints**: `#![deny(unsafe_code)]`, `clippy::pedantic`, and `deny(unwrap_used, expect_used, panic, todo, unimplemented)` across workspace crates (with scoped allowances in `chromatofoor-gen/src/main.rs` and `chromatofoor/src/testing.rs`). Generated workspaces enforce inherited `unsafe_code = "deny"` and `clippy::todo = "warn"` across all member crates.
+- **Macro & Codegen Parity**: `chromatofoor-gen` emits the same `#[chromatofoor::<kind>]` macros and traits used by hand-written Rust domains, sharing a generated `<workspace>/domain` crate.
+- **Two-Phase Fail-Closed Authorization**: Commands and queries without declared `actors` reject all actor-checked dispatch (`DispatchError::Unauthorized`), checking caller permissions before deserializing untrusted JSON payloads.
+- **Deterministic Non-Destructive Code Generation**: Generated collections and workspace members are sorted deterministically (while `IndexMap`-backed read-model, query, and process-manager fields preserve YAML declaration order); `src/generated/` and `<crate>/tests/generated/` are overwritten cleanly while manual domain files (`src/domain/`, `src/application/read_models/`, `src/infrastructure/`, and `<crate>/tests/*.rs`) are preserved.
 - **Immutable Core Schema**: `schemas/core/v1.yaml` is the upstream ESDM core specification; execution extensions (`lifecycle/v1`, `given-when-then/v1`, `infrastructure/v1`, `domain-storytelling/v1`) live in sibling extension schemas.
 
 ## Global Side Effects
-- Event persistence, optimistic concurrency preconditions, and projection/consumer subscriptions run through `architecturekit::Store` (`EventStore` implementations such as EventSourcingDB or `InMemoryEventStore`).
+
+- Event appends, optimistic concurrency preconditions, and projection/consumer subscriptions run through `architecturekit::Store` (generated `bootstrap` crates currently default to `InMemoryEventStore`, so runtime state is in-memory only unless a persistent `EventStore` is supplied via `Domain::build_with_store`).
 - Consumer checkpoints persist to `/checkpoints/<kind>/<domain>/<consumer>`, Process Manager snapshots and outbox `pending_commands` persist to `/process-managers/<domain>/<pm>/<id>`, and fired timer events persist to `/<domain>/<pm>/timers/<id>`.
 
 ## System Verification
-- Run full workspace tests, strict clippy, ESDM model linting, testbed verification, regeneration, and git-diff determinism checks:
+
+- Run full workspace tests, strict `clippy`, ESDM model linting, and testbed verification:
   ```bash
   ./scripts/verify_all.sh
   ```
 
+</details>
+
+---
+
 ## License
-- **Runtime, Macros, Linter, Transports, UI & Testbeds** (`chromatofoor`, `chromatofoor-derive`, `esdm`, `presentation/*`, `packages/ui`, `testbed/*`): Licensed under the [MIT License](./LICENSE).
-- **Code Generator** (`chromatofoor-gen`): Licensed under [GNU AGPL-3.0](./chromatofoor-gen/LICENSE) with the [Generated Code Output Exception](./chromatofoor-gen/OUTPUT_EXCEPTION.md) (generated workspaces and application code are unencumbered and owned by you).
-- **Upstream ESDM Schemas** (`schemas/core/v1.yaml`, `schemas/given-when-then/v1.yaml`, `schemas/domain-storytelling/v1.yaml`): Copyright (c) 2026 the native web GmbH, licensed under the MIT License.
+
+- **Runtime, Macros, Linter, Presentations, UI & Examples** (`chromatofoor`, `chromatofoor-derive`, `esdm`, `presentation/*`, `packages/ui`, `testbed/*`): [MIT License](./LICENSE).
+- **Code Generator** (`chromatofoor-gen`): [GNU AGPL-3.0](./chromatofoor-gen/LICENSE) with the [Generated Code Output Exception](./chromatofoor-gen/OUTPUT_EXCEPTION.md) (all workspaces and code generated by `chromatofoor-gen` are unencumbered and owned by you).
+- **Upstream ESDM Schemas** (`schemas/core/v1.yaml`, `schemas/given-when-then/v1.yaml`, `schemas/domain-storytelling/v1.yaml`): Copyright (c) 2026 the native web GmbH, [MIT License](./LICENSE).

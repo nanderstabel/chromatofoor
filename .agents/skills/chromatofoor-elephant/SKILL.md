@@ -11,7 +11,7 @@ description: >-
 Use these authoritative checked-in artifacts to load context selectively based on the task at hand:
 
 ## 1. Blueprints & Developer Workflows
-- **Repository Root Blueprint**: [`README.md`](../../../README.md) — High-level crate map, global invariants, and verification commands.
+- **Repository Root Overview & Blueprint**: [`README.md`](../../../README.md) — Human-facing quickstart and overview, plus collapsible EGM root blueprint (`Subdirectories & System Boundaries`, `Global Invariants`, `Global Side Effects`, `System Verification`).
 - **Component & Subsystem Contracts ("Peanuts & Hay")**:
   - [`esdm/README.md`](../../../esdm/README.md) — ESDM YAML AST, JSON Schema validation, and cross-document semantic linter (`esdm::lint`).
   - [`chromatofoor/README.md`](../../../chromatofoor/README.md) — Core pure-functional DDD/CQRS/ES runtime, outbox Process Managers, and `chromatofoor::testing`.
