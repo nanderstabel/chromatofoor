@@ -11,11 +11,11 @@
 
 # Chromatofoor
 
-**Event Sourcing, CQRS, and Domain-Driven Design for Rust.**
+**Event Sourcing, CQRS, Domain-Driven Design, and BDD for Rust.**
 
-Chromatofoor lets you model event-sourced domains, either directly in Rust with `#[chromatofoor::...]` macros or declaratively in [ESDM](https://esdm.io) YAML, and focus strictly on pure business rules. Everything around your domain logic (event streams, read-model projections, sagas, Given-When-Then tests, and HTTP / GraphQL / MCP / TUI / Tauri interfaces) wires up out of the box.
+Chromatofoor lets you model event-sourced domains, either directly in Rust with `#[chromatofoor::...]` macros or declaratively in [ESDM](https://esdm.io) YAML, and focus strictly on pure business rules. Everything around your domain logic (event streams, read-model projections, sagas, BDD Given-When-Then tests, and HTTP / GraphQL / MCP / TUI / Tauri interfaces) wires up out of the box.
 
-**Why DDD + CQRS/ES for agentic programming?** Unstructured "vibe coding" quickly produces unmaintainable codebases. DDD and CQRS/ES counter this by expressing technical architecture directly in business terms (commands, events, invariants, and Given-When-Then scenarios), so business stakeholders, engineers, and AI agents all speak the same language. Instead of letting AI improvise architecture on the fly, Chromatofoor locks down the model, permissions, and test suite deterministically upfront, keeping AI strictly under control inside pure domain logic.
+**Why DDD, BDD, and CQRS/ES for agentic programming?** Unstructured "vibe coding" quickly produces unmaintainable codebases. Combining Domain-Driven Design (DDD), Behavior-Driven Development (BDD), and CQRS/ES counters this by expressing technical architecture and concrete behavioral examples directly in business terms (commands, events, invariants, and Given-When-Then scenarios), so business stakeholders, engineers, and AI agents all speak the same language. Instead of letting AI improvise architecture on the fly, Chromatofoor locks down the model, permissions, and executable BDD test suite deterministically upfront, keeping AI strictly under control inside pure domain logic.
 
 **Why the name?** *Chromatofoor* comes from *chromatophores* (Dutch: *chromatofoor*), the biological cells that dynamically adapt their structure and state in response to changing signals. By separating **declarative models**, **deterministic code generation**, and **pure business rules**, Chromatofoor keeps domains malleable as requirements evolve instead of letting them harden into a "Big Ball of Mud".
 
@@ -80,9 +80,9 @@ pub struct WithdrawFunds {
 }
 ```
 
-### 2. Lock in behavior with Given-When-Then scenarios
+### 2. Formulate behavior with BDD Given-When-Then scenarios
 
-Capture expected outcomes, edge cases, invariant rejections, and actor permissions upfront in `.feature.esdm.yaml` (from [`model.feature.esdm.yaml`](./testbed/01-bank-account/model.feature.esdm.yaml)):
+Following Behavior-Driven Development (BDD), formulate concrete domain examples, edge cases, invariant rejections, and actor permissions upfront in `.feature.esdm.yaml` (from [`model.feature.esdm.yaml`](./testbed/01-bank-account/model.feature.esdm.yaml)):
 
 ```yaml
 apiVersion: schema.esdm.io/given-when-then/v1
@@ -106,7 +106,7 @@ scenarios:
         invariant: insufficient-funds
 ```
 
-`chromatofoor-gen` compiles every scenario into a predetermined, read-only Rust test under `tests/generated/` (`// DO NOT EDIT`), while scaffolding unimplemented domain methods with `todo!(...)`. Every new feature starts in a clean **Red** state, and because the test suite is generated directly from the specification, neither humans nor AI agents can cut corners by weakening assertions:
+Because scenarios reference typed domain commands, events, and invariants directly, there is no fragile Gherkin regex or step-definition glue code to maintain. `chromatofoor-gen` compiles every scenario straight into a predetermined, read-only Rust test under `tests/generated/` (`// DO NOT EDIT`), while scaffolding unimplemented domain methods with `todo!(...)`. Every new feature starts in a clean **Red** state, and neither humans nor AI agents can cut corners by weakening assertions:
 
 ```rust
 #[tokio::test]
@@ -161,7 +161,8 @@ bootstrap::Domain::build()
 
 ## What's Included
 
-- **Predetermined Given-When-Then test suites:** `.feature.esdm.yaml` scenarios compile into deterministic, in-memory `cargo test` suites across **Aggregates**, **Dynamic Consistency Boundaries**, **Read Models**, and **Process Managers** (verifying emitted events, idempotent no-ops, invariant and actor rejections, query outputs, and saga timers), backed by `chromatofoor::testing` for hand-written tests too.
+- **Zero-glue BDD & predetermined test suites:** `.feature.esdm.yaml` scenarios turn BDD formulation directly into deterministic, in-memory `cargo test` suites across **Aggregates**, **Dynamic Consistency Boundaries**, **Read Models**, and **Process Managers** (verifying emitted events, idempotent no-ops, invariant and actor rejections, query outputs, and saga timers) with no manual step-definition glue, backed by `chromatofoor::testing` for hand-written tests too.
+- **Living domain documentation:** Descriptions, invariant rules, actor permissions, and BDD scenario summaries written once in `.esdm.yaml` propagate deterministically into Rust `///` doc comments and live runtime schemas (OpenAPI 3.0, GraphQL, MCP tool descriptions for AI callers, the Web and TUI workbenches, and `chromatofoor-gen visualize`).
 - **Complete tactical & strategic DDD building blocks:** Aggregates, Entities, Value Objects, Domain Services, Dynamic Consistency Boundaries (ad-hoc multi-stream consistency), Read Models, Queries, Policies, Event Handlers, and stateful Process Managers with durable timers.
 - **Safety by default:** `#![deny(unsafe_code)]`, compile-time scope and lifecycle checks, automatic payload validation, fail-closed actor authorization, and structured RFC 9457 `ProblemDetails` errors across all transports.
 - **Plug-and-play interfaces:**
@@ -189,7 +190,9 @@ The [`testbed/`](./testbed/README.md) directory walks from a single aggregate up
 
 ## Documentation
 
-- **[Schema-Driven TDD Workflow](./docs/tdd-workflow.md):** Step-by-step guide from `.esdm.yaml` models and `.feature.esdm.yaml` scenarios to working domain code.
+Alongside propagating domain descriptions from `.esdm.yaml` into generated code and runtime schemas, this repository maintains its own design documents and per-crate `README.md` contracts as **living documentation** verified continuously against the codebase (using the Elephant-Goldfish Model):
+
+- **[Schema-Driven TDD Workflow](./docs/tdd-workflow.md):** Step-by-step guide from `.esdm.yaml` models and `.feature.esdm.yaml` BDD scenarios to working domain code.
 - **[Design Specifications](./docs/designs/SITEMAP.md):** Architecture and code-generator specifications.
 
 <details>
