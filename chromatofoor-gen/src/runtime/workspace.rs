@@ -100,7 +100,7 @@ pub fn generate_workspace(
         "chromatofoor-tauri = {{ path = \"{presentation_base}/tauri\" }}\n"
     ));
     workspace_cargo.push_str(
-        "\n[workspace.lints.rust]\nunsafe_code = \"deny\"\n\n[workspace.lints.clippy]\ntodo = \"warn\"\n",
+        "\n[workspace.lints.rust]\nunsafe_code = \"deny\"\n\n[workspace.lints.clippy]\ntodo = \"warn\"\n\n[profile.dev.package.\"*\"]\ndebug = false\n",
     );
 
     fs::create_dir_all(out_dir)?;

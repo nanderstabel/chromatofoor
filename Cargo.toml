@@ -22,6 +22,7 @@ publish = false
 
 [workspace.lints.rust]
 unsafe_code = "deny"
+unknown_lints = "allow"
 
 [workspace.lints.clippy]
 pedantic = { level = "deny", priority = -1 }
@@ -72,3 +73,6 @@ serde_json = { version = "1.0", default-features = false, features = ["std"] }
 validator = { version = "0.19", default-features = false, features = ["derive"] }
 chromatofoor-http = { path = "presentation/http" }
 uuid = { version = "1.4", default-features = false, features = ["std"] }
+
+[profile.dev.package."*"]
+debug = false
