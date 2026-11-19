@@ -28,6 +28,47 @@ use crate::{bounded_context::BoundedContext, common::Kind};
 /// assert_eq!(a.topic().as_str(), "/commerce/ordering/money");
 /// ```
 ///
+/// Unit-variant `enum` value objects automatically generate a JSON string `enum` schema
+/// (honoring `#[serde(rename_all = "...")]` and variant `#[serde(rename = "...")]`):
+///
+/// ```
+/// # use chromatofoor::architecturekit::Schema;
+/// # use chromatofoor::serde_json::json;
+/// # #[chromatofoor::domain]
+/// # pub struct Commerce;
+/// # #[chromatofoor::bounded_context(scope = Commerce)]
+/// # pub struct Ordering;
+/// #[chromatofoor::value_object(scope = Ordering)]
+/// #[serde(rename_all = "kebab-case")]
+/// pub enum PaymentMethod {
+///     CreditCard,
+///     #[serde(rename = "sepa")]
+///     BankTransfer,
+/// }
+///
+/// assert_eq!(
+///     PaymentMethod::schema(),
+///     json!({
+///         "type": "string",
+///         "enum": ["credit-card", "sepa"],
+///     })
+/// );
+/// ```
+///
+/// Enum value objects with non-unit variants are rejected at compile time:
+///
+/// ```compile_fail
+/// # #[chromatofoor::domain]
+/// # pub struct Commerce;
+/// # #[chromatofoor::bounded_context(scope = Commerce)]
+/// # pub struct Ordering;
+/// #[chromatofoor::value_object(scope = Ordering)]
+/// pub enum InvalidValueObject {
+///     Unit,
+///     Payload(String),
+/// }
+/// ```
+///
 /// Value objects must be scoped to a [`BoundedContext`]:
 ///
 /// ```compile_fail

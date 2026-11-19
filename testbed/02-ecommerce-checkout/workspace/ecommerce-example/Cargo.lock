@@ -67,7 +67,7 @@ dependencies = [
 [[package]]
 name = "architecturekit"
 version = "0.24.0"
-source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=5eb65a7a757478e2e676b920991cbe0ca3c1aa23#5eb65a7a757478e2e676b920991cbe0ca3c1aa23"
+source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=d559844aaacb02186d0e60efde6fd68ec2e8b298#d559844aaacb02186d0e60efde6fd68ec2e8b298"
 dependencies = [
  "architecturekit-macros",
  "chrono",
@@ -85,7 +85,7 @@ dependencies = [
 [[package]]
 name = "architecturekit-macros"
 version = "0.24.0"
-source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=5eb65a7a757478e2e676b920991cbe0ca3c1aa23#5eb65a7a757478e2e676b920991cbe0ca3c1aa23"
+source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=d559844aaacb02186d0e60efde6fd68ec2e8b298#d559844aaacb02186d0e60efde6fd68ec2e8b298"
 dependencies = [
  "proc-macro2",
  "quote",

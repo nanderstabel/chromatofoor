@@ -430,3 +430,188 @@ pub(crate) fn dedup_paths_with_variant_idents(
 
     result
 }
+
+#[derive(Clone, Copy, Default)]
+enum SerdeRenameRule {
+    #[default]
+    None,
+    LowerCase,
+    UpperCase,
+    PascalCase,
+    CamelCase,
+    SnakeCase,
+    ScreamingSnakeCase,
+    KebabCase,
+    ScreamingKebabCase,
+}
+
+impl SerdeRenameRule {
+    fn from_lit(lit: &LitStr) -> syn::Result<Self> {
+        match lit.value().as_str() {
+            "lowercase" => Ok(Self::LowerCase),
+            "UPPERCASE" => Ok(Self::UpperCase),
+            "PascalCase" => Ok(Self::PascalCase),
+            "camelCase" => Ok(Self::CamelCase),
+            "snake_case" => Ok(Self::SnakeCase),
+            "SCREAMING_SNAKE_CASE" => Ok(Self::ScreamingSnakeCase),
+            "kebab-case" => Ok(Self::KebabCase),
+            "SCREAMING-KEBAB-CASE" => Ok(Self::ScreamingKebabCase),
+            other => Err(syn::Error::new(
+                lit.span(),
+                format!("unknown serde rename rule `{other}`"),
+            )),
+        }
+    }
+
+    fn apply_to_variant(self, variant: &str) -> String {
+        match self {
+            Self::None | Self::PascalCase => variant.to_owned(),
+            Self::LowerCase => variant.to_ascii_lowercase(),
+            Self::UpperCase => variant.to_ascii_uppercase(),
+            Self::CamelCase => {
+                let mut chars = variant.chars();
+                chars.next().map_or_else(String::new, |first| {
+                    first.to_ascii_lowercase().to_string() + chars.as_str()
+                })
+            }
+            Self::SnakeCase => {
+                let mut snake = String::new();
+                for (i, ch) in variant.char_indices() {
+                    if i > 0 && ch.is_uppercase() {
+                        snake.push('_');
+                    }
+                    snake.push(ch.to_ascii_lowercase());
+                }
+                snake
+            }
+            Self::ScreamingSnakeCase => Self::SnakeCase
+                .apply_to_variant(variant)
+                .to_ascii_uppercase(),
+            Self::KebabCase => Self::SnakeCase.apply_to_variant(variant).replace('_', "-"),
+            Self::ScreamingKebabCase => Self::ScreamingSnakeCase
+                .apply_to_variant(variant)
+                .replace('_', "-"),
+        }
+    }
+}
+
+fn ignore_serde_meta(meta: &syn::meta::ParseNestedMeta<'_>) -> syn::Result<()> {
+    if meta.input.peek(Token![=]) {
+        let _: syn::Expr = meta.value()?.parse()?;
+    } else if meta.input.peek(syn::token::Paren) {
+        let content;
+        syn::parenthesized!(content in meta.input);
+        let _: proc_macro2::TokenStream = content.parse()?;
+    }
+    Ok(())
+}
+
+fn parse_serde_serialize_str(meta: &syn::meta::ParseNestedMeta<'_>) -> syn::Result<Option<LitStr>> {
+    if meta.input.peek(Token![=]) {
+        let lit: LitStr = meta.value()?.parse()?;
+        return Ok(Some(lit));
+    }
+    if meta.input.peek(syn::token::Paren) {
+        let mut ser_lit = None;
+        meta.parse_nested_meta(|nested| {
+            if nested.path.is_ident("serialize") {
+                ser_lit = Some(nested.value()?.parse::<LitStr>()?);
+            } else {
+                ignore_serde_meta(&nested)?;
+            }
+            Ok(())
+        })?;
+        return Ok(ser_lit);
+    }
+    Ok(None)
+}
+
+pub(crate) fn unit_enum_schema_impl(
+    ident: &Ident,
+    attrs: &[syn::Attribute],
+    data: &syn::DataEnum,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let mut rename_all = SerdeRenameRule::None;
+
+    for attr in attrs.iter().filter(|a| a.path().is_ident("serde")) {
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("rename_all") {
+                if let Some(lit) = parse_serde_serialize_str(&meta)? {
+                    rename_all = SerdeRenameRule::from_lit(&lit)?;
+                }
+            } else if let Some(name) = ["tag", "content", "into", "remote", "untagged"]
+                .into_iter()
+                .find(|n| meta.path.is_ident(n))
+            {
+                return Err(syn::Error::new_spanned(
+                    &meta.path,
+                    format!(
+                        "the schema of a value_object enum with #[serde({name})] can not be derived"
+                    ),
+                ));
+            } else {
+                ignore_serde_meta(&meta)?;
+            }
+            Ok(())
+        })?;
+    }
+
+    let mut variant_names = Vec::new();
+    for variant in &data.variants {
+        if !matches!(variant.fields, syn::Fields::Unit) {
+            return Err(syn::Error::new(
+                data.enum_token.span,
+                "the schema of a value_object enum with non-unit variants can not be derived, since serde writes enums in several shapes",
+            ));
+        }
+
+        let mut is_skipped = false;
+        let mut rename: Option<String> = None;
+        for attr in variant.attrs.iter().filter(|a| a.path().is_ident("serde")) {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("skip") || meta.path.is_ident("skip_serializing") {
+                    is_skipped = true;
+                    ignore_serde_meta(&meta)?;
+                } else if meta.path.is_ident("rename") {
+                    if let Some(lit) = parse_serde_serialize_str(&meta)? {
+                        rename = Some(lit.value());
+                    }
+                } else if let Some(name) = ["serialize_with", "with"]
+                    .into_iter()
+                    .find(|n| meta.path.is_ident(n))
+                {
+                    return Err(syn::Error::new_spanned(
+                        &meta.path,
+                        format!(
+                            "the schema of an enum variant with #[serde({name})] can not be derived"
+                        ),
+                    ));
+                } else {
+                    ignore_serde_meta(&meta)?;
+                }
+                Ok(())
+            })?;
+        }
+
+        if is_skipped {
+            continue;
+        }
+
+        let serialized_name = rename.unwrap_or_else(|| {
+            let raw = syn::ext::IdentExt::unraw(&variant.ident).to_string();
+            rename_all.apply_to_variant(&raw)
+        });
+        variant_names.push(serialized_name);
+    }
+
+    Ok(quote! {
+        impl chromatofoor::architecturekit::Schema for #ident {
+            fn schema() -> chromatofoor::serde_json::Value {
+                chromatofoor::serde_json::json!({
+                    "type": "string",
+                    "enum": [#(#variant_names),*],
+                })
+            }
+        }
+    })
+}

@@ -1764,21 +1764,22 @@ pub fn entity(attr: TokenStream, item: TokenStream) -> TokenStream {
     .into()
 }
 
-/// Marks a struct as an ESDM `value-object` scoped to a `BoundedContext`.
+/// Marks a struct or unit-variant enum as an ESDM `value-object` scoped to a `BoundedContext`.
 ///
 /// Automatically derives `Clone`, `Debug`, `PartialEq`, `serde::Serialize`,
-/// `serde::Deserialize`, and `architecturekit::Schema`.
+/// `serde::Deserialize`, and implements `architecturekit::Schema` (via derive on structs
+/// and string-enum schema generation on unit-variant enums).
 ///
 /// # Attributes
 /// - `scope = <BoundedContext>` *(required)*: The bounded context this value object belongs to.
 pub fn value_object(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ScopeAttr { scope: scope_ty } = parse_macro_input!(attr as ScopeAttr);
     let mut input = parse_macro_input!(item as DeriveInput);
-    let ident = &input.ident;
+    let ident = input.ident.clone();
     let name_str = ident.to_string().to_case(Case::Kebab);
     let description_str = extract_doc_string(&input.attrs);
     let kind_impl = child_kind_impl(
-        ident,
+        &ident,
         &scope_ty,
         "value-object",
         &name_str,
@@ -1790,26 +1791,72 @@ pub fn value_object(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[validate(crate = "chromatofoor::validator")]
         });
     }
-    input.attrs.push(syn::parse_quote! {
-        #[derive(
-            Clone,
-            Debug,
-            PartialEq,
-            chromatofoor::serde::Serialize,
-            chromatofoor::serde::Deserialize,
-            chromatofoor::architecturekit::Schema,
-        )]
-    });
-    input.attrs.push(syn::parse_quote! {
-        #[serde(crate = "chromatofoor::serde")]
-    });
-    input.attrs.push(syn::parse_quote! {
-        #[architecturekit(crate = "chromatofoor::architecturekit")]
-    });
+
+    let extra_schema_impl = match &input.data {
+        syn::Data::Struct(_) => {
+            input.attrs.insert(
+                0,
+                syn::parse_quote! {
+                    #[derive(
+                        Clone,
+                        Debug,
+                        PartialEq,
+                        chromatofoor::serde::Serialize,
+                        chromatofoor::serde::Deserialize,
+                        chromatofoor::architecturekit::Schema,
+                    )]
+                },
+            );
+            input.attrs.push(syn::parse_quote! {
+                #[serde(crate = "chromatofoor::serde")]
+            });
+            input.attrs.push(syn::parse_quote! {
+                #[architecturekit(crate = "chromatofoor::architecturekit")]
+            });
+            quote! {}
+        }
+        syn::Data::Enum(data_enum) => {
+            if let Some(param) = input.generics.params.first() {
+                return syn::Error::new_spanned(param, "a value_object enum can not be generic")
+                    .to_compile_error()
+                    .into();
+            }
+            let schema_impl =
+                match crate::common::unit_enum_schema_impl(&ident, &input.attrs, data_enum) {
+                    Ok(ts) => ts,
+                    Err(err) => return err.to_compile_error().into(),
+                };
+            input.attrs.insert(
+                0,
+                syn::parse_quote! {
+                    #[derive(
+                        Clone,
+                        Debug,
+                        PartialEq,
+                        chromatofoor::serde::Serialize,
+                        chromatofoor::serde::Deserialize,
+                    )]
+                },
+            );
+            input.attrs.push(syn::parse_quote! {
+                #[serde(crate = "chromatofoor::serde")]
+            });
+            schema_impl
+        }
+        syn::Data::Union(data_union) => {
+            return syn::Error::new(
+                data_union.union_token.span,
+                "the schema of a union can not be derived; implement architecturekit::Schema by hand",
+            )
+            .to_compile_error()
+            .into();
+        }
+    };
 
     quote! {
         #input
         #kind_impl
+        #extra_schema_impl
         impl chromatofoor::bounded_context::ValueObject for #ident {}
     }
     .into()
