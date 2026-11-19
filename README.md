@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/nanderstabel/chromatofoor/actions/workflows/ci.yml"><img src="https://github.com/nanderstabel/chromatofoor/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/nanderstabel/chromatofoor"><img src="https://codecov.io/gh/nanderstabel/chromatofoor/graph/badge.svg" alt="Codecov"></a>
   <img src="https://img.shields.io/badge/Rust-1.95%20%28edition%202024%29-orange.svg" alt="Rust 1.95 (edition 2024)">
   <img src="https://img.shields.io/badge/unsafe__code-deny-brightgreen.svg" alt="unsafe_code deny">
   <img src="https://img.shields.io/badge/license-MIT%20%2F%20AGPL--3.0-blue.svg" alt="License: MIT / AGPL-3.0">
@@ -233,6 +234,11 @@ Alongside propagating domain descriptions from `.esdm.yaml` into generated code 
 - Run full workspace tests, strict `clippy`, ESDM model linting, and testbed verification:
   ```bash
   ./scripts/verify_all.sh
+  ```
+- Generate core workspace line/branch coverage (including doctests via `cargo-llvm-cov`):
+  ```bash
+  ./scripts/coverage.sh          # terminal summary
+  ./scripts/coverage.sh --html   # interactive HTML report
   ```
 
 </details>

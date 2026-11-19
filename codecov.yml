@@ -1,0 +1,57 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+    patch:
+      default:
+        target: auto
+        informational: true
+
+comment:
+  layout: "condensed_header, diff, flags, components"
+  behavior: default
+  require_changes: true
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 1%
+        informational: true
+  individual_components:
+    - component_id: chromatofoor
+      name: Core Runtime (chromatofoor)
+      paths:
+        - chromatofoor/**
+    - component_id: chromatofoor-derive
+      name: Procedural Macros (chromatofoor-derive)
+      paths:
+        - chromatofoor-derive/**
+    - component_id: esdm
+      name: ESDM Schema & Linter (esdm)
+      paths:
+        - esdm/**
+    - component_id: chromatofoor-gen
+      name: Code Generator (chromatofoor-gen)
+      paths:
+        - chromatofoor-gen/**
+    - component_id: presentation
+      name: Presentation Transports (presentation/*)
+      paths:
+        - presentation/**
+
+flag_management:
+  default_rules:
+    carryforward: true
+
+ignore:
+  - "testbed/**"
+  - "**/tests/**"
+  - "**/snapshots/**"
+  - "chromatofoor-gen/templates/**"
+  - "packages/**"
+  - "scripts/**"

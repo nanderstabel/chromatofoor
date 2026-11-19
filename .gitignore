@@ -8,4 +8,6 @@ dist/
 !**/presentation/tauri-app/dist/
 !**/presentation/tauri-app/dist/**
 storybook-static/
+codecov.json
+lcov.info
 
