@@ -4,7 +4,7 @@ set -euo pipefail
 if ! cargo llvm-cov --version >/dev/null 2>&1; then
     echo "Error: 'cargo-llvm-cov' is not installed."
     echo "Install it with:"
-    echo "  rustup component add llvm-tools-preview --toolchain nightly"
+    echo "  rustup component add llvm-tools-preview clippy rustfmt --toolchain nightly"
     echo "  cargo install cargo-llvm-cov --locked"
     exit 1
 fi
