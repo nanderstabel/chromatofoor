@@ -65,12 +65,16 @@ pub fn object_schema(type_name: &'static str, fields: Vec<(&'static str, Value, 
     schema
 }
 
-/// Builds a JSON Schema string `enum` definition restricted to `variants`.
+/// Builds a JSON Schema string `enum` definition by serializing each unit `variants` value via `serde::Serialize`.
 #[doc(hidden)]
 #[must_use]
-pub fn string_enum_schema(variants: &[&'static str]) -> Value {
+pub fn unit_enum_schema<T: serde::Serialize>(variants: &[T]) -> Value {
+    let values: Vec<Value> = variants
+        .iter()
+        .filter_map(|v| serde_json::to_value(v).ok())
+        .collect();
     json!({
         "type": "string",
-        "enum": variants,
+        "enum": values,
     })
 }

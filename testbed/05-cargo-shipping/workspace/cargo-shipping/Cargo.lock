@@ -800,6 +800,7 @@ dependencies = [
  "convert_case 0.11.0",
  "proc-macro2",
  "quote",
+ "serde_derive_internals 0.29.1",
  "syn 2.0.119",
 ]
 

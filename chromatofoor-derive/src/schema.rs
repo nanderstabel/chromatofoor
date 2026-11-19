@@ -1,233 +1,15 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{
-    Attribute, Data, DeriveInput, Error, Fields, GenericParam, LitStr, Result, Token, Type,
-    ext::IdentExt, meta::ParseNestedMeta, parse_macro_input, parse_quote, spanned::Spanned,
+use serde_derive_internals::{
+    Ctxt, Derive,
+    ast::{Container, Data, Field, Style, Variant},
+    attr::TagType,
 };
-
-#[derive(Clone, Copy, Default)]
-enum SerdeRenameRule {
-    #[default]
-    None,
-    LowerCase,
-    UpperCase,
-    PascalCase,
-    CamelCase,
-    SnakeCase,
-    ScreamingSnakeCase,
-    KebabCase,
-    ScreamingKebabCase,
-}
-
-impl SerdeRenameRule {
-    fn from_lit(lit: &LitStr) -> Result<Self> {
-        match lit.value().as_str() {
-            "lowercase" => Ok(Self::LowerCase),
-            "UPPERCASE" => Ok(Self::UpperCase),
-            "PascalCase" => Ok(Self::PascalCase),
-            "camelCase" => Ok(Self::CamelCase),
-            "snake_case" => Ok(Self::SnakeCase),
-            "SCREAMING_SNAKE_CASE" => Ok(Self::ScreamingSnakeCase),
-            "kebab-case" => Ok(Self::KebabCase),
-            "SCREAMING-KEBAB-CASE" => Ok(Self::ScreamingKebabCase),
-            other => Err(Error::new(
-                lit.span(),
-                format!("unknown serde rename rule `{other}`"),
-            )),
-        }
-    }
-
-    fn apply_to_field(self, field: &str) -> String {
-        match self {
-            Self::None | Self::LowerCase | Self::SnakeCase => field.to_owned(),
-            Self::UpperCase | Self::ScreamingSnakeCase => field.to_ascii_uppercase(),
-            Self::PascalCase => {
-                let mut pascal = String::new();
-                let mut capitalize = true;
-                for ch in field.chars() {
-                    if ch == '_' {
-                        capitalize = true;
-                    } else if capitalize {
-                        pascal.push(ch.to_ascii_uppercase());
-                        capitalize = false;
-                    } else {
-                        pascal.push(ch);
-                    }
-                }
-                pascal
-            }
-            Self::CamelCase => {
-                let pascal = Self::PascalCase.apply_to_field(field);
-                let mut chars = pascal.chars();
-                chars.next().map_or_else(String::new, |first| {
-                    first.to_ascii_lowercase().to_string() + chars.as_str()
-                })
-            }
-            Self::KebabCase => field.replace('_', "-"),
-            Self::ScreamingKebabCase => field.to_ascii_uppercase().replace('_', "-"),
-        }
-    }
-
-    fn apply_to_variant(self, variant: &str) -> String {
-        match self {
-            Self::None | Self::PascalCase => variant.to_owned(),
-            Self::LowerCase => variant.to_ascii_lowercase(),
-            Self::UpperCase => variant.to_ascii_uppercase(),
-            Self::CamelCase => {
-                let mut chars = variant.chars();
-                chars.next().map_or_else(String::new, |first| {
-                    first.to_ascii_lowercase().to_string() + chars.as_str()
-                })
-            }
-            Self::SnakeCase => {
-                let mut snake = String::new();
-                for (i, ch) in variant.char_indices() {
-                    if i > 0 && ch.is_uppercase() {
-                        snake.push('_');
-                    }
-                    snake.push(ch.to_ascii_lowercase());
-                }
-                snake
-            }
-            Self::ScreamingSnakeCase => Self::SnakeCase
-                .apply_to_variant(variant)
-                .to_ascii_uppercase(),
-            Self::KebabCase => Self::SnakeCase.apply_to_variant(variant).replace('_', "-"),
-            Self::ScreamingKebabCase => Self::ScreamingSnakeCase
-                .apply_to_variant(variant)
-                .replace('_', "-"),
-        }
-    }
-}
-
-fn ignore_serde_meta(meta: &ParseNestedMeta<'_>) -> Result<()> {
-    if meta.input.peek(Token![=]) {
-        let _: syn::Expr = meta.value()?.parse()?;
-    } else if meta.input.peek(syn::token::Paren) {
-        let content;
-        syn::parenthesized!(content in meta.input);
-        let _: TokenStream2 = content.parse()?;
-    }
-    Ok(())
-}
-
-fn parse_serde_serialize_str(meta: &ParseNestedMeta<'_>) -> Result<Option<LitStr>> {
-    if meta.input.peek(Token![=]) {
-        let lit: LitStr = meta.value()?.parse()?;
-        return Ok(Some(lit));
-    }
-    if meta.input.peek(syn::token::Paren) {
-        let mut ser_lit = None;
-        meta.parse_nested_meta(|nested| {
-            if nested.path.is_ident("serialize") {
-                ser_lit = Some(nested.value()?.parse::<LitStr>()?);
-            } else {
-                ignore_serde_meta(&nested)?;
-            }
-            Ok(())
-        })?;
-        return Ok(ser_lit);
-    }
-    Ok(None)
-}
-
-#[derive(Default)]
-struct ContainerSerdeAttrs {
-    rename_all: SerdeRenameRule,
-    is_transparent: bool,
-    not_derivable: Option<Error>,
-}
-
-impl ContainerSerdeAttrs {
-    fn of(attrs: &[Attribute]) -> Result<Self> {
-        let mut out = Self::default();
-        for attr in attrs.iter().filter(|a| a.path().is_ident("serde")) {
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("rename_all") {
-                    if let Some(lit) = parse_serde_serialize_str(&meta)? {
-                        out.rename_all = SerdeRenameRule::from_lit(&lit)?;
-                    }
-                } else if meta.path.is_ident("transparent") {
-                    out.is_transparent = true;
-                } else if let Some(name) = ["tag", "content", "into", "remote", "untagged"]
-                    .into_iter()
-                    .find(|n| meta.path.is_ident(n))
-                {
-                    if out.not_derivable.is_none() {
-                        out.not_derivable = Some(Error::new(
-                            meta.path.span(),
-                            format!(
-                                "the schema of a type with #[serde({name})] can not be derived; \
-                                 implement architecturekit::Schema by hand"
-                            ),
-                        ));
-                    }
-                    ignore_serde_meta(&meta)?;
-                } else {
-                    ignore_serde_meta(&meta)?;
-                }
-                Ok(())
-            })?;
-        }
-        Ok(out)
-    }
-
-    fn ensure_derivable(&self) -> Result<()> {
-        self.not_derivable.clone().map_or(Ok(()), Err)
-    }
-}
-
-#[derive(Default)]
-struct FieldSerdeAttrs {
-    rename: Option<String>,
-    is_skipped: bool,
-    is_optional: bool,
-    not_derivable: Option<Error>,
-}
-
-impl FieldSerdeAttrs {
-    fn of(attrs: &[Attribute]) -> Result<Self> {
-        let mut out = Self::default();
-        for attr in attrs.iter().filter(|a| a.path().is_ident("serde")) {
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("rename") {
-                    if let Some(lit) = parse_serde_serialize_str(&meta)? {
-                        out.rename = Some(lit.value());
-                    }
-                } else if meta.path.is_ident("skip") || meta.path.is_ident("skip_serializing") {
-                    out.is_skipped = true;
-                    ignore_serde_meta(&meta)?;
-                } else if meta.path.is_ident("skip_serializing_if") {
-                    out.is_optional = true;
-                    ignore_serde_meta(&meta)?;
-                } else if let Some(name) = ["flatten", "serialize_with", "with"]
-                    .into_iter()
-                    .find(|n| meta.path.is_ident(n))
-                {
-                    if out.not_derivable.is_none() {
-                        out.not_derivable = Some(Error::new(
-                            meta.path.span(),
-                            format!(
-                                "the schema of a field or variant with #[serde({name})] can not be derived; \
-                                 implement architecturekit::Schema by hand"
-                            ),
-                        ));
-                    }
-                    ignore_serde_meta(&meta)?;
-                } else {
-                    ignore_serde_meta(&meta)?;
-                }
-                Ok(())
-            })?;
-        }
-        Ok(out)
-    }
-
-    fn ensure_derivable(&self) -> Result<()> {
-        self.not_derivable.clone().map_or(Ok(()), Err)
-    }
-}
+use syn::{
+    Data as SynData, DeriveInput, Error, Fields, GenericParam, Result, Type, parse_macro_input,
+    parse_quote, spanned::Spanned,
+};
 
 pub(crate) fn derive_schema(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -237,23 +19,28 @@ pub(crate) fn derive_schema(input: TokenStream) -> TokenStream {
 }
 
 fn expand_schema(input: &DeriveInput) -> Result<TokenStream2> {
-    let container = ContainerSerdeAttrs::of(&input.attrs)?;
-    let body = match &input.data {
-        Data::Struct(data) => schema_of_struct(&container, &data.fields, input)?,
-        Data::Enum(data) => {
+    let cx = Ctxt::new();
+    let parsed = Container::from_ast(&cx, input, Derive::Serialize);
+    cx.check()?;
+    let Some(container) = parsed else {
+        return Err(Error::new(
+            input.ident.span(),
+            "failed to parse serde attributes for Schema",
+        ));
+    };
+
+    ensure_container_derivable(&container, input)?;
+
+    let body = match &container.data {
+        Data::Struct(style, fields) => schema_of_struct(&container, *style, fields, input)?,
+        Data::Enum(variants) => {
             if let Some(param) = input.generics.params.first() {
                 return Err(Error::new_spanned(
                     param,
                     "an enum deriving Schema can not be generic",
                 ));
             }
-            schema_of_unit_enum(&container, data)?
-        }
-        Data::Union(data) => {
-            return Err(Error::new(
-                data.union_token.span,
-                "the schema of a union can not be derived; implement architecturekit::Schema by hand",
-            ));
+            schema_of_unit_enum(variants, input)?
         }
     };
 
@@ -277,75 +64,82 @@ fn expand_schema(input: &DeriveInput) -> Result<TokenStream2> {
     })
 }
 
+fn ensure_container_derivable(container: &Container<'_>, input: &DeriveInput) -> Result<()> {
+    if container.attrs.type_into().is_some()
+        || container.attrs.remote().is_some()
+        || !matches!(container.attrs.tag(), TagType::External)
+    {
+        return Err(Error::new(
+            input.ident.span(),
+            "the schema of a type with #[serde(tag = ...)], #[serde(content = ...)], #[serde(untagged)], \
+             #[serde(into = ...)], or #[serde(remote = ...)] can not be derived; implement architecturekit::Schema by hand",
+        ));
+    }
+    Ok(())
+}
+
 fn schema_of_struct(
-    container: &ContainerSerdeAttrs,
-    fields: &Fields,
+    container: &Container<'_>,
+    style: Style,
+    fields: &[Field<'_>],
     input: &DeriveInput,
 ) -> Result<TokenStream2> {
-    container.ensure_derivable()?;
+    if container.attrs.transparent() {
+        let written: Vec<_> = fields
+            .iter()
+            .filter(|f| !f.attrs.skip_serializing())
+            .collect();
+        return match written.as_slice() {
+            [field] => {
+                ensure_field_derivable(field)?;
+                let field_type = field.ty;
+                Ok(quote! { <#field_type as chromatofoor::architecturekit::Schema>::schema() })
+            }
+            _ => Err(Error::new(
+                input.ident.span(),
+                "a transparent struct needs exactly one field that is not skipped",
+            )),
+        };
+    }
 
-    match fields {
-        Fields::Named(named) => {
-            let mut written = Vec::new();
-            for field in &named.named {
-                let attrs = FieldSerdeAttrs::of(&field.attrs)?;
-                if attrs.is_skipped {
+    match style {
+        Style::Struct => {
+            let mut entries = Vec::new();
+            for field in fields {
+                if field.attrs.skip_serializing() {
                     continue;
                 }
-                attrs.ensure_derivable()?;
-                written.push((field, attrs));
-            }
-
-            if container.is_transparent {
-                return match written.as_slice() {
-                    [(field, _)] => {
-                        let field_type = &field.ty;
-                        Ok(
-                            quote! { <#field_type as chromatofoor::architecturekit::Schema>::schema() },
-                        )
-                    }
-                    _ => Err(Error::new(
-                        input.ident.span(),
-                        "a transparent struct needs exactly one field that is not skipped",
-                    )),
-                };
-            }
-
-            let entries = written.iter().map(|(field, attrs)| {
-                let name = attrs.rename.clone().unwrap_or_else(|| {
-                    let ident = field
-                        .ident
-                        .as_ref()
-                        .map(IdentExt::unraw)
-                        .map(|i| i.to_string());
-                    container
-                        .rename_all
-                        .apply_to_field(&ident.unwrap_or_default())
-                });
-                let field_type = &field.ty;
-                if attrs.is_optional {
-                    quote! { (#name, <#field_type as chromatofoor::architecturekit::Schema>::schema_without_null(), true) }
+                ensure_field_derivable(field)?;
+                let name = field.attrs.name().serialize_name();
+                let field_type = field.ty;
+                if field.attrs.skip_serializing_if().is_some() {
+                    entries.push(quote! {
+                        (#name, <#field_type as chromatofoor::architecturekit::Schema>::schema_without_null(), true)
+                    });
                 } else {
-                    quote! { (#name, <#field_type as chromatofoor::architecturekit::Schema>::schema(), false) }
+                    entries.push(quote! {
+                        (#name, <#field_type as chromatofoor::architecturekit::Schema>::schema(), false)
+                    });
                 }
-            });
-
+            }
             Ok(quote! {
                 chromatofoor::common::schema::object_schema(::core::any::type_name::<Self>(), ::std::vec![#(#entries),*])
             })
         }
-        Fields::Unnamed(unnamed) => match unnamed.unnamed.first() {
-            Some(field) if unnamed.unnamed.len() == 1 => {
-                let field_type = &field.ty;
-                Ok(quote! { <#field_type as chromatofoor::architecturekit::Schema>::schema() })
-            }
-            _ => Err(Error::new(
-                unnamed.span(),
-                "the schema of a tuple struct with several fields can not be derived, since serde writes it \
-                 as an array of mixed values; use named fields, or implement architecturekit::Schema by hand",
-            )),
-        },
-        Fields::Unit => Err(Error::new(
+        Style::Newtype => {
+            let Some(field) = fields.first() else {
+                return Err(Error::new(input.ident.span(), "expected a newtype field"));
+            };
+            ensure_field_derivable(field)?;
+            let field_type = field.ty;
+            Ok(quote! { <#field_type as chromatofoor::architecturekit::Schema>::schema() })
+        }
+        Style::Tuple => Err(Error::new(
+            input.ident.span(),
+            "the schema of a tuple struct with several fields can not be derived, since serde writes it \
+             as an array of mixed values; use named fields, or implement architecturekit::Schema by hand",
+        )),
+        Style::Unit => Err(Error::new(
             input.ident.span(),
             "the schema of a unit struct can not be derived, since serde writes it as null; \
              to describe data without fields, use `struct Name {}`",
@@ -353,36 +147,43 @@ fn schema_of_struct(
     }
 }
 
-fn schema_of_unit_enum(
-    container: &ContainerSerdeAttrs,
-    data: &syn::DataEnum,
-) -> Result<TokenStream2> {
-    container.ensure_derivable()?;
+fn ensure_field_derivable(field: &Field<'_>) -> Result<()> {
+    if field.attrs.flatten() || field.attrs.serialize_with().is_some() {
+        return Err(Error::new_spanned(
+            field.original,
+            "the schema of a field with #[serde(flatten)], #[serde(serialize_with = ...)], or #[serde(with = ...)] \
+             can not be derived; implement architecturekit::Schema by hand",
+        ));
+    }
+    Ok(())
+}
 
-    let mut variant_names = Vec::new();
-    for variant in &data.variants {
-        if !matches!(variant.fields, Fields::Unit) {
+fn schema_of_unit_enum(variants: &[Variant<'_>], input: &DeriveInput) -> Result<TokenStream2> {
+    let mut unit_exprs = Vec::new();
+    for variant in variants {
+        if !matches!(variant.style, Style::Unit) {
             return Err(Error::new(
-                data.enum_token.span,
+                input.ident.span(),
                 "the schema of an enum with non-unit variants can not be derived, since serde writes enums in several shapes; \
                  implement architecturekit::Schema by hand",
             ));
         }
-
-        let attrs = FieldSerdeAttrs::of(&variant.attrs)?;
-        if attrs.is_skipped {
+        if variant.attrs.untagged() || variant.attrs.serialize_with().is_some() {
+            return Err(Error::new_spanned(
+                variant.original,
+                "the schema of an enum variant with #[serde(untagged)], #[serde(serialize_with = ...)], \
+                 or #[serde(with = ...)] can not be derived; implement architecturekit::Schema by hand",
+            ));
+        }
+        if variant.attrs.skip_serializing() {
             continue;
         }
-        attrs.ensure_derivable()?;
-        let serialized_name = attrs.rename.unwrap_or_else(|| {
-            let raw = variant.ident.unraw().to_string();
-            container.rename_all.apply_to_variant(&raw)
-        });
-        variant_names.push(serialized_name);
+        let v_ident = &variant.ident;
+        unit_exprs.push(quote! { Self::#v_ident });
     }
 
     Ok(quote! {
-        chromatofoor::common::schema::string_enum_schema(&[#(#variant_names),*])
+        chromatofoor::common::schema::unit_enum_schema::<Self>(&[#(#unit_exprs),*])
     })
 }
 
@@ -401,7 +202,7 @@ fn expand_events(input: &DeriveInput) -> Result<TokenStream2> {
         ));
     }
 
-    let Data::Enum(data) = &input.data else {
+    let SynData::Enum(data) = &input.data else {
         return Err(Error::new(
             input.ident.span(),
             "Events can only be derived for an enum with one variant per event type",
