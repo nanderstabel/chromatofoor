@@ -72,33 +72,46 @@ chromatofoor-http = {{ workspace = true }}
         let api_server_src_dir = api_server_dir.join("src");
         fs::create_dir_all(&api_server_src_dir)?;
 
-        let mut server_chain = String::from("chromatofoor_http::HttpServer::bind(\"0.0.0.0:3000\")");
+        let mut server_chain =
+            String::from("chromatofoor_http::HttpServer::bind(\"0.0.0.0:3000\")");
         if !active_transports.http {
             server_chain.push_str("\n                .without_default_routes()");
         }
         if active_transports.graphql {
             if active_transports.http {
-                server_chain.push_str("\n                .attach(chromatofoor_graphql::GraphQL::new())");
+                server_chain
+                    .push_str("\n                .attach(chromatofoor_graphql::GraphQL::new())");
             } else {
-                server_chain.push_str("\n                .attach(chromatofoor_graphql::GraphQL::new().with_root())");
+                server_chain.push_str(
+                    "\n                .attach(chromatofoor_graphql::GraphQL::new().with_root())",
+                );
             }
         }
         if active_transports.mcp {
             server_chain.push_str("\n                .attach(chromatofoor_mcp::Mcp::http())");
         }
 
-        let mut startup_logs = String::from("    tracing::info!(\"Starting HTTP server on 0.0.0.0:3000\");\n");
+        let mut startup_logs =
+            String::from("    tracing::info!(\"Starting HTTP server on 0.0.0.0:3000\");\n");
         if active_transports.http {
-            startup_logs.push_str("    tracing::info!(\"Workbench UI available at http://localhost:3000/\");\n");
+            startup_logs.push_str(
+                "    tracing::info!(\"Workbench UI available at http://localhost:3000/\");\n",
+            );
         }
         if active_transports.graphql {
-            let graphiql_path = if active_transports.http { "/graphiql" } else { "/" };
+            let graphiql_path = if active_transports.http {
+                "/graphiql"
+            } else {
+                "/"
+            };
             startup_logs.push_str(&format!(
                 "    tracing::info!(\"GraphiQL UI available at http://localhost:3000{graphiql_path}\");\n"
             ));
         }
         if active_transports.mcp {
-            startup_logs.push_str("    tracing::info!(\"MCP endpoint available at http://localhost:3000/mcp\");\n");
+            startup_logs.push_str(
+                "    tracing::info!(\"MCP endpoint available at http://localhost:3000/mcp\");\n",
+            );
         }
 
         let main_rs_content = format!(
@@ -215,8 +228,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let dist_dir = tauri_app_dir.join("dist");
         fs::create_dir_all(&dist_dir)?;
         let dist_index = dist_dir.join("index.html");
-        let is_legacy_stub = fs::read_to_string(&dist_index)
-            .is_ok_and(|content| content.contains("<body></body>"));
+        let is_legacy_stub =
+            fs::read_to_string(&dist_index).is_ok_and(|content| content.contains("<body></body>"));
         if !dist_index.exists() || is_legacy_stub {
             let dist_assets_dir = dist_dir.join("assets");
             fs::create_dir_all(&dist_assets_dir)?;
@@ -277,8 +290,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             )?;
         }
 
-        let domain_slug =
-            domain_name.map_or_else(|| "app".to_string(), |d| d.to_case(Case::Kebab));
+        let domain_slug = domain_name.map_or_else(|| "app".to_string(), |d| d.to_case(Case::Kebab));
         let window_title =
             domain_name.map_or_else(|| "Chromatofoor".to_string(), |d| d.to_case(Case::Title));
         let tauri_conf = include_str!("../../templates/tauri/src-tauri/tauri.conf.json")
@@ -369,7 +381,8 @@ mod tests {
             );
         }
 
-        let api_cargo = fs::read_to_string(dir.path().join("presentation/api-server/Cargo.toml")).unwrap();
+        let api_cargo =
+            fs::read_to_string(dir.path().join("presentation/api-server/Cargo.toml")).unwrap();
         assert!(api_cargo.contains("chromatofoor-graphql"));
         assert!(api_cargo.contains("chromatofoor-mcp"));
         assert!(!dir.path().join("presentation/graphql-server").exists());
