@@ -67,12 +67,29 @@ constcat = "0.6"
 esdm = { path = "esdm" }
 nutype = { version = "0.6", default-features = false, features = ["serde"] }
 thiserror = { version = "2.0", default-features = false, features = ["std"] }
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "sync", "time", "net", "io-util", "macros"] }
-tracing = { version = "0.1", default-features = false, features = ["std", "attributes"] }
+tokio = { version = "1.0", default-features = false, features = [
+    "rt",
+    "rt-multi-thread",
+    "sync",
+    "time",
+    "net",
+    "io-util",
+    "macros",
+] }
+tracing = { version = "0.1", default-features = false, features = [
+    "std",
+    "attributes",
+] }
 serde_json = { version = "1.0", default-features = false, features = ["std"] }
-validator = { version = "0.19", default-features = false, features = ["derive"] }
+validator = { version = "0.19", default-features = false, features = [
+    "derive",
+] }
 chromatofoor-http = { path = "presentation/http" }
 uuid = { version = "1.4", default-features = false, features = ["std"] }
+
+[profile.profiling]
+inherits = "release"
+debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
