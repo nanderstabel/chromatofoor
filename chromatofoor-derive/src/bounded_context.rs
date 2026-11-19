@@ -169,6 +169,12 @@ impl Parse for DcbAttr {
                 "missing `consults = [<Event>, ...]`",
             ));
         }
+        if consults.is_empty() {
+            return Err(syn::Error::new(
+                input.span(),
+                "dynamic_consistency_boundary requires `consults = [<Event>, ...]` with at least one event",
+            ));
+        }
 
         Ok(Self {
             scope,
@@ -245,29 +251,15 @@ pub fn dynamic_consistency_boundary(attr: TokenStream, item: TokenStream) -> Tok
         });
     }
 
-    let event_on_body = if event_on_arms.is_empty() {
-        quote! {
-            let _ = subject;
-            match *self {}
-        }
-    } else {
-        quote! {
-            match self {
-                #(#event_on_arms,)*
-            }
+    let event_on_body = quote! {
+        match self {
+            #(#event_on_arms,)*
         }
     };
 
-    let evolve_body = if evolve_arms.is_empty() {
-        quote! {
-            let _ = &self;
-            match *event {}
-        }
-    } else {
-        quote! {
-            match event {
-                #(#evolve_arms,)*
-            }
+    let evolve_body = quote! {
+        match event {
+            #(#evolve_arms,)*
         }
     };
 
@@ -370,6 +362,14 @@ pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let scope_span = scope_ty.span();
 
     if let Ok(mut item_enum) = syn::parse::<syn::ItemEnum>(item.clone()) {
+        if item_enum.variants.is_empty() {
+            return syn::Error::new_spanned(
+                &item_enum.ident,
+                "an enum of events needs at least one variant",
+            )
+            .to_compile_error()
+            .into();
+        }
         let vis = &item_enum.vis;
         let enum_ident = &item_enum.ident;
 
@@ -1858,6 +1858,12 @@ impl Parse for ReadModelAttr {
                 "missing `events = [<Event>, ...]`",
             ));
         }
+        if events.is_empty() {
+            return Err(syn::Error::new(
+                input.span(),
+                "read_model requires `events = [<Event>, ...]` with at least one event",
+            ));
+        }
 
         Ok(Self { scope, events })
     }
@@ -1972,16 +1978,9 @@ pub fn read_model(attr: TokenStream, item: TokenStream) -> TokenStream {
         });
     }
 
-    let apply_body = if match_arms.is_empty() {
-        quote! {
-            let _ = self;
-            match event.data {}
-        }
-    } else {
-        quote! {
-            match &event.data {
-                #(#match_arms,)*
-            }
+    let apply_body = quote! {
+        match &event.data {
+            #(#match_arms,)*
         }
     };
 

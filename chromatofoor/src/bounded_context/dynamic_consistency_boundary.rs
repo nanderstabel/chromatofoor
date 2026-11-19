@@ -137,6 +137,18 @@ pub trait DcbEvents: architecturekit::Events {
 /// #     fn evolve(&self, state: InvalidBoundary) -> InvalidBoundary { state }
 /// # }
 /// ```
+///
+/// And `consults = [...]` must name at least one event:
+///
+/// ```compile_fail
+/// # #[chromatofoor::domain]
+/// # pub struct Commerce;
+/// # #[chromatofoor::bounded_context(scope = Commerce)]
+/// # pub struct Ordering;
+/// #[chromatofoor::dynamic_consistency_boundary(scope = Ordering, consults = [])]
+/// #[derive(Clone, Default)]
+/// pub struct EmptyBoundary;
+/// ```
 pub trait DynamicConsistencyBoundary:
     Kind<Scope: BoundedContext> + Identified + CommandScope + architecturekit::State<Event: DcbEvents>
 {

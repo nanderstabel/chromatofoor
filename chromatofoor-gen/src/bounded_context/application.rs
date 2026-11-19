@@ -688,6 +688,12 @@ mod tests {
                 read_models: vec![EsdmDoc {
                     name: "TestReadModel".to_string(),
                     kind: "read-model".to_string(),
+                    projections: Some(vec![Projection {
+                        bounded_context: Some("TestContext".to_string()),
+                        aggregate: Some("test-agg".to_string()),
+                        event: Some("test-created".to_string()),
+                        rule: None,
+                    }]),
                     schema: Some(DataSchema {
                         properties: indexmap::IndexMap::from([(
                             "id".to_string(),
@@ -733,6 +739,12 @@ mod tests {
                     kind: "read-model".to_string(),
                     projections: Some(vec![
                         Projection {
+                            bounded_context: Some("sales".to_string()),
+                            aggregate: Some("order".to_string()),
+                            event: Some("order-placed".to_string()),
+                            rule: None,
+                        },
+                        Projection {
                             bounded_context: Some("billing".to_string()),
                             aggregate: Some("order".to_string()),
                             event: Some("invoice-paid".to_string()),
@@ -754,7 +766,14 @@ mod tests {
         let mut contexts = std::collections::HashMap::new();
         contexts.insert(
             ("sales".to_string(), "order".to_string()),
-            GeneratorContext::default(),
+            GeneratorContext {
+                events: vec![EsdmDoc {
+                    name: "order-placed".to_string(),
+                    kind: "event".to_string(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
         );
 
         let temp_dir = tempfile::tempdir().unwrap();
@@ -771,8 +790,11 @@ mod tests {
             std::fs::read_to_string(sales_dir.join("src/application/read_models/order_summary.rs"))
                 .unwrap();
 
-        assert!(gen_rm.contains("events = []"));
-        assert!(!manual_rm.contains("impl Project"));
+        assert!(gen_rm.contains("events = [OrderPlaced]"));
+        assert!(!gen_rm.contains("InvoicePaid"));
+        assert!(!gen_rm.contains("GhostEvent"));
+        assert!(manual_rm.contains("impl Project<OrderPlaced>"));
+        assert!(!manual_rm.contains("InvoicePaid"));
         assert!(syn::parse_file(&gen_rm).is_ok());
         assert!(syn::parse_file(&manual_rm).is_ok());
     }

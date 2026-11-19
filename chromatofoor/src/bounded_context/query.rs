@@ -79,8 +79,16 @@ use std::future::Future;
 /// # pub struct Ordering;
 /// # #[chromatofoor::bounded_context(scope = Commerce)]
 /// # pub struct Shipping;
-/// #[chromatofoor::read_model(scope = Shipping, events = [])]
+/// #[chromatofoor::event(scope = Shipping)]
+/// pub struct OrderShipped;
+///
+/// #[chromatofoor::read_model(scope = Shipping, events = [OrderShipped])]
 /// pub struct ShipmentTracker;
+/// # impl chromatofoor::bounded_context::Project<OrderShipped> for ShipmentTracker {
+/// #     async fn project(&self, _event: chromatofoor::architecturekit::Envelope<OrderShipped>) -> Result<(), chromatofoor::architecturekit::ViewError> {
+/// #         Ok(())
+/// #     }
+/// # }
 ///
 /// #[chromatofoor::query(scope = Ordering)]
 /// pub struct ShipmentByOrderId {

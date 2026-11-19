@@ -116,6 +116,20 @@ use crate::{
 /// #[chromatofoor::event(scope = Commerce)]
 /// pub struct OrderPlaced;
 /// ```
+///
+/// And an aggregate event `enum` must declare at least one variant:
+///
+/// ```compile_fail
+/// # #[chromatofoor::domain]
+/// # pub struct Commerce;
+/// # #[chromatofoor::bounded_context(scope = Commerce)]
+/// # pub struct Ordering;
+/// # #[chromatofoor::aggregate(scope = Ordering)]
+/// # #[derive(Clone, Default)]
+/// # pub struct Order;
+/// #[chromatofoor::event(scope = Order)]
+/// pub enum OrderEvent {}
+/// ```
 pub trait Event<S: architecturekit::State>: Kind + architecturekit::Event {
     /// Applies this event to `state` and returns the updated state.
     fn evolve(&self, state: S) -> S;

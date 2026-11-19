@@ -7,6 +7,7 @@ expression: rm_rs
 // Any manual changes to this file will be overwritten on the next generation run.
 
 use crate::generated::domain::TestContext;
+use crate::generated::domain::test_agg::event::TestCreated;
 #[allow(unused_imports)]
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
@@ -23,7 +24,7 @@ use serde::{Deserialize, Serialize};
 pub struct TestReadModelRecord {
     pub id: uuid::Uuid,
 }
-#[chromatofoor::read_model(scope = TestContext, events = [])]
+#[chromatofoor::read_model(scope = TestContext, events = [TestCreated])]
 #[derive(Default, Debug, Serialize)]
 #[serde(transparent)]
 pub struct TestReadModel {

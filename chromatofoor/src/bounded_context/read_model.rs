@@ -84,6 +84,17 @@ use std::future::Future;
 ///     pub totals: InMemoryView<String, String>,
 /// }
 /// ```
+///
+/// And `events = [...]` must name at least one event:
+///
+/// ```compile_fail
+/// # #[chromatofoor::domain]
+/// # pub struct Commerce;
+/// # #[chromatofoor::bounded_context(scope = Commerce)]
+/// # pub struct Ordering;
+/// #[chromatofoor::read_model(scope = Ordering, events = [])]
+/// pub struct EmptyReadModel;
+/// ```
 pub trait ReadModel:
     Kind<Scope: BoundedContext>
     + architecturekit::Projection<Event: Send + Sync + 'static>
