@@ -67,9 +67,8 @@ use crate::integration::event_consumer::EventConsumer;
 /// # }
 /// # use std::sync::Arc;
 /// # use chromatofoor::{
-/// #     architecturekit::{
-/// #         CancellationToken, Envelope, InMemoryEventStore, Store, Subject, wait_caught_up,
-/// #     },
+/// #     InMemoryEventStore,
+/// #     architecturekit::{CancellationToken, Envelope, Store, Subject, wait_caught_up},
 /// #     bounded_context::Command,
 /// #     common::Identifier,
 /// #     integration::{

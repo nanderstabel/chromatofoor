@@ -38,8 +38,9 @@ use crate::integration::EventConsumer;
 /// #     }
 /// # }
 /// # use std::sync::{Arc, Mutex};
+/// # use chromatofoor::InMemoryEventStore;
 /// # use chromatofoor::architecturekit::{
-/// #     CancellationToken, DomainError, Envelope, InMemoryEventStore, Store, wait_caught_up,
+/// #     CancellationToken, DomainError, Envelope, Store, wait_caught_up,
 /// # };
 /// # use chromatofoor::bounded_context::Command;
 /// # use chromatofoor::common::{Identifier, Kind, Topic};

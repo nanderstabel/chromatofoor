@@ -26,9 +26,8 @@
 //!     http::{Request, StatusCode},
 //! };
 //! use chromatofoor::{
-//!     architecturekit::{
-//!         self, Envelope, InMemoryEventStore, InMemoryView, KeyedView, Store, ViewError,
-//!     },
+//!     InMemoryEventStore,
+//!     architecturekit::{self, Envelope, InMemoryView, KeyedView, Store, ViewError},
 //!     bounded_context::{Command, Event, Project, Query},
 //!     domain::DomainBuilder,
 //! };
@@ -798,9 +797,9 @@ async fn collect_event_history(runtime: &DomainRuntime) -> Result<Vec<Value>, St
     let token = chromatofoor::architecturekit::CancellationToken::new();
     let topic = runtime.domain_topic();
     let run = runtime.store().start_projection(
-        chromatofoor::architecturekit::Subjects::tree(
-            chromatofoor::architecturekit::Subject::new(topic),
-        ),
+        chromatofoor::architecturekit::Subjects::tree(chromatofoor::architecturekit::Subject::new(
+            topic,
+        )),
         Arc::clone(&collector),
         token.clone(),
         chromatofoor::architecturekit::ProjectionOptions::named(format!("{topic}-http-history")),
@@ -1046,9 +1045,8 @@ mod tests {
         routing::get,
     };
     use chromatofoor::{
-        architecturekit::{
-            Envelope, InMemoryEventStore, InMemoryView, KeyedView, Store, ViewError,
-        },
+        InMemoryEventStore,
+        architecturekit::{Envelope, InMemoryView, KeyedView, Store, ViewError},
         bounded_context::{Command, Event, Project, Query},
         domain::DomainBuilder,
     };

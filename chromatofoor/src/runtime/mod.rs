@@ -21,9 +21,8 @@
 //! ```
 //! use std::sync::Arc;
 //! use chromatofoor::{
-//!     architecturekit::{
-//!         Envelope, InMemoryEventStore, InMemoryView, KeyedView, Store, ViewError,
-//!     },
+//!     InMemoryEventStore,
+//!     architecturekit::{Envelope, InMemoryView, KeyedView, Store, ViewError},
 //!     bounded_context::{Command, Event, Project, Query},
 //!     common::Identifier,
 //!     domain::DomainBuilder,
@@ -169,8 +168,10 @@
 mod descriptor;
 mod domain;
 mod error;
+mod in_memory_store;
 
 pub use crate::common::{Problem, ProblemDetails};
 pub use descriptor::{CommandDescriptor, ConsumerDescriptor, QueryDescriptor, ReadModelDescriptor};
 pub use domain::{DomainBuilder, DomainRuntime, Presentation};
 pub use error::DispatchError;
+pub use in_memory_store::InMemoryEventStore;

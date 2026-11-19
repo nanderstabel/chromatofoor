@@ -6,7 +6,7 @@
 ## Interface
 - **Crate Root Re-Exports & Helpers** (`src/lib.rs`):
   - Re-exports all 18 `chromatofoor-derive` attribute macros (`actor`, `aggregate`, `bounded_context`, `command`, `context_mapping`, `domain`, `domain_service`, `dynamic_consistency_boundary`, `entity`, `event`, `event_handler`, `external_system`, `policy`, `process_manager`, `query`, `read_model`, `subdomain`, `value_object`) plus the `Schema` and `Events` derive macros.
-  - Re-exports `common::{Identifier, Problem, ProblemDetails, SubjectSegment, SubjectSegmentError}`, `subject_for<A: Kind>(id) -> architecturekit::Subject`, and foundational crates (`architecturekit`, `chrono`, `constcat`, `serde`, `serde_json`, `tracing`, `uuid`, `validator`).
+  - Re-exports `InMemoryEventStore`, `common::{Identifier, Problem, ProblemDetails, SubjectSegment, SubjectSegmentError}`, `subject_for<A: Kind>(id) -> architecturekit::Subject`, and foundational crates (`architecturekit`, `chrono`, `constcat`, `serde`, `serde_json`, `tracing`, `uuid`, `validator`).
 - **Common Identity, Problem Details, Scope & Topic Primitives** (`src/common/`):
   - `Kind` (`src/common/kind.rs`) — Core static metadata trait (`Scope`, `KIND`, `NAME`, `TOPIC`, `DESCRIPTION`, `topic(&self)`).
   - `ProblemDetails`, `Problem` (`src/common/problem.rs`) — Zero-HTTP-dependency RFC 9457 Problem Details envelope (`type`, `title`, `status`, `detail`, `instance`, `code`, and flattened `extensions`) and `Problem` conversion trait.
@@ -32,6 +32,7 @@
   - `Presentation` (`name`, `serve` in `domain.rs`).
   - `CommandDescriptor`, `QueryDescriptor`, `ReadModelDescriptor`, `ConsumerDescriptor` (`descriptor.rs`).
   - `DispatchError` (`BoundedContextNotFound`, `CommandNotFound`, `QueryNotFound`, `Unauthorized`, `InvalidPayload`, `Execution(Box<ProblemDetails>)`, `to_problem` in `error.rs`).
+  - `InMemoryEventStore` (`new`, `from_events`, implementing `architecturekit::EventStore` in `in_memory_store.rs`).
 - **Given-When-Then Specification Harness** (`src/testing.rs`):
   - `given<S>`, `UnitFixture`, `UnitDecision` — Consistency-unit tests (`when`, `when_as`, `when_by`, `then_events`, `then_nothing`, `then_rejected`, `then_rejected_reason`, `then_state`, `then_preconditions`).
   - `given_process_manager<P>`, `ProcessFixture`, `ProcessDecision` — Stateful saga and timer tests (`when_event`, `when_timer`, `when_timer_named`, `then_emits`, `then_emits_command`, `then_set_timer`, `then_set_timers`, `then_cancel_timer`, `then_cancel_timers`, `then_state`, `then_state_json`, `then_ended`).
@@ -56,7 +57,7 @@
 ## Side Effects
 - **Store Persistence & Projections** (`src/bounded_context/`, `src/integration/`, `src/runtime/`): Reads and appends events, checkpoints (`/checkpoints/...`), process-manager snapshots/outboxes (`/process-managers/...`), and timer events (`/<domain>/<pm>/timers/...`) via `architecturekit::Store`; `DomainBuilder::build` starts background `ReadModel` and `EventConsumer` projections, awaits initial `architecturekit::wait_caught_up`, and cancels supervised projections on final `DomainRuntime` drop.
 - **Async Tasks, Channels & Timers** (`src/integration/timer_scheduler.rs`, `src/runtime/domain.rs`): Spawns Tokio timer tasks (`tokio::time::sleep`), awaits a single attached `Presentation` directly or runs multiple `Presentation`s concurrently on a `tokio::task::JoinSet` (aborting peers on first error or panic), and streams raw store events over unbounded MPSC channels via `DomainRuntime::subscribe_events()`.
-- **Entropy & Synchronized Views** (`src/common/identified.rs`, `src/bounded_context/read_model.rs`, `src/testing.rs`): `resolve_subject` invokes OS CSPRNG (`Uuid::new_v4()`) for generated IDs without an explicit `"id"` field; `DocumentView` mutates synchronized `architecturekit::InMemoryView` state; `chromatofoor::testing` runs purely in-memory.
+- **Entropy & Synchronized Views** (`src/common/identified.rs`, `src/bounded_context/read_model.rs`, `src/runtime/in_memory_store.rs`, `src/testing.rs`): `resolve_subject` invokes OS CSPRNG (`Uuid::new_v4()`) for generated IDs without an explicit `"id"` field; `DocumentView` mutates synchronized `architecturekit::InMemoryView` state; `InMemoryEventStore` synchronizes in-memory events/schemas via `Mutex` and broadcasts writes via `tokio::sync::watch` (stamping wall-clock `Utc::now()` timestamps); `chromatofoor::testing` runs purely in-memory.
 
 ## Verification
 ```bash

@@ -134,8 +134,8 @@ dependencies = [
 
 [[package]]
 name = "architecturekit"
-version = "0.24.0"
-source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=ceb7696ff12d7e3b622f883b3de4eab0b27361cf#ceb7696ff12d7e3b622f883b3de4eab0b27361cf"
+version = "1.0.1"
+source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=a534b921a2f184d3ccb30bee9ed12ef39ef438f8#a534b921a2f184d3ccb30bee9ed12ef39ef438f8"
 dependencies = [
  "architecturekit-macros",
  "chrono",
@@ -152,8 +152,8 @@ dependencies = [
 
 [[package]]
 name = "architecturekit-macros"
-version = "0.24.0"
-source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=ceb7696ff12d7e3b622f883b3de4eab0b27361cf#ceb7696ff12d7e3b622f883b3de4eab0b27361cf"
+version = "1.0.1"
+source = "git+https://github.com/nanderstabel/architecturekit-rust?rev=a534b921a2f184d3ccb30bee9ed12ef39ef438f8#a534b921a2f184d3ccb30bee9ed12ef39ef438f8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -311,15 +311,6 @@ dependencies = [
  "gobject-sys",
  "libc",
  "system-deps",
-]
-
-[[package]]
-name = "atomic"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a89cbf775b137e9b968e67227ef7f775587cde3fd31b0d8599dbd0f598a48340"
-dependencies = [
- "bytemuck",
 ]
 
 [[package]]
@@ -1467,7 +1458,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1691,7 +1682,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1717,9 +1708,9 @@ dependencies = [
 
 [[package]]
 name = "eventsourcingdb"
-version = "4.0.4"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5af1ad801415172fadc80aeb95acc39b604afb135193989a5164ba55b62ca33"
+checksum = "b8697e53ff2e84d8ef866f3e5187e498929c6acbbfbd1d651526961ee86e119d"
 dependencies = [
  "bytes",
  "chrono",
@@ -4202,7 +4193,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4653,7 +4644,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4710,7 +4701,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5753,7 +5744,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6452,11 +6443,10 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.23.3"
+version = "1.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "144d6b123cef80b301b8f72a9e2ca4370ddec21950d0a103dd22c437006d2db7"
+checksum = "3c14b15dffa2f4bd712103e857140aa04a4f2ff6e955c77d7eb8e53ee02a3b64"
 dependencies = [
- "atomic",
  "getrandom 0.4.2",
  "js-sys",
  "serde_core",
@@ -6911,7 +6901,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -34,7 +34,7 @@ impl Domain {
     pub async fn build()
     -> Result<chromatofoor::domain::DomainRuntime, Box<dyn std::error::Error + Send + Sync>> {
         let store = chromatofoor::architecturekit::Store::builder(
-            chromatofoor::architecturekit::InMemoryEventStore::new(),
+            chromatofoor::InMemoryEventStore::new(),
             "https://chromatofoor.local",
         )
         .build();

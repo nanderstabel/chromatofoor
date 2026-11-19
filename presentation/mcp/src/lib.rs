@@ -9,9 +9,8 @@
 //! ```
 //! use std::sync::Arc;
 //! use chromatofoor::{
-//!     architecturekit::{
-//!         self, Envelope, InMemoryEventStore, InMemoryView, KeyedView, Store, ViewError,
-//!     },
+//!     InMemoryEventStore,
+//!     architecturekit::{self, Envelope, InMemoryView, KeyedView, Store, ViewError},
 //!     bounded_context::{Command, Event, Project, Query},
 //!     domain::DomainBuilder,
 //! };
@@ -1003,9 +1002,8 @@ mod tests {
     use std::sync::Arc;
 
     use chromatofoor::{
-        architecturekit::{
-            Envelope, InMemoryEventStore, InMemoryView, KeyedView, Store, ViewError,
-        },
+        InMemoryEventStore,
+        architecturekit::{Envelope, InMemoryView, KeyedView, Store, ViewError},
         bounded_context::{Command, Event, Project, Query},
         domain::DomainBuilder,
     };

@@ -205,7 +205,7 @@ Alongside propagating domain descriptions from `.esdm.yaml` into generated code 
 ## Subdirectories & System Boundaries
 
 - **Core Compiler & Runtime Crates**:
-  - [`chromatofoor/`](./chromatofoor/README.md): Pure-functional DDD/CQRS/ES runtime (`Aggregate`, `DynamicConsistencyBoundary`, `Command`, `Event`, `ReadModel`, `DocumentView`, `Query`, `Policy`, `EventHandler`, `ProcessManager`, `DomainBuilder`, `DomainRuntime`, `ProblemDetails`, `testing`).
+  - [`chromatofoor/`](./chromatofoor/README.md): Pure-functional DDD/CQRS/ES runtime (`Aggregate`, `DynamicConsistencyBoundary`, `Command`, `Event`, `ReadModel`, `DocumentView`, `Query`, `Policy`, `EventHandler`, `ProcessManager`, `DomainBuilder`, `DomainRuntime`, `InMemoryEventStore`, `ProblemDetails`, `testing`).
   - [`chromatofoor-derive/`](./chromatofoor-derive/README.md): Procedural attribute macros (`#[chromatofoor::<kind>]`) enforcing compile-time scope hierarchy, `Identified` field validation, lifecycle preconditions, and `Authorized` actor checks.
   - [`esdm/`](./esdm/README.md): ESDM YAML AST, JSON Schema validation (`schemas/`), and cross-document semantic linter (`esdm::lint`).
   - [`chromatofoor-gen/`](./chromatofoor-gen/README.md): Deterministic workspace, domain, integration, BDD test, presentation, and TypeScript SDK generator (plus `chromatofoor-gen visualize` interactive domain graph server).

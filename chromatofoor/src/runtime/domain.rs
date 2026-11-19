@@ -55,7 +55,8 @@ type BoxPresentationFuture = Pin<Box<dyn Future<Output = Result<(), BoxError>> +
 /// #     atomic::{AtomicUsize, Ordering as AtomicOrdering},
 /// # };
 /// # use chromatofoor::{
-/// #     architecturekit::{InMemoryEventStore, Store},
+/// #     InMemoryEventStore,
+/// #     architecturekit::Store,
 /// #     bounded_context::{Command, Event},
 /// #     common::Identifier,
 /// #     runtime::{DomainBuilder, DomainRuntime, Presentation},

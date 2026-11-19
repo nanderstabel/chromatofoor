@@ -16,6 +16,7 @@ pub use chromatofoor_derive::{
 pub use chrono;
 pub use common::{Identifier, Problem, ProblemDetails, SubjectSegment, SubjectSegmentError};
 pub use constcat;
+pub use runtime::InMemoryEventStore;
 pub use serde;
 pub use serde_json;
 pub use tracing;

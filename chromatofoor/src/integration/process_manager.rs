@@ -412,9 +412,9 @@ pub trait ProcessCommand: Clone + std::fmt::Debug + PartialEq + Send + Sync + 's
 /// #     }
 /// # }
 /// # use std::sync::Arc;
+/// # use chromatofoor::InMemoryEventStore;
 /// # use chromatofoor::architecturekit::{
-/// #     CancellationToken, Envelope, EventOn, InMemoryEventStore, Precondition, Store, Subject,
-/// #     wait_caught_up,
+/// #     CancellationToken, Envelope, EventOn, Precondition, Store, Subject, wait_caught_up,
 /// # };
 /// # use chromatofoor::bounded_context::Command;
 /// # use chromatofoor::common::{Identifier, Kind, Topic};

@@ -8,7 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-architecturekit = { git = "https://github.com/nanderstabel/architecturekit-rust", rev = "ceb7696ff12d7e3b622f883b3de4eab0b27361cf", features = ["testing"] }
+architecturekit = { git = "https://github.com/nanderstabel/architecturekit-rust", rev = "a534b921a2f184d3ccb30bee9ed12ef39ef438f8", features = ["testing"] }
 chrono = { version = "0.4", features = ["serde"] }
 chromatofoor-derive = { path = "../chromatofoor-derive" }
 constcat.workspace = true

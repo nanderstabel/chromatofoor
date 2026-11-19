@@ -173,9 +173,8 @@ pub struct CancelTimer<T>(pub T);
 /// ```
 /// # use std::{sync::Arc, time::Duration};
 /// # use chromatofoor::{
-/// #     architecturekit::{
-/// #         CancellationToken, Envelope, InMemoryEventStore, Store, Subject, wait_caught_up,
-/// #     },
+/// #     InMemoryEventStore,
+/// #     architecturekit::{CancellationToken, Envelope, Store, Subject, wait_caught_up},
 /// #     bounded_context::Command,
 /// #     chrono::{DateTime, TimeDelta, Utc},
 /// #     common::Identifier,

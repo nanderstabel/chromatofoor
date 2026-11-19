@@ -189,8 +189,8 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        self as chromatofoor,
-        architecturekit::{InMemoryEventStore, Store},
+        self as chromatofoor, InMemoryEventStore,
+        architecturekit::Store,
         bounded_context::{Aggregate, Command, CommandExecutionError, Event, PreconditionFailure},
         common::Identifier,
         domain::DomainBuilder,

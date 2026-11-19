@@ -28,9 +28,10 @@ use crate::{common::Kind, domain::Domain};
 /// ```rust
 /// # use std::sync::{Arc, atomic::{AtomicUsize, Ordering as AtomicOrdering}};
 /// # use chromatofoor::{
+/// #     InMemoryEventStore,
 /// #     architecturekit::{
-/// #         CancellationToken, DomainError, Envelope, EventOn, InMemoryEventStore,
-/// #         Precondition, Store, Subject, wait_caught_up,
+/// #         CancellationToken, DomainError, Envelope, EventOn, Precondition, Store, Subject,
+/// #         wait_caught_up,
 /// #     },
 /// #     integration::{DeliveryGuarantee, EventConsumer, Idempotency, IdempotencyOwner},
 /// # };
@@ -105,9 +106,10 @@ use crate::{common::Kind, domain::Domain};
 /// ```rust
 /// # use std::sync::{Arc, atomic::{AtomicUsize, Ordering as AtomicOrdering}};
 /// # use chromatofoor::{
+/// #     InMemoryEventStore,
 /// #     architecturekit::{
-/// #         CancellationToken, DomainError, Envelope, EventOn, InMemoryEventStore,
-/// #         Precondition, Store, Subject, wait_caught_up,
+/// #         CancellationToken, DomainError, Envelope, EventOn, Precondition, Store, Subject,
+/// #         wait_caught_up,
 /// #     },
 /// #     integration::{DeliveryGuarantee, EventConsumer},
 /// # };

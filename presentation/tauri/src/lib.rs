@@ -8,7 +8,8 @@
 //! ```
 //! use std::sync::Arc;
 //! use chromatofoor::{
-//!     architecturekit::{InMemoryEventStore, Store},
+//!     InMemoryEventStore,
+//!     architecturekit::Store,
 //!     domain::DomainBuilder,
 //! };
 //! use chromatofoor_tauri::DomainState;

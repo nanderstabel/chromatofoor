@@ -36,9 +36,9 @@ pub enum ExternalDirection {
 /// ```
 /// # use std::sync::{Arc, Mutex};
 /// # use chromatofoor::{
+/// #     InMemoryEventStore,
 /// #     architecturekit::{
-/// #         CancellationToken, DomainError, Envelope, InMemoryEventStore, Store, Subject,
-/// #         wait_caught_up,
+/// #         CancellationToken, DomainError, Envelope, Store, Subject, wait_caught_up,
 /// #     },
 /// #     bounded_context::{Actor, Authorized, Command},
 /// #     common::{Identifier, Kind, Topic},
