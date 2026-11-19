@@ -287,8 +287,8 @@ pub mod commands {
 
     #[tauri::command]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn window_control(
-        #[allow(unused_variables)] window: tauri::WebviewWindow,
+    pub fn window_control<R: tauri::Runtime>(
+        #[allow(unused_variables)] window: tauri::WebviewWindow<R>,
         action: String,
     ) -> Result<bool, String> {
         match action.as_str() {

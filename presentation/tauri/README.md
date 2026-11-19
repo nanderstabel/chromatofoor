@@ -13,7 +13,7 @@
   - `async fn execute_query(query_name: String, params: Value, metadata: Option<HashMap<String, String>>, state: State<'_, DomainState>) -> Result<Value, ProblemDetails>` — Dispatches dot-delimited `"ctx.query"`.
   - `async fn get_schema(state: State<'_, DomainState>) -> Result<Value, String>` — Returns `state.dispatcher.catalog_json()`.
   - `async fn get_events(state: State<'_, DomainState>) -> Result<Vec<Value>, String>` — Collects and returns a caught-up snapshot of all domain events under `domain_topic()` (propagating catch-up errors).
-  - `fn window_control(window: WebviewWindow, action: String) -> Result<bool, String>` — Executes `"drag"`, `"minimize"`, `"toggle_maximize"`, or `"close"`.
+  - `fn window_control<R: Runtime>(window: WebviewWindow<R>, action: String) -> Result<bool, String>` — Executes `"drag"`, `"minimize"`, `"toggle_maximize"`, or `"close"`.
 
 ## Invariants
 - **Strict Rust Safety & Lint Baseline** (`Cargo.toml`): Inherits workspace lints enforcing `#![deny(unsafe_code)]`, `clippy::pedantic`, and `deny(unwrap_used, expect_used, panic, todo, unimplemented)` (`Presentation` is not implemented because Tauri owns the desktop event loop).

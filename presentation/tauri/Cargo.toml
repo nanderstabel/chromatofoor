@@ -9,12 +9,12 @@ publish.workspace = true
 
 [dependencies]
 chromatofoor.workspace = true
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.228", default-features = false, features = ["std", "derive"] }
 serde_json.workspace = true
-tauri = "2.11.5"
+tauri = { version = "2.11.5", default-features = false }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt", "macros"] }
+tokio.workspace = true
 
 [lints]
 workspace = true

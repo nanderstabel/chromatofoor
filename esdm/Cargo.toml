@@ -12,14 +12,14 @@ jsonschema = ["dep:schemars"]
 typescript = []
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 serde_yaml = "0.9"
-indexmap = { version = "2.2", features = ["serde"] }
+indexmap = { version = "2.2", default-features = false, features = ["std", "serde"] }
 
 # Optional dependencies for translation features
 serde_json = { workspace = true, optional = true }
 utoipa = { version = "5.0", optional = true }
-schemars = { version = "0.8", optional = true }
+schemars = { version = "0.8", default-features = false, optional = true }
 
 [lints]
 workspace = true

@@ -8,21 +8,22 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-architecturekit = { git = "https://github.com/nanderstabel/architecturekit-rust", rev = "a534b921a2f184d3ccb30bee9ed12ef39ef438f8", features = [
+architecturekit = { git = "https://github.com/nanderstabel/architecturekit-rust", rev = "a534b921a2f184d3ccb30bee9ed12ef39ef438f8", default-features = false, features = [
+    "derive",
     "testing",
 ] }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["now", "serde"] }
 chromatofoor-derive = { path = "../chromatofoor-derive" }
 constcat.workspace = true
-futures-util = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 nutype.workspace = true
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 serde_json.workspace = true
-strum = { version = "0.28", features = ["derive"] }
+strum = { version = "0.28", default-features = false, features = ["std", "derive"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-uuid = { workspace = true, features = ["v4"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
 validator.workspace = true
 
 [lints]
