@@ -9,10 +9,7 @@ use crate::generated::domain::cargo_booking::event::CargoBooked;
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
 /// Materialized shipment tracking view showing route ports and assigned voyage.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema,
-)]
-#[architecturekit(crate = "chromatofoor::architecturekit")]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::Schema)]
 pub struct CargoTrackingRecord {
     pub tracking_id: String,
     pub origin_locode: String,

@@ -224,17 +224,9 @@ pub fn generate_type_for_prop(
         });
 
         extra_structs.push(quote! {
-            #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+            #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, chromatofoor::Schema)]
             pub enum #enum_ident {
                 #(#variant_tokens),*
-            }
-            impl chromatofoor::architecturekit::Schema for #enum_ident {
-                fn schema() -> chromatofoor::serde_json::Value {
-                    chromatofoor::serde_json::json!({
-                        "type": "string",
-                        "enum": [#(#sorted_vals),*],
-                    })
-                }
             }
         });
         quote! { #enum_ident }
@@ -254,9 +246,8 @@ pub fn generate_type_for_prop(
         }
 
         extra_structs.push(quote! {
-            #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, chromatofoor::validator::Validate, chromatofoor::architecturekit::Schema)]
+            #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, chromatofoor::validator::Validate, chromatofoor::Schema)]
             #[validate(crate = "chromatofoor::validator")]
-            #[architecturekit(crate = "chromatofoor::architecturekit")]
             pub struct #struct_ident {
                 #(#inner_fields),*
             }
@@ -345,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_type_for_prop_enum_emits_manual_schema_impl() {
+    fn test_generate_type_for_prop_enum_derives_chromatofoor_schema() {
         let prop = PropertySchema {
             prop_type: Some("string".to_string()),
             enum_values: Some(vec!["pending".to_string(), "active".to_string()]),
@@ -356,9 +347,7 @@ mod tests {
         assert_eq!(ty.into_token_stream().to_string(), "OrderStatus");
         assert_eq!(structs.len(), 1);
         let generated = structs[0].to_string();
-        assert!(
-            generated.contains("impl chromatofoor :: architecturekit :: Schema for OrderStatus")
-        );
-        assert!(!generated.contains("derive (Default , Debug , Clone , serde :: Serialize , serde :: Deserialize , PartialEq , Eq , chromatofoor :: architecturekit :: Schema)"));
+        assert!(generated.contains("chromatofoor :: Schema"));
+        assert!(!generated.contains("architecturekit"));
     }
 }

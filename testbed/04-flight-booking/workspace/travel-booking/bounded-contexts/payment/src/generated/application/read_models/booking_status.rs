@@ -10,10 +10,7 @@ use crate::generated::domain::booking_payment::event::PaymentRequested;
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
 /// Materialized payment status view for travelers.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema,
-)]
-#[architecturekit(crate = "chromatofoor::architecturekit")]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::Schema)]
 pub struct BookingStatusRecord {
     pub booking_id: String,
     pub payment_status: String,

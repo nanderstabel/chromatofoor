@@ -10,10 +10,7 @@ use crate::generated::domain::shopping_cart::event::ItemAddedToCart;
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
 /// Materialized shopping cart summary displaying item count, total amount, and checkout status.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema,
-)]
-#[architecturekit(crate = "chromatofoor::architecturekit")]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::Schema)]
 pub struct CartSummaryRecord {
     pub total_amount: i64,
     pub item_count: i64,

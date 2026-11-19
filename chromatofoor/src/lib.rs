@@ -1,3 +1,5 @@
+extern crate self as chromatofoor;
+
 pub mod bounded_context;
 pub mod common;
 pub mod domain;
@@ -7,9 +9,9 @@ pub mod testing;
 
 pub use architecturekit;
 pub use chromatofoor_derive::{
-    actor, aggregate, bounded_context, command, context_mapping, domain, domain_service,
-    dynamic_consistency_boundary, entity, event, event_handler, external_system, policy,
-    process_manager, query, read_model, subdomain, value_object,
+    Events, Schema, actor, aggregate, bounded_context, command, context_mapping, domain,
+    domain_service, dynamic_consistency_boundary, entity, event, event_handler, external_system,
+    policy, process_manager, query, read_model, subdomain, value_object,
 };
 pub use chrono;
 pub use common::{Identifier, Problem, ProblemDetails, SubjectSegment, SubjectSegmentError};

@@ -253,8 +253,7 @@ pub fn generate_application(
 
                 rm_chunks.push(quote! {
                     #rm_doc
-                    #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema)]
-                    #[architecturekit(crate = "chromatofoor::architecturekit")]
+                    #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::Schema)]
                     pub struct #rm_record_ident #type_ts
 
                     #rm_doc

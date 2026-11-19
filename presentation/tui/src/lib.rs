@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```
-//! use chromatofoor::architecturekit::{self, Schema};
+//! use chromatofoor::{Schema, architecturekit::Schema as _};
 //! use serde_json::json;
 //!
 //! #[derive(Schema)]

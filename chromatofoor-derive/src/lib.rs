@@ -4,6 +4,7 @@ mod bounded_context;
 mod common;
 mod domain;
 mod integration;
+mod schema;
 
 /// Marks a type as a top-level ESDM `domain` (`Scope = ()`).
 #[proc_macro_attribute]
@@ -238,4 +239,18 @@ pub fn context_mapping(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn process_manager(attr: TokenStream, item: TokenStream) -> TokenStream {
     integration::process_manager(attr, item)
+}
+
+/// Derives `chromatofoor::architecturekit::Schema` for structs and unit-variant enums
+/// without requiring a direct `architecturekit` dependency in downstream crates.
+#[proc_macro_derive(Schema)]
+pub fn derive_schema(item: TokenStream) -> TokenStream {
+    schema::derive_schema(item)
+}
+
+/// Derives `chromatofoor::architecturekit::Events` for event sum-type enums
+/// without requiring a direct `architecturekit` dependency in downstream crates.
+#[proc_macro_derive(Events)]
+pub fn derive_events(item: TokenStream) -> TokenStream {
+    schema::derive_events(item)
 }

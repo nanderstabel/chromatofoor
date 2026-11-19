@@ -10,10 +10,7 @@ use crate::generated::domain::account::event::FundsWithdrawn;
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
 /// Materialized summary view of account owner and current balance.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema,
-)]
-#[architecturekit(crate = "chromatofoor::architecturekit")]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::Schema)]
 pub struct AccountSummaryRecord {
     pub owner_name: String,
     pub current_balance: i64,

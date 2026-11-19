@@ -1732,9 +1732,8 @@ pub fn process_manager(attr: TokenStream, item: TokenStream) -> TokenStream {
             Clone,
             Debug,
             PartialEq,
-            chromatofoor::architecturekit::Events,
+            chromatofoor::Events,
         )]
-        #[architecturekit(crate = "chromatofoor::architecturekit")]
         #vis enum #events_enum_ident {
             #(#event_variants,)*
         }

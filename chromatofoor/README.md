@@ -5,7 +5,7 @@
 
 ## Interface
 - **Crate Root Re-Exports & Helpers** (`src/lib.rs`):
-  - Re-exports all 18 `chromatofoor-derive` attribute macros (`actor`, `aggregate`, `bounded_context`, `command`, `context_mapping`, `domain`, `domain_service`, `dynamic_consistency_boundary`, `entity`, `event`, `event_handler`, `external_system`, `policy`, `process_manager`, `query`, `read_model`, `subdomain`, `value_object`).
+  - Re-exports all 18 `chromatofoor-derive` attribute macros (`actor`, `aggregate`, `bounded_context`, `command`, `context_mapping`, `domain`, `domain_service`, `dynamic_consistency_boundary`, `entity`, `event`, `event_handler`, `external_system`, `policy`, `process_manager`, `query`, `read_model`, `subdomain`, `value_object`) plus the `Schema` and `Events` derive macros.
   - Re-exports `common::{Identifier, Problem, ProblemDetails, SubjectSegment, SubjectSegmentError}`, `subject_for<A: Kind>(id) -> architecturekit::Subject`, and foundational crates (`architecturekit`, `chrono`, `constcat`, `serde`, `serde_json`, `tracing`, `uuid`, `validator`).
 - **Common Identity, Problem Details, Scope & Topic Primitives** (`src/common/`):
   - `Kind` (`src/common/kind.rs`) — Core static metadata trait (`Scope`, `KIND`, `NAME`, `TOPIC`, `DESCRIPTION`, `topic(&self)`).

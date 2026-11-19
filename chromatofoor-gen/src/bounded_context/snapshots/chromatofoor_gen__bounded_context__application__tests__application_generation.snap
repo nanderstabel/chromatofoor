@@ -1,5 +1,6 @@
 ---
 source: chromatofoor-gen/src/bounded_context/application.rs
+assertion_line: 727
 expression: rm_rs
 ---
 // ⚠️ DO NOT EDIT ⚠️
@@ -11,16 +12,7 @@ use crate::generated::domain::test_agg::event::TestCreated;
 #[allow(unused_imports)]
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    Default,
-    PartialEq,
-    chromatofoor::architecturekit::Schema
-)]
-#[architecturekit(crate = "chromatofoor::architecturekit")]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::Schema)]
 pub struct TestReadModelRecord {
     pub id: uuid::Uuid,
 }

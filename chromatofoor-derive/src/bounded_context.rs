@@ -276,9 +276,8 @@ pub fn dynamic_consistency_boundary(attr: TokenStream, item: TokenStream) -> Tok
             Clone,
             Debug,
             PartialEq,
-            chromatofoor::architecturekit::Events,
+            chromatofoor::Events,
         )]
-        #[architecturekit(crate = "chromatofoor::architecturekit")]
         #vis enum #event_enum_ident {
             #(#variants),*
         }
@@ -410,10 +409,9 @@ pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
                             PartialEq,
                             chromatofoor::serde::Serialize,
                             chromatofoor::serde::Deserialize,
-                            chromatofoor::architecturekit::Schema,
+                            chromatofoor::Schema,
                         )]
                         #[serde(crate = "chromatofoor::serde")]
-                        #[architecturekit(crate = "chromatofoor::architecturekit")]
                         #vis struct #v_ident {
                             #fields
                         }
@@ -453,10 +451,9 @@ pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
                             PartialEq,
                             chromatofoor::serde::Serialize,
                             chromatofoor::serde::Deserialize,
-                            chromatofoor::architecturekit::Schema,
+                            chromatofoor::Schema,
                         )]
                         #[serde(crate = "chromatofoor::serde")]
-                        #[architecturekit(crate = "chromatofoor::architecturekit")]
                         #vis struct #v_ident {}
 
                         #kind_impl
@@ -509,17 +506,17 @@ pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
             });
         }
 
-        item_enum.attrs.push(syn::parse_quote! {
-            #[derive(
-                Clone,
-                Debug,
-                PartialEq,
-                chromatofoor::architecturekit::Events,
-            )]
-        });
-        item_enum.attrs.push(syn::parse_quote! {
-            #[architecturekit(crate = "chromatofoor::architecturekit")]
-        });
+        item_enum.attrs.insert(
+            0,
+            syn::parse_quote! {
+                #[derive(
+                    Clone,
+                    Debug,
+                    PartialEq,
+                    chromatofoor::Events,
+                )]
+            },
+        );
 
         return quote! {
             const _: fn() = || {
@@ -564,21 +561,21 @@ pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[validate(crate = "chromatofoor::validator")]
         });
     }
-    input.attrs.push(syn::parse_quote! {
-        #[derive(
-            Clone,
-            Debug,
-            PartialEq,
-            chromatofoor::serde::Serialize,
-            chromatofoor::serde::Deserialize,
-            chromatofoor::architecturekit::Schema,
-        )]
-    });
+    input.attrs.insert(
+        0,
+        syn::parse_quote! {
+            #[derive(
+                Clone,
+                Debug,
+                PartialEq,
+                chromatofoor::serde::Serialize,
+                chromatofoor::serde::Deserialize,
+                chromatofoor::Schema,
+            )]
+        },
+    );
     input.attrs.push(syn::parse_quote! {
         #[serde(crate = "chromatofoor::serde")]
-    });
-    input.attrs.push(syn::parse_quote! {
-        #[architecturekit(crate = "chromatofoor::architecturekit")]
     });
 
     quote! {
@@ -1109,28 +1106,34 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
         let needs_validate_crate_attr =
             (attr_validate || had_validate_derive) && !has_validate_crate_attr(&input.attrs);
         if needs_validate_derive {
-            input.attrs.push(syn::parse_quote! {
-                #[derive(
-                    Clone,
-                    Debug,
-                    PartialEq,
-                    chromatofoor::serde::Serialize,
-                    chromatofoor::serde::Deserialize,
-                    chromatofoor::architecturekit::Schema,
-                    chromatofoor::validator::Validate,
-                )]
-            });
+            input.attrs.insert(
+                0,
+                syn::parse_quote! {
+                    #[derive(
+                        Clone,
+                        Debug,
+                        PartialEq,
+                        chromatofoor::serde::Serialize,
+                        chromatofoor::serde::Deserialize,
+                        chromatofoor::Schema,
+                        chromatofoor::validator::Validate,
+                    )]
+                },
+            );
         } else {
-            input.attrs.push(syn::parse_quote! {
-                #[derive(
-                    Clone,
-                    Debug,
-                    PartialEq,
-                    chromatofoor::serde::Serialize,
-                    chromatofoor::serde::Deserialize,
-                    chromatofoor::architecturekit::Schema,
-                )]
-            });
+            input.attrs.insert(
+                0,
+                syn::parse_quote! {
+                    #[derive(
+                        Clone,
+                        Debug,
+                        PartialEq,
+                        chromatofoor::serde::Serialize,
+                        chromatofoor::serde::Deserialize,
+                        chromatofoor::Schema,
+                    )]
+                },
+            );
         }
         if needs_validate_crate_attr {
             input.attrs.push(syn::parse_quote! {
@@ -1139,9 +1142,6 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
         input.attrs.push(syn::parse_quote! {
             #[serde(crate = "chromatofoor::serde")]
-        });
-        input.attrs.push(syn::parse_quote! {
-            #[architecturekit(crate = "chromatofoor::architecturekit")]
         });
         let validate_trait_import = if attr_validate || had_validate_derive {
             quote! {
@@ -1256,19 +1256,18 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
                     attr_validate,
                 );
                 generated_structs.push(quote! {
-                    #(#v_attrs)*
                     #[derive(
                         Clone,
                         Debug,
                         PartialEq,
                         chromatofoor::serde::Serialize,
                         chromatofoor::serde::Deserialize,
-                        chromatofoor::architecturekit::Schema,
+                        chromatofoor::Schema,
                         #v_extra_validate_derive
                     )]
+                    #(#v_attrs)*
                     #v_extra_validate_crate_attr
                     #[serde(crate = "chromatofoor::serde")]
-                    #[architecturekit(crate = "chromatofoor::architecturekit")]
                     #vis struct #v_ident {
                         #fields
                     }
@@ -1290,19 +1289,18 @@ pub fn command(attr: TokenStream, item: TokenStream) -> TokenStream {
                 let cmd_impl =
                     command_impl_block(&v_ident, &scope_ty, &[], v_is_create, attr_validate);
                 generated_structs.push(quote! {
-                    #(#v_attrs)*
                     #[derive(
                         Clone,
                         Debug,
                         PartialEq,
                         chromatofoor::serde::Serialize,
                         chromatofoor::serde::Deserialize,
-                        chromatofoor::architecturekit::Schema,
+                        chromatofoor::Schema,
                         #v_extra_validate_derive
                     )]
+                    #(#v_attrs)*
                     #v_extra_validate_crate_attr
                     #[serde(crate = "chromatofoor::serde")]
-                    #[architecturekit(crate = "chromatofoor::architecturekit")]
                     #vis struct #v_ident {}
 
                     #kind_impl
@@ -1665,21 +1663,21 @@ pub fn query(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[validate(crate = "chromatofoor::validator")]
         });
     }
-    input.attrs.push(syn::parse_quote! {
-        #[derive(
-            Clone,
-            Debug,
-            PartialEq,
-            chromatofoor::serde::Serialize,
-            chromatofoor::serde::Deserialize,
-            chromatofoor::architecturekit::Schema,
-        )]
-    });
+    input.attrs.insert(
+        0,
+        syn::parse_quote! {
+            #[derive(
+                Clone,
+                Debug,
+                PartialEq,
+                chromatofoor::serde::Serialize,
+                chromatofoor::serde::Deserialize,
+                chromatofoor::Schema,
+            )]
+        },
+    );
     input.attrs.push(syn::parse_quote! {
         #[serde(crate = "chromatofoor::serde")]
-    });
-    input.attrs.push(syn::parse_quote! {
-        #[architecturekit(crate = "chromatofoor::architecturekit")]
     });
 
     quote! {
@@ -1738,21 +1736,21 @@ pub fn entity(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[validate(crate = "chromatofoor::validator")]
         });
     }
-    input.attrs.push(syn::parse_quote! {
-        #[derive(
-            Clone,
-            Debug,
-            PartialEq,
-            chromatofoor::serde::Serialize,
-            chromatofoor::serde::Deserialize,
-            chromatofoor::architecturekit::Schema,
-        )]
-    });
+    input.attrs.insert(
+        0,
+        syn::parse_quote! {
+            #[derive(
+                Clone,
+                Debug,
+                PartialEq,
+                chromatofoor::serde::Serialize,
+                chromatofoor::serde::Deserialize,
+                chromatofoor::Schema,
+            )]
+        },
+    );
     input.attrs.push(syn::parse_quote! {
         #[serde(crate = "chromatofoor::serde")]
-    });
-    input.attrs.push(syn::parse_quote! {
-        #[architecturekit(crate = "chromatofoor::architecturekit")]
     });
 
     quote! {
@@ -1767,19 +1765,18 @@ pub fn entity(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Marks a struct or unit-variant enum as an ESDM `value-object` scoped to a `BoundedContext`.
 ///
 /// Automatically derives `Clone`, `Debug`, `PartialEq`, `serde::Serialize`,
-/// `serde::Deserialize`, and implements `architecturekit::Schema` (via derive on structs
-/// and string-enum schema generation on unit-variant enums).
+/// `serde::Deserialize`, and `chromatofoor::Schema` (implementing `architecturekit::Schema`).
 ///
 /// # Attributes
 /// - `scope = <BoundedContext>` *(required)*: The bounded context this value object belongs to.
 pub fn value_object(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ScopeAttr { scope: scope_ty } = parse_macro_input!(attr as ScopeAttr);
     let mut input = parse_macro_input!(item as DeriveInput);
-    let ident = input.ident.clone();
+    let ident = &input.ident;
     let name_str = ident.to_string().to_case(Case::Kebab);
     let description_str = extract_doc_string(&input.attrs);
     let kind_impl = child_kind_impl(
-        &ident,
+        ident,
         &scope_ty,
         "value-object",
         &name_str,
@@ -1791,72 +1788,26 @@ pub fn value_object(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[validate(crate = "chromatofoor::validator")]
         });
     }
-
-    let extra_schema_impl = match &input.data {
-        syn::Data::Struct(_) => {
-            input.attrs.insert(
-                0,
-                syn::parse_quote! {
-                    #[derive(
-                        Clone,
-                        Debug,
-                        PartialEq,
-                        chromatofoor::serde::Serialize,
-                        chromatofoor::serde::Deserialize,
-                        chromatofoor::architecturekit::Schema,
-                    )]
-                },
-            );
-            input.attrs.push(syn::parse_quote! {
-                #[serde(crate = "chromatofoor::serde")]
-            });
-            input.attrs.push(syn::parse_quote! {
-                #[architecturekit(crate = "chromatofoor::architecturekit")]
-            });
-            quote! {}
-        }
-        syn::Data::Enum(data_enum) => {
-            if let Some(param) = input.generics.params.first() {
-                return syn::Error::new_spanned(param, "a value_object enum can not be generic")
-                    .to_compile_error()
-                    .into();
-            }
-            let schema_impl =
-                match crate::common::unit_enum_schema_impl(&ident, &input.attrs, data_enum) {
-                    Ok(ts) => ts,
-                    Err(err) => return err.to_compile_error().into(),
-                };
-            input.attrs.insert(
-                0,
-                syn::parse_quote! {
-                    #[derive(
-                        Clone,
-                        Debug,
-                        PartialEq,
-                        chromatofoor::serde::Serialize,
-                        chromatofoor::serde::Deserialize,
-                    )]
-                },
-            );
-            input.attrs.push(syn::parse_quote! {
-                #[serde(crate = "chromatofoor::serde")]
-            });
-            schema_impl
-        }
-        syn::Data::Union(data_union) => {
-            return syn::Error::new(
-                data_union.union_token.span,
-                "the schema of a union can not be derived; implement architecturekit::Schema by hand",
-            )
-            .to_compile_error()
-            .into();
-        }
-    };
+    input.attrs.insert(
+        0,
+        syn::parse_quote! {
+            #[derive(
+                Clone,
+                Debug,
+                PartialEq,
+                chromatofoor::serde::Serialize,
+                chromatofoor::serde::Deserialize,
+                chromatofoor::Schema,
+            )]
+        },
+    );
+    input.attrs.push(syn::parse_quote! {
+        #[serde(crate = "chromatofoor::serde")]
+    });
 
     quote! {
         #input
         #kind_impl
-        #extra_schema_impl
         impl chromatofoor::bounded_context::ValueObject for #ident {}
     }
     .into()
@@ -1957,9 +1908,8 @@ pub(crate) fn build_events_enum_and_dispatch(
             Clone,
             Debug,
             PartialEq,
-            chromatofoor::architecturekit::Events,
+            chromatofoor::Events,
         )]
-        #[architecturekit(crate = "chromatofoor::architecturekit")]
         #vis enum #events_enum_ident {
             #(#variants,)*
         }

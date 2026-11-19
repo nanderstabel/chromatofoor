@@ -11,10 +11,7 @@ use crate::generated::domain::student_course_enrollment::event::StudentEnrolled;
 use chromatofoor::validator::Validate;
 use serde::{Deserialize, Serialize};
 /// Materialized course roster tracking capacity and active enrolled count per course.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::architecturekit::Schema,
-)]
-#[architecturekit(crate = "chromatofoor::architecturekit")]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, chromatofoor::Schema)]
 pub struct CourseRosterRecord {
     pub course_id: String,
     pub title: String,

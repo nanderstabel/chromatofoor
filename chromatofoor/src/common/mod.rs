@@ -1,6 +1,8 @@
 pub mod identified;
 pub mod kind;
 pub mod problem;
+#[doc(hidden)]
+pub mod schema;
 pub mod scope;
 pub mod topic;
 
