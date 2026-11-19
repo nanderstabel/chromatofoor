@@ -336,6 +336,7 @@ pub fn list_resource_templates(runtime: &DomainRuntime) -> Vec<Value> {
         .collect()
 }
 
+#[allow(clippy::result_large_err)]
 async fn read_esdm_resource(
     runtime: &DomainRuntime,
     uri: &str,
@@ -1095,12 +1096,8 @@ mod tests {
         type Error = String;
 
         async fn execute(self, read_model: &AccountDirectory) -> Result<Self::Output, Self::Error> {
-            read_model
-                .accounts
-                .get(&self.account_id)
-                .await
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| format!("account `{}` not found", self.account_id))
+            let Ok(account) = read_model.accounts.get(&self.account_id).await;
+            account.ok_or_else(|| format!("account `{}` not found", self.account_id))
         }
     }
 

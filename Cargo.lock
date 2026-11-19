@@ -788,7 +788,6 @@ dependencies = [
 name = "chromatofoor-http"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "axum",
  "chromatofoor",
  "http-body-util",
@@ -835,7 +834,6 @@ dependencies = [
 name = "chromatofoor-tui"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "chromatofoor",
  "crossterm",
  "ratatui",

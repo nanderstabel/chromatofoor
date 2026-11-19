@@ -349,6 +349,6 @@ mod tests {
             )
             .await
             .expect("idempotent 0-event mutation on existing aggregate must succeed");
-        assert!(noop_events.is_empty());
+        assert_eq!(noop_events.len(), 0);
     }
 }

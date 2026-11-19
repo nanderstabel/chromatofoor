@@ -128,6 +128,7 @@ pub mod commands {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     #[tauri::command]
     pub async fn dispatch_command(
         ctx: String,
@@ -154,6 +155,7 @@ pub mod commands {
         }))
     }
 
+    #[allow(clippy::result_large_err)]
     #[tauri::command]
     pub async fn query_read_model(
         ctx: String,
@@ -179,6 +181,7 @@ pub mod commands {
             .map_err(|e| e.to_problem())
     }
 
+    #[allow(clippy::result_large_err)]
     #[tauri::command]
     pub async fn execute_command(
         command_name: String,
@@ -222,6 +225,7 @@ pub mod commands {
         }))
     }
 
+    #[allow(clippy::result_large_err)]
     #[tauri::command]
     pub async fn execute_query(
         query_name: String,

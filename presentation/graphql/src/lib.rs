@@ -902,7 +902,7 @@ mod tests {
             Some("guest"),
         )
         .await;
-        assert!(!unauthorized.errors.is_empty());
+        assert_ne!(unauthorized.errors.len(), 0);
 
         // 2. Authorized actor with nested InputObject succeeds
         let authorized = execute_as(
@@ -1004,7 +1004,7 @@ mod tests {
         let (_type_ref, shape, objects) =
             type_mapper::build_query_output_type("CyclicTree", &cyclic_schema);
         assert!(matches!(shape, type_mapper::OutputShape::Object));
-        assert!(!objects.is_empty());
+        assert_ne!(objects.len(), 0);
     }
 
     #[cfg(feature = "http")]

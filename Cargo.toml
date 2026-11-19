@@ -55,13 +55,12 @@ assigning_clones = "allow"
 format_push_string = "allow"
 used_underscore_binding = "allow"
 unused_async = "allow"
+unused_async_trait_impl = "allow"
 match_same_arms = "allow"
 ref_option = "allow"
 
 [workspace.dependencies]
 anyhow = "1.0"
-async-trait = "0.1"
-derive_more = { version = "2.1", features = ["full"] }
 chromatofoor = { path = "chromatofoor" }
 constcat = "0.6"
 esdm = { path = "esdm" }
@@ -69,14 +68,7 @@ nutype = { version = "0.6", features = ["serde"] }
 thiserror = "2.0"
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
-regex = "1.10"
 serde_json = "1.0"
-tracing-subscriber = "0.3"
-tracing-test = "0.2"
 validator = { version = "0.19", features = ["derive"] }
 chromatofoor-http = { path = "presentation/http" }
-chromatofoor-graphql = { path = "presentation/graphql", features = ["axum"] }
-chromatofoor-mcp = { path = "presentation/mcp" }
-chromatofoor-tui = { path = "presentation/tui" }
-chromatofoor-tauri = { path = "presentation/tauri" }
 uuid = "1.4"

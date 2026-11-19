@@ -12,7 +12,6 @@ default = ["ui"]
 ui = []
 
 [dependencies]
-anyhow.workspace = true
 axum = "0.8"
 chromatofoor.workspace = true
 serde = { version = "1.0", features = ["derive"] }

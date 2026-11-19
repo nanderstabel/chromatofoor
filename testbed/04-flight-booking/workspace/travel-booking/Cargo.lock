@@ -361,7 +361,6 @@ dependencies = [
 name = "chromatofoor-tui"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "chromatofoor",
  "crossterm",
  "ratatui",

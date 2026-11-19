@@ -1296,7 +1296,7 @@ mod tests {
         assert_eq!(history_resp.status(), StatusCode::OK);
         let history_bytes = history_resp.into_body().collect().await.unwrap().to_bytes();
         let history: Vec<Value> = serde_json::from_slice(&history_bytes).unwrap();
-        assert!(!history.is_empty());
+        assert_ne!(history.len(), 0);
         assert_eq!(history[0]["event_name"], "invoice-created");
         assert_eq!(history[0]["instance_id"], "inv-100");
 

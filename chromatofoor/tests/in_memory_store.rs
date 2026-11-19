@@ -387,7 +387,7 @@ async fn reads_with_bounds_ordering_and_from_latest_event_in_memory() {
         .try_collect()
         .await
         .expect("stream succeeds");
-    assert!(empty.is_empty());
+    assert_eq!(empty.len(), 0);
 }
 
 struct TotalsProjection {

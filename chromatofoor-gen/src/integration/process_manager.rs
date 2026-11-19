@@ -1079,7 +1079,7 @@ mod tests {
         assert!(manual_rs.contains("OnEvent<BillingInvoiceCreated> for OrderSaga"));
         assert!(manual_rs.contains("OnTimer<FirstTimer> for OrderSaga"));
         assert!(manual_rs.contains("OnTimer<SecondTimer> for OrderSaga"));
-        assert!(!parsed.items.is_empty());
+        assert_ne!(parsed.items.len(), 0);
 
         // Verify endsWhen produces todo!() in has_ended when present vs false when absent
         let pm_ends = EsdmDoc {
